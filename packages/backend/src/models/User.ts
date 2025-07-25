@@ -42,9 +42,9 @@ export class UserModel {
       }
 
       return result.rows[0];
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle database constraint errors
-      if (error.code) {
+      if (error && typeof error === 'object' && 'code' in error) {
         throw handleDatabaseError(error);
       }
 
@@ -67,7 +67,7 @@ export class UserModel {
 
       const result = (await Database.query(query, [id])) as { rows: User[] };
       return result.rows[0] || null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof ValidationError) {
         throw error;
       }
@@ -92,7 +92,7 @@ export class UserModel {
         rows: User[];
       };
       return result.rows[0] || null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof ValidationError) {
         throw error;
       }
@@ -119,7 +119,7 @@ export class UserModel {
         rows: (User & { password_hash: string })[];
       };
       return result.rows[0] || null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof ValidationError) {
         throw error;
       }
@@ -145,7 +145,7 @@ export class UserModel {
 
       // Build dynamic update query
       const updateFields: string[] = [];
-      const values: any[] = [];
+      const values: (string | UserRole)[] = [];
       let paramIndex = 1;
 
       if (validatedUpdates.email) {
@@ -187,9 +187,9 @@ export class UserModel {
       }
 
       return result.rows[0];
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle database constraint errors
-      if (error.code) {
+      if (error && typeof error === 'object' && 'code' in error) {
         throw handleDatabaseError(error);
       }
 
@@ -245,7 +245,7 @@ export class UserModel {
       `;
 
       await Database.query(updateQuery, [newPasswordHash, id]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof ValidationError || error instanceof NotFoundError) {
         throw error;
       }
@@ -268,7 +268,7 @@ export class UserModel {
       // For now, we'll do a hard delete. In production, you might want soft delete
       const query = `DELETE FROM users WHERE id = $1`;
       await Database.query(query, [id]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof ValidationError || error instanceof NotFoundError) {
         throw error;
       }
@@ -335,7 +335,7 @@ export class UserModel {
           totalPages: Math.ceil(total / validLimit),
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw handleDatabaseError(error);
     }
   }
@@ -345,10 +345,10 @@ export class UserModel {
     try {
       const query = `SELECT 1 FROM users WHERE email = $1 LIMIT 1`;
       const result = (await Database.query(query, [email.toLowerCase()])) as {
-        rows: any[];
+        rows: Record<string, unknown>[];
       };
       return result.rows.length > 0;
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw handleDatabaseError(error);
     }
   }
@@ -358,10 +358,10 @@ export class UserModel {
     try {
       const query = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`;
       const result = (await Database.query(query, [username])) as {
-        rows: any[];
+        rows: Record<string, unknown>[];
       };
       return result.rows.length > 0;
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw handleDatabaseError(error);
     }
   }
@@ -391,7 +391,7 @@ export class UserModel {
       });
 
       return counts;
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw handleDatabaseError(error);
     }
   }

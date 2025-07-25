@@ -126,10 +126,12 @@ export const validateData = <T>(data: unknown, schema: Joi.ObjectSchema): T => {
   });
 
   if (error) {
-    const validationErrors = error.details.map((detail) => ({
-      field: detail.path.join('.'),
-      message: detail.message,
-    }));
+    const validationErrors = error.details.map(
+      (detail: { path: string[]; message: string }) => ({
+        field: detail.path.join('.'),
+        message: detail.message,
+      })
+    );
 
     throw new ValidationError('Validation failed', validationErrors);
   }
@@ -166,7 +168,8 @@ export const sanitizeUser = (user: unknown) => {
   if (!user) return null;
 
   const userObj = user as { password_hash?: string; [key: string]: unknown };
-  const { password_hash, ...sanitizedUser } = userObj;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password_hash: _password_hash, ...sanitizedUser } = userObj;
   return sanitizedUser;
 };
 

@@ -56,7 +56,7 @@ export const globalErrorHandler = (
   error: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction // eslint-disable-line @typescript-eslint/no-unused-vars
 ): void => {
   // Log the error
   logger.logError(error, req);
