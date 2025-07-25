@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+
 import { WebSocketServer } from './websocket/WebSocketServer';
 import { Database } from './utils/database';
 import { MigrationManager } from './utils/migrations';
@@ -76,7 +77,7 @@ app.get('/health', async (req, res) => {
         database: dbHealth ? 'healthy' : 'unhealthy',
         websocket: 'ready',
       },
-      requestId: req.requestId,
+      requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
   } catch (error) {
     logger.error('Health check failed', {
@@ -89,7 +90,7 @@ app.get('/health', async (req, res) => {
       version: '0.1.0',
       database: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
-      requestId: req.requestId,
+      requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
   }
 });

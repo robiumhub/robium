@@ -127,8 +127,8 @@ export const validateData = <T>(data: unknown, schema: Joi.ObjectSchema): T => {
 
   if (error) {
     const validationErrors = error.details.map(
-      (detail: { path: string[]; message: string }) => ({
-        field: detail.path.join('.'),
+      (detail: { path: (string | number)[]; message: string }) => ({
+        field: detail.path.map(String).join('.'),
         message: detail.message,
       })
     );

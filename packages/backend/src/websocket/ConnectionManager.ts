@@ -13,6 +13,7 @@ import {
   HeartbeatConfig,
 } from './types';
 import { AuthService } from '../services/AuthService';
+import { JWTPayload } from '../types';
 
 export class ConnectionManager {
   private connections: Map<string, WebSocketConnection> = new Map();
@@ -180,7 +181,12 @@ export class ConnectionManager {
   ): Promise<AuthenticationResult> {
     try {
       const user = await AuthService.verifyToken(token);
-      return { success: true, user };
+      const jwtPayload: JWTPayload = {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      };
+      return { success: true, user: jwtPayload };
     } catch (error) {
       return {
         success: false,

@@ -37,8 +37,8 @@ export class AuthService {
     };
 
     return jwt.sign(payload, jwtSecret, {
-      expiresIn: jwtExpiresIn,
-    });
+      expiresIn: jwtExpiresIn as string,
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
   }
 
   // Generate refresh token (for future implementation)
@@ -60,8 +60,8 @@ export class AuthService {
     };
 
     return jwt.sign(payload, jwtRefreshSecret, {
-      expiresIn: jwtRefreshExpiresIn,
-    });
+      expiresIn: jwtRefreshExpiresIn as string,
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
   }
 
   // User registration

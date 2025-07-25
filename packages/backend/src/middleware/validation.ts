@@ -276,15 +276,15 @@ export const sanitizeInput = (
 
   // Sanitize body, query, and params
   if (req.body) {
-    req.body = sanitizeObject(req.body);
+    req.body = sanitizeObject(req.body) as typeof req.body;
   }
 
   if (req.query) {
-    req.query = sanitizeObject(req.query);
+    req.query = sanitizeObject(req.query) as typeof req.query;
   }
 
   if (req.params) {
-    req.params = sanitizeObject(req.params);
+    req.params = sanitizeObject(req.params) as typeof req.params;
   }
 
   next();

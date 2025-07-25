@@ -16,8 +16,8 @@ export const addRequestId = (
   res: Response,
   next: NextFunction
 ): void => {
-  req.requestId = generateRequestId();
-  res.setHeader('X-Request-ID', req.requestId);
+  (req as any).requestId = generateRequestId(); // eslint-disable-line @typescript-eslint/no-explicit-any
+  res.setHeader('X-Request-ID', (req as any).requestId); // eslint-disable-line @typescript-eslint/no-explicit-any
   next();
 };
 
@@ -92,7 +92,7 @@ function handleValidationError(
     error: 'Validation Error',
     message: error.message,
     details: error.errors,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -108,7 +108,7 @@ function handleNotFoundError(
     success: false,
     error: 'Not Found',
     message: error.message,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -124,7 +124,7 @@ function handleConflictError(
     success: false,
     error: 'Conflict',
     message: error.message,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -140,7 +140,7 @@ function handleUnauthorizedError(
     success: false,
     error: 'Unauthorized',
     message: error.message,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -156,7 +156,7 @@ function handleForbiddenError(
     success: false,
     error: 'Forbidden',
     message: error.message,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -173,7 +173,7 @@ function handleDatabaseError(
     error: 'Database Error',
     message: error.message,
     code: error.code,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -185,7 +185,7 @@ function handleAppError(error: AppError, req: Request, res: Response): void {
     success: false,
     error: error.name,
     message: error.message,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -199,7 +199,7 @@ function handleUnknownError(error: Error, req: Request, res: Response): void {
     success: false,
     error: 'Internal Server Error',
     message: isDevelopment ? error.message : 'An unexpected error occurred',
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 
@@ -217,7 +217,7 @@ export const notFoundHandler = (req: Request, res: Response): void => {
     success: false,
     error: 'Route Not Found',
     message: `Cannot ${req.method} ${req.originalUrl}`,
-    requestId: req.requestId,
+    requestId: (req as any).requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
     timestamp: new Date().toISOString(),
   };
 

@@ -81,12 +81,13 @@ export class MigrationManager {
   // Run a single migration
   async runMigration(migration: Migration): Promise<void> {
     try {
-      await Database.transaction(async (client: PoolClient) => {
+      await Database.transaction(async (client: unknown) => {
+        const poolClient = client as PoolClient;
         // Execute the UP migration
-        await client.query(migration.up);
+        await poolClient.query(migration.up);
 
         // Record the migration as executed
-        await client.query(
+        await poolClient.query(
           'INSERT INTO migrations (id, name) VALUES ($1, $2)',
           [migration.id, migration.name]
         );
@@ -150,12 +151,13 @@ export class MigrationManager {
     }
 
     try {
-      await Database.transaction(async (client: PoolClient) => {
+      await Database.transaction(async (client: unknown) => {
+        const poolClient = client as PoolClient;
         // Execute the DOWN migration
-        await client.query(downSection);
+        await poolClient.query(downSection);
 
         // Remove the migration record
-        await client.query('DELETE FROM migrations WHERE id = $1', [
+        await poolClient.query('DELETE FROM migrations WHERE id = $1', [
           lastMigration.id,
         ]);
       });
