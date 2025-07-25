@@ -1,20 +1,17 @@
 FROM node:18-alpine
 
 # Set working directory
-WORKDIR /app
-
-# Copy root package.json and package-lock.json for monorepo install
-COPY package.json package-lock.json ./
-COPY packages/backend/package.json ./packages/backend/
-
-# Install all dependencies (including workspaces)
-RUN npm install
-
-# Copy only the backend source code
-COPY packages/backend ./packages/backend
-
 WORKDIR /app/packages/backend
 
-# Expose port and start command will be defined later
+# Copy only the backend package.json first
+COPY packages/backend/package.json packages/backend/package-lock.json* ./
+
+# Install dependencies locally without workspace context
+RUN npm install
+
+# Copy the backend source code
+COPY packages/backend/src ./src
+COPY packages/backend/jest.config.js packages/backend/tsconfig.json ./
+
 EXPOSE 8000
 CMD ["npm", "run", "dev"] 

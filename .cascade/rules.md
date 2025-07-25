@@ -2,315 +2,363 @@
 
 ## Project Overview
 
-Robium is a comprehensive robotics IDE that enables visual programming through drag-and-drop interfaces. It integrates deeply with ROS (Robot Operating System) and provides a suite of robotics algorithms for easy application development.
+Robium is a comprehensive web-based robotics development studio IDE that enables visual programming through drag-and-drop interfaces. It integrates deeply with ROS2 (Robot Operating System) and provides a suite of robotics algorithms for easy application development.
 
-## Core Technologies
+## Current Project Architecture
 
-- **Frontend**: React + TypeScript, Material-UI, React Flow, Monaco Editor
-- **Backend**: Node.js/Python, ROS Noetic/Humble, Docker containers
-- **Database**: PostgreSQL for user data, Redis for caching
-- **AI Integration**: MCP (Model Context Protocol) for chat assistance
-- **Deployment**: Kubernetes, Docker Compose for development
+### Monorepo Structure
+- **npm workspaces** for dependency management
+- **TypeScript** throughout the entire stack
+- **Docker Compose** for development environment
+- **PostgreSQL** database with migration system
+- **Express.js** backend with comprehensive middleware
+- **React** frontend with TypeScript
 
-## Development Guidelines
+### Core Technologies Stack
 
-### Code Style & Quality
+- **Frontend**: React + TypeScript, Create React App
+- **Backend**: Node.js + Express.js + TypeScript
+- **Database**: PostgreSQL with custom migration system
+- **Authentication**: JWT with bcryptjs hashing
+- **Real-time**: WebSocket server integration
+- **Development**: Docker Compose, hot reloading
+- **Testing**: Jest with ts-jest
+- **Code Quality**: ESLint, Prettier, Husky pre-commit hooks
+- **CI/CD**: GitHub Actions
 
-- **TypeScript**: Strict mode enabled, proper type definitions required
-- **React**: Functional components with hooks, no class components
-- **Naming**: Use descriptive names, camelCase for variables, PascalCase for components
-- **File Structure**: Group by feature, not by file type
-- **Testing**: Minimum 80% code coverage, unit tests for all components
-- **Documentation**: JSDoc for all public APIs, inline comments for complex logic
-
-### Component Development Rules
-
-1. **Interface Compliance**: All robotics components must follow the schema in `docs/COMPONENT_INTERFACE_SPEC.md`
-2. **ROS Message Types**: Use standard ROS message types for interfaces
-3. **Validation**: Implement input validation for all component parameters
-4. **Error Handling**: Graceful error handling with user-friendly messages
-5. **Resource Management**: Declare CPU/memory requirements for all components
-
-### Frontend Development
-
-- **Responsive Design**: Mobile-first approach, test on all breakpoints
-- **Accessibility**: WCAG 2.1 AA compliance, proper ARIA labels
-- **Performance**: Lazy loading, virtual scrolling for large lists
-- **State Management**: Use Zustand for global state, React state for local
-- **API Integration**: Use Axios with proper error handling and loading states
-
-### Backend Development
-
-- **ROS Integration**: Support both ROS Noetic and ROS2 Humble
-- **Container Security**: Non-root containers, minimal base images
-- **API Design**: RESTful APIs with proper HTTP status codes
-- **Authentication**: JWT tokens with refresh mechanism
-- **Resource Limits**: Implement per-user resource quotas
-
-### File Organization
+## Current File Structure
 
 ```
 robium/
-├── frontend/src/
-│   ├── components/        # Reusable UI components
-│   ├── pages/            # Page-level components
-│   ├── hooks/            # Custom React hooks
-│   ├── services/         # API services
-│   ├── stores/           # Zustand stores
-│   ├── types/            # TypeScript type definitions
-│   └── utils/            # Utility functions
-├── backend/src/
-│   ├── controllers/      # Route controllers
-│   ├── services/         # Business logic
-│   ├── models/           # Data models
-│   ├── middleware/       # Express middleware
-│   └── utils/            # Utility functions
-└── components/           # Robotics component definitions
+├── packages/                    # npm workspaces
+│   ├── frontend/               # React frontend application
+│   │   ├── src/
+│   │   │   ├── index.tsx      # React entry point
+│   │   │   └── (components, pages, etc.)
+│   │   ├── public/
+│   │   ├── package.json       # Frontend dependencies
+│   │   ├── tsconfig.json      # Frontend TypeScript config
+│   │   └── Dockerfile         # Frontend container
+│   ├── backend/               # Express.js backend API
+│   │   ├── src/
+│   │   │   ├── index.ts       # Express server entry
+│   │   │   ├── routes/        # API route handlers
+│   │   │   ├── models/        # Data models
+│   │   │   ├── middleware/    # Express middleware
+│   │   │   ├── utils/         # Utility functions
+│   │   │   │   ├── database.ts    # PostgreSQL connection
+│   │   │   │   └── migrations.ts  # Migration system
+│   │   │   ├── types/         # TypeScript definitions
+│   │   │   ├── migrations/    # Database migration files
+│   │   │   ├── scripts/       # CLI scripts
+│   │   │   └── __tests__/     # Jest tests
+│   │   ├── package.json       # Backend dependencies
+│   │   ├── jest.config.js     # Jest configuration
+│   │   ├── tsconfig.json      # Backend TypeScript config
+│   │   ├── .env.example       # Environment template
+│   │   └── Dockerfile         # Backend container
+│   └── shared/                # Shared types and utilities
+├── ros/                       # ROS container configuration
+│   └── Dockerfile             # ROS container setup
+├── .taskmaster/               # Task Master AI project management
+│   ├── tasks/                 # Generated tasks
+│   ├── docs/                  # Project documentation
+│   └── config.json            # Task Master configuration
+├── .cursor/                   # Cursor IDE rules
+├── .github/workflows/         # GitHub Actions CI/CD
+├── docker-compose.yml         # Multi-service development
+├── package.json               # Root workspace configuration
+├── .eslintrc.js              # Shared ESLint configuration
+├── .prettierrc               # Code formatting rules
+└── .husky/                   # Git hooks
 ```
 
-## Specific Implementation Rules
+## Database Architecture
 
-### Drag & Drop Interface
+### Schema Design
+- **users**: User accounts with authentication (UUID, email, username, password_hash, role)
+- **projects**: User projects with ownership (UUID, name, description, owner_id)
+- **sessions**: JWT session management (UUID, user_id, token_hash, expires_at)
+- **project_members**: Project collaboration (UUID, project_id, user_id, role)
 
-- Use `@dnd-kit/core` for drag and drop functionality
-- Implement proper drop zone highlighting and validation
-- Provide visual feedback during drag operations
-- Support keyboard navigation for accessibility
+### Migration System
+- **Custom migration framework** with UP/DOWN support
+- **CLI commands**: `npm run migrate:up`, `migrate:down`, `migrate:status`, `migrate:reset`
+- **Automatic execution** on server startup
+- **Transaction-based** migrations for data integrity
 
-### Canvas System
+### Database Features
+- **UUID primary keys** for all tables
+- **Role-based access control** (admin/user, project permissions)
+- **Automatic timestamps** with PostgreSQL triggers
+- **Connection pooling** with pg library
+- **Comprehensive indexes** for query optimization
 
-- Use React Flow for the main canvas implementation
-- Implement custom node types for robotics components
-- Support infinite canvas with smooth zoom/pan
-- Implement connection validation between components
+## Development Guidelines
 
-### Component Registry
+### Backend Development Rules
 
-- Components must be defined in YAML format following the spec
-- Implement component search with fuzzy matching
-- Support component categories and tagging
-- Validate component interfaces before registration
+1. **Express.js Patterns**:
+   ```typescript
+   // ✅ DO: Use async/await with proper error handling
+   app.get('/api/endpoint', async (req: AuthRequest, res: Response) => {
+     try {
+       const result = await Database.query('SELECT * FROM table');
+       res.json({ success: true, data: result.rows });
+     } catch (error) {
+       res.status(500).json({ error: error.message });
+     }
+   });
+   
+   // ❌ DON'T: Use callbacks or missing error handling
+   app.get('/api/endpoint', (req, res) => {
+     Database.query('SELECT * FROM table', (err, result) => {
+       res.json(result); // Missing error handling
+     });
+   });
+   ```
 
-### Real-time Features
+2. **Database Operations**:
+   ```typescript
+   // ✅ DO: Use parameterized queries
+   const result = await Database.query(
+     'SELECT * FROM users WHERE email = $1',
+     [email]
+   );
+   
+   // ✅ DO: Use transactions for complex operations
+   await Database.transaction(async (client) => {
+     await client.query('INSERT INTO users ...');
+     await client.query('INSERT INTO projects ...');
+   });
+   
+   // ❌ DON'T: Use string concatenation (SQL injection risk)
+   const result = await Database.query(
+     `SELECT * FROM users WHERE email = '${email}'`
+   );
+   ```
 
-- Use Socket.IO for real-time collaboration
-- Implement operational transformation for conflict resolution
-- Provide real-time status updates for running components
-- Support live data visualization from ROS topics
+3. **TypeScript Types**:
+   ```typescript
+   // ✅ DO: Define interfaces in src/types/index.ts
+   interface User {
+     id: string;
+     email: string;
+     username: string;
+     role: UserRole;
+   }
+   
+   interface AuthRequest extends Request {
+     user?: JWTPayload;
+   }
+   ```
 
-## AI Assistant Integration
+### Frontend Development Rules
 
-### Chat Interface Guidelines
+1. **React Component Structure**:
+   ```typescript
+   // ✅ DO: Use functional components with TypeScript
+   interface ComponentProps {
+     title: string;
+     onSubmit: (data: FormData) => void;
+   }
+   
+   export const Component: React.FC<ComponentProps> = ({ title, onSubmit }) => {
+     const [loading, setLoading] = useState(false);
+     
+     const handleSubmit = useCallback(async (data: FormData) => {
+       setLoading(true);
+       try {
+         await onSubmit(data);
+       } finally {
+         setLoading(false);
+       }
+     }, [onSubmit]);
+     
+     return <div>{title}</div>;
+   };
+   ```
 
-- Implement context-aware responses based on current project state
-- Support natural language component suggestions
-- Provide code generation for ROS nodes
-- Offer debugging assistance with error resolution
+2. **API Integration**:
+   ```typescript
+   // ✅ DO: Create service functions for API calls
+   export const userService = {
+     async getUser(id: string): Promise<User> {
+       const response = await fetch(`/api/users/${id}`);
+       if (!response.ok) throw new Error('Failed to fetch user');
+       return response.json();
+     }
+   };
+   ```
 
-### MCP Integration
+### Docker Development Rules
 
-- Follow MCP protocol for tool integration
-- Implement component search and suggestion tools
-- Provide project analysis and optimization suggestions
-- Support automated connection recommendations
+1. **Container Structure**:
+   - **Frontend**: React app with hot reloading via volume mounts
+   - **Backend**: Express.js with source code volume mounts for development
+   - **Database**: PostgreSQL with persistent data volume
+   - **ROS**: Ubuntu container ready for ROS2 integration
 
-## Security Requirements
+2. **Volume Mount Strategy**:
+   ```yaml
+   # ✅ DO: Mount source directories only, not entire packages
+   volumes:
+     - ./packages/frontend/src:/app/packages/frontend/src
+     - ./packages/backend/src:/app/packages/backend/src
+   
+   # ❌ DON'T: Mount entire package (overwrites node_modules)
+   volumes:
+     - ./packages/frontend:/app
+   ```
 
-### Authentication & Authorization
+## Code Quality Standards
 
-- Implement OAuth 2.0 with JWT tokens
-- Use role-based access control (RBAC)
-- Secure API endpoints with proper middleware
-- Implement session management with refresh tokens
+### TypeScript Configuration
+- **Strict mode enabled** for all packages
+- **Shared types** in `packages/shared/` when needed
+- **Path mapping** configured for imports
+- **No any types** allowed in production code
+
+### Testing Requirements
+- **Jest** for unit and integration tests
+- **Test setup** in `src/__tests__/setup.ts`
+- **Coverage reports** generated for all packages
+- **Database tests** use transaction rollback
+
+### Code Formatting
+- **Prettier** for consistent formatting
+- **ESLint** for code quality and TypeScript rules
+- **Husky pre-commit hooks** for automated checks
+- **GitHub Actions** for CI/CD validation
+
+## Security Implementation
+
+### Authentication System
+- **JWT tokens** with secure secrets from environment
+- **bcryptjs** for password hashing (12 rounds)
+- **Session management** with refresh tokens
+- **Role-based access control** (admin/user roles)
+
+### Database Security
+- **Parameterized queries** to prevent SQL injection
+- **Connection pooling** with proper limits
+- **Environment variables** for sensitive configuration
+- **UUID primary keys** instead of incremental IDs
 
 ### Container Security
+- **Non-root users** in production containers
+- **Minimal base images** (node:18-alpine)
+- **Environment isolation** between services
+- **Secrets management** via environment variables
 
-- Run containers with non-root users
-- Implement resource limits and quotas
-- Scan container images for vulnerabilities
-- Use network policies for container isolation
+## Task Master Integration
 
-### Data Protection
+### Project Management
+- **AI-powered task generation** from PRDs
+- **Subtask breakdown** with complexity analysis
+- **Migration tracking** and status reporting
+- **Progress logging** with timestamped updates
 
-- Encrypt sensitive data at rest and in transit
-- Implement proper input validation and sanitization
-- Use HTTPS for all communications
-- Regular security audits and dependency updates
+### Development Workflow
+1. **Initialize** Task Master in project root
+2. **Parse PRD** to generate initial tasks
+3. **Expand tasks** into subtasks based on complexity
+4. **Update progress** as implementation proceeds
+5. **Mark completion** when tasks are verified
 
 ## Performance Guidelines
 
-### Frontend Performance
-
-- Implement code splitting and lazy loading
-- Use React.memo for expensive components
-- Optimize bundle size with tree shaking
-- Implement proper caching strategies
-
 ### Backend Performance
+- **Connection pooling** for database (2-20 connections)
+- **Query optimization** with proper indexes
+- **Async/await** for non-blocking operations
+- **Error handling** with appropriate HTTP status codes
 
-- Use connection pooling for database connections
-- Implement caching with Redis
-- Optimize database queries with proper indexing
-- Use horizontal scaling for high availability
+### Frontend Performance
+- **Code splitting** with dynamic imports
+- **Lazy loading** for non-critical components
+- **Memoization** for expensive calculations
+- **Bundle optimization** with Create React App
 
-### ROS Performance
+### Database Performance
+- **Indexes** on frequently queried columns
+- **Foreign key constraints** with CASCADE options
+- **Triggers** for automatic timestamp updates
+- **Query monitoring** with execution time logging
 
-- Optimize message passing between nodes
-- Use appropriate queue sizes for topics
-- Implement proper resource management
-- Monitor system performance metrics
+## Common Patterns
 
-## Testing Strategy
-
-### Unit Testing
-
-- Test all component interfaces and validation
-- Mock external dependencies (ROS, database)
-- Test error conditions and edge cases
-- Maintain high code coverage (80%+)
-
-### Integration Testing
-
-- Test component connections and data flow
-- Test ROS workspace creation and management
-- Test container deployment and scaling
-- Test real-time collaboration features
-
-### End-to-End Testing
-
-- Test complete user workflows
-- Test drag and drop functionality
-- Test project creation and deployment
-- Test cross-browser compatibility
-
-## Documentation Requirements
-
-### Code Documentation
-
-- JSDoc comments for all public APIs
-- Inline comments for complex algorithms
-- README files for each major component
-- Architecture decision records (ADRs)
-
-### User Documentation
-
-- Component usage examples and tutorials
-- API documentation with examples
-- Deployment and setup guides
-- Troubleshooting and FAQ sections
-
-## Deployment Guidelines
-
-### Development Environment
-
-- Use Docker Compose for local development
-- Implement hot reloading for faster development
-- Use environment variables for configuration
-- Provide setup scripts for easy onboarding
-
-### Production Deployment
-
-- Use Kubernetes for container orchestration
-- Implement blue-green deployment strategy
-- Use infrastructure as code (Terraform)
-- Implement comprehensive monitoring and logging
-
-## Common Patterns to Follow
+### API Response Structure
+```typescript
+// ✅ DO: Consistent API response format
+interface ApiResponse<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  error?: string;
+}
+```
 
 ### Error Handling
-
 ```typescript
-// Always provide user-friendly error messages
-try {
-  await connectComponents(source, target);
-} catch (error) {
-  if (error instanceof ValidationError) {
-    showUserError(
-      'Components are not compatible. Please check input/output types.'
-    );
-  } else {
-    showUserError('Failed to connect components. Please try again.');
-    logError(error);
-  }
-}
+// ✅ DO: Comprehensive error handling
+app.use((err: ApiError, req: Request, res: Response, next: NextFunction) => {
+  console.error('Error:', err);
+  
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
 ```
 
-### Component Definition
+### Migration Pattern
+```sql
+-- ✅ DO: Include both UP and DOWN sections
+-- UP
+CREATE TABLE example (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL
+);
 
-```yaml
-# Always follow the component specification
-apiVersion: robium.io/v1
-kind: Component
-metadata:
-  name: component-name
-  version: '1.0.0'
-  description: 'Clear description'
-spec:
-  interfaces:
-    inputs: []
-    outputs: []
-  parameters: []
-  implementation: {}
-```
-
-### React Component Structure
-
-```typescript
-// Use this pattern for all React components
-interface ComponentProps {
-  // Define all props with proper types
-}
-
-export const Component: React.FC<ComponentProps> = ({ prop1, prop2 }) => {
-  // Custom hooks first
-  const [state, setState] = useState();
-
-  // Event handlers
-  const handleEvent = useCallback(() => {
-    // Implementation
-  }, [dependencies]);
-
-  // Render
-  return (
-    <div>
-      {/* JSX content */}
-    </div>
-  );
-};
+-- DOWN
+DROP TABLE IF EXISTS example;
 ```
 
 ## AI Assistant Behavior
 
 When working on this project, AI assistants should:
 
-1. **Always reference the documentation** in `/docs/` before making architectural decisions
-2. **Follow the component interface specification** when creating or modifying robotics components
-3. **Implement proper error handling** with user-friendly messages
-4. **Consider accessibility** in all UI implementations
-5. **Optimize for performance** especially in drag-and-drop interactions
-6. **Maintain consistency** with the established patterns and conventions
-7. **Test thoroughly** before suggesting code changes
-8. **Document changes** appropriately in code and commit messages
+1. **Follow the monorepo structure** - work within packages/frontend or packages/backend
+2. **Use the established database patterns** - migrations, connection pooling, parameterized queries
+3. **Maintain TypeScript strict typing** throughout the codebase
+4. **Update Task Master progress** when completing subtasks
+5. **Test Docker integration** after making infrastructure changes
+6. **Follow security patterns** for authentication and database access
+7. **Document changes** in Task Master subtask updates
+8. **Use the migration system** for any database schema changes
 
-## Project-Specific Considerations
+## Current Development Status
 
-### ROS Integration
+### Completed (Task 1 & 2.1-2.2)
+- ✅ **Monorepo setup** with npm workspaces
+- ✅ **Docker multi-service environment** (frontend, backend, database, ROS)
+- ✅ **Express.js backend** with TypeScript and comprehensive middleware
+- ✅ **Database schema** with users, projects, sessions, project_members
+- ✅ **Migration system** with CLI commands and automatic execution
+- ✅ **Development tooling** (ESLint, Prettier, Husky, GitHub Actions)
+- ✅ **Health check endpoints** with database status monitoring
 
-- Always consider ROS message compatibility when connecting components
-- Implement proper ROS node lifecycle management
-- Handle ROS master connection failures gracefully
-- Support both ROS1 and ROS2 where possible
+### In Progress (Task 2.3+)
+- 🔄 **User Model implementation** with validation and business logic
+- ⏳ **Authentication endpoints** (signup, login, logout)
+- ⏳ **JWT handling** with refresh tokens
+- ⏳ **Role-based access control** system
+- ⏳ **WebSocket authentication** and real-time features
 
-### Visual Programming
-
-- Prioritize intuitive user experience in drag-and-drop interactions
-- Provide clear visual feedback for all user actions
-- Implement proper validation for component connections
-- Support undo/redo functionality for all canvas operations
-
-### Collaboration Features
-
-- Design for real-time multi-user editing
-- Implement conflict resolution for simultaneous edits
-- Provide clear indicators of other users' actions
-- Support project sharing and permissions management
+### Architecture Notes
+- **Database**: PostgreSQL with custom migration framework
+- **Authentication**: JWT-based with bcryptjs password hashing
+- **Real-time**: WebSocket server integrated with Express
+- **Development**: Hot reloading with Docker volume mounts
+- **Testing**: Jest with TypeScript support and database transactions
