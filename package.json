@@ -1,0 +1,53 @@
+{
+  "name": "robium",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A web-based robotics development studio IDE that enables users to create, simulate, and run robotics applications by connecting modular ROS2 components.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "prepare": "husky install",
+    "dev": "npm-run-all --parallel dev:*",
+    "build": "npm-run-all --parallel build:*",
+    "dev:frontend": "npm run dev --workspace=packages/frontend",
+    "build:frontend": "npm run build --workspace=packages/frontend",
+    "dev:backend": "npm run dev --workspace=packages/backend",
+    "build:backend": "npm run build --workspace=packages/backend"
+  },
+  "keywords": [
+    "ros",
+    "robotics",
+    "ide",
+    "ros2",
+    "development"
+  ],
+  "author": "mdemirst",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.39",
+    "@types/react": "^18.2.18",
+    "@types/react-dom": "^18.2.7",
+    "typescript": "^4.9.5",
+    "eslint": "^8.46.0",
+    "eslint-config-prettier": "^8.9.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "eslint-plugin-react": "^7.33.1",
+    "@typescript-eslint/eslint-plugin": "^6.2.0",
+    "@typescript-eslint/parser": "^6.2.0",
+    "prettier": "^3.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.3",
+    "npm-run-all": "^4.1.5"
+  }
+}

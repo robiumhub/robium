@@ -1,7 +1,9 @@
-# Overview  
+# Overview
+
 Robium is a web-based robotics development studio IDE that enables users to create, simulate, and run robotics applications by connecting modular ROS2 components. It targets robotics developers, educators, and hobbyists who need a streamlined, intelligent environment for building ROS2-based applications. Robium solves the complexity of setting up, wiring, and debugging ROS2 projects by providing containerized execution environments and a robust project development workflow. Its value lies in accelerating robotics development, reducing errors, and making advanced robotics accessible to a broader audience.
 
-# Core Features  
+# Core Features
+
 - **Project Development Environment Setup**
   - Monorepo structure with clear separation for frontend, backend, and shared code.
   - Docker Compose for orchestrating multi-service development (frontend, backend, ROS2, etc.).
@@ -48,7 +50,8 @@ Robium is a web-based robotics development studio IDE that enables users to crea
 - **Simulator Support**
   - Embedded Gazebo with predefined worlds; supports object spawning and sensor emulation via ROS interfaces.
 
-# User Experience  
+# User Experience
+
 - **Personas**: Robotics developers, educators, students, hobbyists.
 - **Key Flows**:
   1. Create new project → initializes Docker/ROS2 workspace with custom base image.
@@ -65,15 +68,17 @@ Robium is a web-based robotics development studio IDE that enables users to crea
   - Project configuration editor with validation and suggestions.
   - **All configuration and management actions (project settings, container options, workspace setup, environment variables, and isolation policies) are accessible and editable through the Robium web UI.**
   - **User authentication and project management:** Users sign up/sign in, see only their own projects, and can create/manage as many projects as they want. Admins can see and manage all projects.
-</context>
-<PRD>
-# Technical Architecture  
+    </context>
+    <PRD>
+
+# Technical Architecture
+
 - **Development Environment**: Monorepo structure with Docker Compose for multi-service orchestration, TypeScript for frontend/backend, ESLint/Prettier, .env management, pre-commit hooks, CI, and editor config. All services and tooling are containerized for reproducibility and onboarding.
 - **Global Colcon Workspace and Base Image**: All ROS packages are maintained in a single global colcon workspace. The Docker base image is built from this workspace and includes all packages, ensuring that every project container can support any combination of packages as needed. This approach guarantees compatibility, simplifies user project builds, and enables robust integration testing.
 - **Component Registry and Algorithm Suite**: Central metadata store for ROS2 components and a curated suite of ROS algorithms/packages, organized by meta-categories and task categories. Each algorithm/package entry includes task definition, input/output relations, and a list of ROS packages used. All packages are maintained in a global catkin workspace for integration testing and validation. When a user creates a project and selects tasks, only the required packages are copied to their workspace for efficient, tailored project builds.
-- **Frontend**: Web-based UI (React or similar) for project and task configuration, code inspection, parameter editing, and terminal output. Provides full UI for configuring project settings, container options, workspace volumes, dependencies, and environment variables. Includes user authentication (sign in/sign up), user-specific project lists, and admin dashboard for managing all projects. 
+- **Frontend**: Web-based UI (React or similar) for project and task configuration, code inspection, parameter editing, and terminal output. Provides full UI for configuring project settings, container options, workspace volumes, dependencies, and environment variables. Includes user authentication (sign in/sign up), user-specific project lists, and admin dashboard for managing all projects.
 - **Execution Environment**: Each project runs in its own Docker container, which is built FROM a custom base Docker image with ROS 2 Humble pre-installed. This base image is maintained by Robium and ensures all projects use a consistent, up-to-date ROS 2 environment. Each project container adds its own colcon workspace and dependencies on top of this base image. The project’s workspace and source files are stored persistently on the host filesystem and mounted into the container as a volume (e.g., /workspace), enabling versioning, backup, and direct user access. **Strict isolation is enforced:** Project containers cannot access the volumes, files, or data of any other project, using Docker volume scoping and network isolation.
-- **Container Management System**: Automated creation, naming, and teardown of Docker containers for each user/project with unique naming conventions (robium_{user_id}_{project_id}). Includes resource limits, network isolation, and scheduled cleanup of idle containers.
+- **Container Management System**: Automated creation, naming, and teardown of Docker containers for each user/project with unique naming conventions (robium*{user_id}*{project_id}). Includes resource limits, network isolation, and scheduled cleanup of idle containers.
 - **Project Configuration System**: Standardized JSON/YAML schema for project metadata, ROS2 dependencies, environment variables, and simulation settings. Automated generation of Dockerfiles and docker-compose files from project configurations.
 - **Simulator/Visualizer**: Embedded RViz and Gazebo with rosbag support.
 - **Backend Services**: The MVP will include a minimal backend (Node.js or Python/FastAPI) for metadata APIs, user/project management, and WebSocket sync. This will evolve into a more comprehensive MCP (Mission Control Plane) server in the future. **Implements user authentication, project ownership, and role-based access control (admin vs. regular user).**
@@ -82,7 +87,8 @@ Robium is a web-based robotics development studio IDE that enables users to crea
 - **Infrastructure**: Local and cloud deployment, Docker-based isolation, persistent storage for projects and bags. The base Docker image is stored in a registry and updated as needed for new ROS 2 releases or global tools.
 - **Security Framework**: Container security hardening with non-root users, least privilege capabilities, network isolation, resource limits, and automated vulnerability scanning. **Strict project isolation is enforced at the container and volume level to prevent cross-project access.**
 
-# Development Roadmap  
+# Development Roadmap
+
 The development will prioritize getting a core, usable product for the MVP, focusing on the essential features that allow a user to create, configure, and run a basic robotics project.
 
 - **MVP Requirements**:
@@ -113,6 +119,7 @@ The development will prioritize getting a core, usable product for the MVP, focu
   - User roles, permissions, analytics, and learning-based recommendations.
 
 # Logical Dependency Chain
+
 The project will be built in phases, ensuring a logical progression from backend fundamentals to a feature-complete user-facing application.
 
 - **Phase 1: Core Infrastructure and Services**
@@ -143,7 +150,8 @@ The project will be built in phases, ensuring a logical progression from backend
 
 - **Guiding Principle:** Each feature is atomic and can be improved iteratively. The primary goal is to establish a usable create-configure-run loop as early as possible.
 
-# Risks and Mitigations  
+# Risks and Mitigations
+
 - **Technical Challenges**: Integrating ROS2, Docker, and web technologies; mitigated by leveraging existing open-source tools and clear interface boundaries.
 - **Container Security**: Ensuring proper isolation and security; mitigated by implementing security hardening, resource limits, and automated vulnerability scanning.
 - **Resource Management**: Managing multiple user containers efficiently; mitigated by automated lifecycle management, resource limits, and scheduled cleanup.
@@ -152,14 +160,15 @@ The project will be built in phases, ensuring a logical progression from backend
 - **LLM Integration**: Ensuring useful, accurate suggestions; mitigated by schema-driven guidance and fallback documentation.
 - **Maintenance Overhead**: Keeping base images and security patches updated; mitigated by automated maintenance procedures and notification systems.
 
-# Appendix  
+# Appendix
+
 - Research: Review of existing robotics IDEs, ROS2 best practices, and LLM integration patterns.
 - Technical Specs: ROS2 Foxy/Humble, Docker, React, FastAPI/Node.js, RViz, Gazebo, WebSocket, REST/GraphQL, OpenAI/Anthropic LLM APIs.
 - Container Management: Docker API, container orchestration, resource isolation, security hardening, automated lifecycle management.
 - Project Configuration: JSON/YAML schemas, Dockerfile generation, environment management, dependency tracking.
-- Security Framework: Container security best practices, network isolation, resource limits, vulnerability scanning, audit logging. 
-- **Development Environment**: Monorepo structure, Docker Compose, TypeScript, linting, .env management, pre-commit hooks, CI, editor config, and documentation for robust and reproducible development workflows. 
-- **Algorithm Suite and Task Categories**: Meta-categories, task categories, and modular solution alternatives for robotics tasks. Each solution includes task definition, IO relations, and ROS package dependencies. Global catkin workspace for integration testing; user workspaces only include selected packages. 
+- Security Framework: Container security best practices, network isolation, resource limits, vulnerability scanning, audit logging.
+- **Development Environment**: Monorepo structure, Docker Compose, TypeScript, linting, .env management, pre-commit hooks, CI, editor config, and documentation for robust and reproducible development workflows.
+- **Algorithm Suite and Task Categories**: Meta-categories, task categories, and modular solution alternatives for robotics tasks. Each solution includes task definition, IO relations, and ROS package dependencies. Global catkin workspace for integration testing; user workspaces only include selected packages.
 - **LLM Integration and MCP Server**: LLM assistant for intelligent task curation and MCP server for centralized management are planned for future phases.
-- **Advanced Security and Resource Isolation**: Advanced security features and resource isolation (beyond strict container/volume isolation) are planned for future phases. 
-- **Global Colcon Workspace and Base Image**: All ROS packages are maintained and tested in a single global colcon workspace. The Docker base image is built from this workspace and supports all packages, ensuring compatibility and simplifying project builds. 
+- **Advanced Security and Resource Isolation**: Advanced security features and resource isolation (beyond strict container/volume isolation) are planned for future phases.
+- **Global Colcon Workspace and Base Image**: All ROS packages are maintained and tested in a single global colcon workspace. The Docker base image is built from this workspace and supports all packages, ensuring compatibility and simplifying project builds.
