@@ -26,8 +26,10 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Breadcrumbs from './Breadcrumbs';
 
 const drawerWidth = 240;
+const mobileDrawerWidth = 280;
 
 interface LayoutProps {
   children: ReactNode;
@@ -59,6 +61,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Projects', icon: <DashboardIcon />, path: '/projects' },
+    { text: 'Robots', icon: <SettingsIcon />, path: '/robots' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
@@ -103,8 +107,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
+              flexGrow: 1,
+              display: { xs: 'none', sm: 'block' },
+            }}
+          >
             Robium - Robot Management Platform
+          </Typography>
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
+              flexGrow: 1,
+              display: { xs: 'block', sm: 'none' },
+            }}
+          >
+            Robium
           </Typography>
           <IconButton
             size="large"
@@ -165,7 +188,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             display: { xs: 'block', sm: 'none' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
+              width: mobileDrawerWidth,
             },
           }}
         >
@@ -189,12 +212,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 2, sm: 3 },
           width: { sm: `calc(100% - ${drawerWidth}px)` },
+          minHeight: '100vh',
+          backgroundColor: 'grey.50',
         }}
       >
         <Toolbar />
-        {children}
+        <Box
+          sx={{
+            maxWidth: '1200px',
+            mx: 'auto',
+            mt: { xs: 1, sm: 2 },
+          }}
+        >
+          <Breadcrumbs />
+          {children}
+        </Box>
       </Box>
     </Box>
   );
