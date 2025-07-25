@@ -1,18 +1,18 @@
 FROM node:18-alpine
 
 # Set working directory
-WORKDIR /app
+WORKDIR /app/packages/frontend
 
-# Copy package.json and package-lock.json
-COPY package.json ./
-# COPY package-lock.json ./
+# Copy only the frontend package.json first
+COPY packages/frontend/package.json packages/frontend/package-lock.json* ./
 
-# Install dependencies
+# Install dependencies locally without workspace context
 RUN npm install
 
-# Copy application source
-COPY . .
+# Copy the frontend source code
+COPY packages/frontend/src ./src
+COPY packages/frontend/public ./public
+COPY packages/frontend/tsconfig.json ./
 
-# Expose port and start command will be defined later
-# EXPOSE 3000
-# CMD ["npm", "start"] 
+EXPOSE 3000
+CMD ["npm", "start"] 

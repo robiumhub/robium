@@ -40,3 +40,7 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
+
+# Cache files
+**/.cache/
+**/node_modules/.cache/
