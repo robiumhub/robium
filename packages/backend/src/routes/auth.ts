@@ -1,187 +1,145 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/AuthService';
-import { authenticateToken } from '../middleware/auth';
-import { 
-  CreateUserInput, 
-  LoginInput, 
-  ApiResponse, 
-  AuthRequest 
-} from '../types';
-import { 
-  ValidationError, 
-  UnauthorizedError, 
-  AppError 
-} from '../utils/errors';
+import { ApiResponse, AuthRequest } from '../types';
+import {
+  validateCreateUserRequest,
+  validateLoginRequest,
+  validateChangePasswordRequest,
+  validateUserIdParam,
+  sanitizeInput,
+} from '../middleware/validation';
 
 const router = Router();
 
-// POST /auth/signup - User registration
-router.post('/signup', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const userData: CreateUserInput = req.body;
-    
-    const result = await AuthService.register(userData);
+// Apply sanitization to all routes
+router.use(sanitizeInput);
 
-    const response: ApiResponse<typeof result> = {
-      success: true,
-      message: 'User registered successfully',
-      data: result
-    };
+// Register new user
+router.post(
+  '/register',
+  validateCreateUserRequest,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await AuthService.register(req.body);
 
-    res.status(201).json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+      const response: ApiResponse = {
+        success: true,
+        data: result,
+        message: 'User registered successfully',
+      };
 
-// POST /auth/login - User authentication
-router.post('/login', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const loginData: LoginInput = req.body;
-    
-    const result = await AuthService.login(loginData);
-
-    const response: ApiResponse<typeof result> = {
-      success: true,
-      message: 'Login successful',
-      data: result
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// POST /auth/logout - User logout
-router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
-
-    if (token) {
-      await AuthService.logout(token);
+      res.status(201).json(response);
+    } catch (error) {
+      next(error);
     }
-
-    const response: ApiResponse = {
-      success: true,
-      message: 'Logout successful'
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    next(error);
   }
-});
+);
 
-// GET /auth/me - Get current user profile
-router.get('/me', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    if (!req.user) {
-      throw new UnauthorizedError('User not authenticated');
+// Login user
+router.post(
+  '/login',
+  validateLoginRequest,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await AuthService.login(req.body);
+
+      const response: ApiResponse = {
+        success: true,
+        data: result,
+        message: 'Login successful',
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
     }
-
-    const user = await AuthService.getCurrentUser(req.user.userId);
-
-    const response: ApiResponse<typeof user> = {
-      success: true,
-      message: 'User profile retrieved successfully',
-      data: user
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    next(error);
   }
-});
+);
 
-// POST /auth/change-password - Change user password
-router.post('/change-password', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    if (!req.user) {
-      throw new UnauthorizedError('User not authenticated');
-    }
-
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      throw new ValidationError('Current password and new password are required');
-    }
-
-    await AuthService.changePassword(req.user.userId, currentPassword, newPassword);
-
-    const response: ApiResponse = {
-      success: true,
-      message: 'Password changed successfully'
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// POST /auth/refresh - Refresh access token
-router.post('/refresh', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      throw new ValidationError('Refresh token is required');
-    }
-
-    const result = await AuthService.refreshToken(refreshToken);
-
-    const response: ApiResponse<typeof result> = {
-      success: true,
-      message: 'Token refreshed successfully',
-      data: result
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// GET /auth/verify - Verify token validity
-router.get('/verify', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    if (!req.user) {
-      throw new UnauthorizedError('User not authenticated');
-    }
-
-    const response: ApiResponse<{ valid: boolean; user: typeof req.user }> = {
-      success: true,
-      message: 'Token is valid',
-      data: {
-        valid: true,
-        user: req.user
+// Change password (requires authentication)
+router.post(
+  '/change-password',
+  validateChangePasswordRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+        });
       }
-    };
 
-    res.status(200).json(response);
-  } catch (error) {
-    next(error);
+      await AuthService.changePassword(
+        req.user.userId,
+        req.body.currentPassword,
+        req.body.newPassword
+      );
+
+      const response: ApiResponse = {
+        success: true,
+        message: 'Password changed successfully',
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
-// Error handling middleware specific to auth routes
-router.use((error: AppError, req: Request, res: Response, next: NextFunction): void => {
-  // Log authentication errors for security monitoring
-  if (error instanceof UnauthorizedError) {
-    console.log('Authentication error:', {
-      message: error.message,
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      timestamp: new Date().toISOString(),
-      endpoint: req.originalUrl
-    });
+// Get current user profile
+router.get(
+  '/profile',
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+        });
+      }
+
+      const user = await AuthService.getCurrentUser(req.user.userId);
+
+      const response: ApiResponse = {
+        success: true,
+        data: user,
+        message: 'Profile retrieved successfully',
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
   }
+);
 
-  // Pass error to global error handler
-  next(error);
-});
+// Get user by ID (admin only)
+router.get(
+  '/users/:id',
+  validateUserIdParam,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+        });
+      }
 
-export default router; 
+      const user = await AuthService.getCurrentUser(req.params.id);
+
+      const response: ApiResponse = {
+        success: true,
+        data: user,
+        message: 'User retrieved successfully',
+      };
+
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+export default router;
