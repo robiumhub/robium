@@ -34,7 +34,7 @@ async function main() {
         await migrationManager.getMigrationStatus();
         break;
 
-      case 'reset':
+      case 'reset': {
         console.log('⚠️  Resetting database (rolling back all migrations)...');
         
         // Rollback all migrations
@@ -49,6 +49,7 @@ async function main() {
         
         console.log('✅ Database reset complete');
         break;
+      }
 
       default:
         console.log(`

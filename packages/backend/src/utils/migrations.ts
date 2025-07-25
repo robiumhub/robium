@@ -33,8 +33,8 @@ export class MigrationManager {
   // Get executed migrations from database
   async getExecutedMigrations(): Promise<string[]> {
     try {
-      const result = await Database.query('SELECT id FROM migrations ORDER BY executed_at');
-      return result.rows.map((row: any) => row.id);
+      const result = await Database.query('SELECT id FROM migrations ORDER BY executed_at') as { rows: { id: string }[] };
+      return result.rows.map((row) => row.id);
     } catch (error) {
       console.log('📋 No migrations table found, will create it');
       return [];

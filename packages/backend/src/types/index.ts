@@ -57,7 +57,7 @@ export interface AuthRequest extends Request {
 }
 
 // API Response types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
   data?: T;
@@ -85,7 +85,7 @@ export interface DatabaseConfig {
 // WebSocket types
 export interface WebSocketMessage {
   type: string;
-  payload: any;
+  payload: unknown;
   userId?: string;
   timestamp: Date;
 }

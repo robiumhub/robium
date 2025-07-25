@@ -11,8 +11,8 @@ import { MigrationManager } from './utils/migrations';
 // Load environment variables
 dotenv.config();
 
-// Import routes (will be created later)
-// import authRoutes from './routes/auth';
+// Import routes
+import authRoutes from './routes/auth';
 // import apiRoutes from './routes/api';
 
 const app = express();
@@ -63,8 +63,8 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API routes (will be uncommented as routes are created)
-// app.use('/auth', authRoutes);
+// API routes
+app.use('/auth', authRoutes);
 // app.use('/api', apiRoutes);
 
 // 404 handler
@@ -76,7 +76,7 @@ app.use('*', (req, res) => {
 });
 
 // Global error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  app.use((err: Error & { status?: number }, req: express.Request, res: express.Response) => {
   console.error('Error:', err);
   
   res.status(err.status || 500).json({

@@ -1,5 +1,4 @@
 import { Pool, PoolConfig } from 'pg';
-import { DatabaseConfig } from '../types';
 
 // Database configuration
 const dbConfig: PoolConfig = {
@@ -41,7 +40,7 @@ export class Database {
     }
   }
 
-  static async query(text: string, params?: any[]): Promise<any> {
+  static async query(text: string, params?: unknown[]): Promise<unknown> {
     const start = Date.now();
     try {
       const result = await pool.query(text, params);
@@ -54,7 +53,7 @@ export class Database {
     }
   }
 
-  static async transaction<T>(callback: (client: any) => Promise<T>): Promise<T> {
+  static async transaction<T>(callback: (client: unknown) => Promise<T>): Promise<T> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
