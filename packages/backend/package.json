@@ -11,6 +11,8 @@
     "test:watch": "jest --watch",
     "test:user-model": "ts-node src/scripts/test-user-model.ts",
     "test:auth": "ts-node src/scripts/test-auth-endpoints.ts",
+    "test:rbac": "ts-node src/scripts/test-rbac.ts",
+    "test:websocket": "ts-node src/scripts/test-websocket.ts",
     "migrate": "ts-node src/scripts/migrate.ts",
     "migrate:up": "ts-node src/scripts/migrate.ts up",
     "migrate:down": "ts-node src/scripts/migrate.ts down",

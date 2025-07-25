@@ -1,6 +1,7 @@
 import { Database } from './database';
 import fs from 'fs';
 import path from 'path';
+import { PoolClient } from 'pg';
 
 export interface Migration {
   id: string;
@@ -33,7 +34,9 @@ export class MigrationManager {
   // Get executed migrations from database
   async getExecutedMigrations(): Promise<string[]> {
     try {
-      const result = await Database.query('SELECT id FROM migrations ORDER BY executed_at') as { rows: { id: string }[] };
+      const result = (await Database.query(
+        'SELECT id FROM migrations ORDER BY executed_at'
+      )) as { rows: { id: string }[] };
       return result.rows.map((row) => row.id);
     } catch (error) {
       console.log('📋 No migrations table found, will create it');
@@ -44,19 +47,20 @@ export class MigrationManager {
   // Get pending migrations from files
   async getPendingMigrations(): Promise<Migration[]> {
     const executedMigrations = await this.getExecutedMigrations();
-    const migrationFiles = fs.readdirSync(this.migrationsPath)
-      .filter(file => file.endsWith('.sql'))
+    const migrationFiles = fs
+      .readdirSync(this.migrationsPath)
+      .filter((file) => file.endsWith('.sql'))
       .sort();
 
     const pendingMigrations: Migration[] = [];
 
     for (const file of migrationFiles) {
       const migrationId = file.replace('.sql', '');
-      
+
       if (!executedMigrations.includes(migrationId)) {
         const filePath = path.join(this.migrationsPath, file);
         const content = fs.readFileSync(filePath, 'utf8');
-        
+
         // Parse migration file (expects -- UP and -- DOWN sections)
         const sections = content.split('-- DOWN');
         const upSection = sections[0].replace('-- UP', '').trim();
@@ -66,7 +70,7 @@ export class MigrationManager {
           id: migrationId,
           name: file,
           up: upSection,
-          down: downSection
+          down: downSection,
         });
       }
     }
@@ -77,10 +81,10 @@ export class MigrationManager {
   // Run a single migration
   async runMigration(migration: Migration): Promise<void> {
     try {
-      await Database.transaction(async (client) => {
+      await Database.transaction(async (client: PoolClient) => {
         // Execute the UP migration
         await client.query(migration.up);
-        
+
         // Record the migration as executed
         await client.query(
           'INSERT INTO migrations (id, name) VALUES ($1, $2)',
@@ -116,9 +120,9 @@ export class MigrationManager {
 
   // Rollback the last migration
   async rollbackLastMigration(): Promise<void> {
-    const result = await Database.query(
+    const result = (await Database.query(
       'SELECT id, name FROM migrations ORDER BY executed_at DESC LIMIT 1'
-    );
+    )) as { rows: { id: string; name: string }[] };
 
     if (result.rows.length === 0) {
       console.log('📋 No migrations to rollback');
@@ -126,8 +130,11 @@ export class MigrationManager {
     }
 
     const lastMigration = result.rows[0];
-    const migrationFile = path.join(this.migrationsPath, `${lastMigration.id}.sql`);
-    
+    const migrationFile = path.join(
+      this.migrationsPath,
+      `${lastMigration.id}.sql`
+    );
+
     if (!fs.existsSync(migrationFile)) {
       throw new Error(`Migration file not found: ${migrationFile}`);
     }
@@ -137,16 +144,20 @@ export class MigrationManager {
     const downSection = sections[1] ? sections[1].trim() : '';
 
     if (!downSection) {
-      throw new Error(`No DOWN section found in migration: ${lastMigration.name}`);
+      throw new Error(
+        `No DOWN section found in migration: ${lastMigration.name}`
+      );
     }
 
     try {
-      await Database.transaction(async (client) => {
+      await Database.transaction(async (client: PoolClient) => {
         // Execute the DOWN migration
         await client.query(downSection);
-        
+
         // Remove the migration record
-        await client.query('DELETE FROM migrations WHERE id = $1', [lastMigration.id]);
+        await client.query('DELETE FROM migrations WHERE id = $1', [
+          lastMigration.id,
+        ]);
       });
 
       console.log(`✅ Migration rolled back: ${lastMigration.name}`);
@@ -167,7 +178,7 @@ export class MigrationManager {
 
     if (pendingMigrations.length > 0) {
       console.log('\n⏳ Pending migrations:');
-      pendingMigrations.forEach(m => console.log(`  - ${m.name}`));
+      pendingMigrations.forEach((m) => console.log(`  - ${m.name}`));
     }
   }
-} 
+}

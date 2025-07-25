@@ -3,8 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer } from './websocket/WebSocketServer';
 import { Database } from './utils/database';
 import { MigrationManager } from './utils/migrations';
 
@@ -13,6 +12,7 @@ dotenv.config();
 
 // Import routes
 import authRoutes from './routes/auth';
+import adminRoutes from './routes/admin';
 // import apiRoutes from './routes/api';
 
 const app = express();
@@ -22,10 +22,12 @@ const PORT = process.env.PORT || 8000;
 app.use(helmet());
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+  })
+);
 
 // Logging middleware
 app.use(morgan('combined'));
@@ -38,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', async (req, res) => {
   try {
     const dbHealth = await Database.healthCheck();
-    
+
     res.status(200).json({
       status: 'OK',
       message: 'Robium Backend Server is running',
@@ -48,8 +50,8 @@ app.get('/health', async (req, res) => {
       services: {
         api: 'running',
         database: dbHealth ? 'healthy' : 'unhealthy',
-        websocket: 'ready'
-      }
+        websocket: 'ready',
+      },
     });
   } catch (error) {
     res.status(503).json({
@@ -58,51 +60,49 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       version: '0.1.0',
       database: 'error',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
 
 // API routes
 app.use('/auth', authRoutes);
+app.use('/admin', adminRoutes);
 // app.use('/api', apiRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Route not found',
-    message: `Cannot ${req.method} ${req.originalUrl}`
+    message: `Cannot ${req.method} ${req.originalUrl}`,
   });
 });
 
 // Global error handler
-  app.use((err: Error & { status?: number }, req: express.Request, res: express.Response) => {
-  console.error('Error:', err);
-  
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+app.use(
+  (
+    err: Error & { status?: number },
+    req: express.Request,
+    res: express.Response
+  ) => {
+    console.error('Error:', err);
 
-// Create HTTP server
-const server = createServer(app);
+    res.status(err.status || 500).json({
+      error: err.message || 'Internal Server Error',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    });
+  }
+);
 
 // Create WebSocket server
-const wss = new WebSocketServer({ server });
-
-wss.on('connection', (ws) => {
-  console.log('New WebSocket connection established');
-  
-  ws.on('message', (message) => {
-    console.log('Received WebSocket message:', message.toString());
-    // Echo message back (will be enhanced later)
-    ws.send(`Echo: ${message}`);
-  });
-  
-  ws.on('close', () => {
-    console.log('WebSocket connection closed');
-  });
+const wsServer = new WebSocketServer(app, {
+  heartbeat: {
+    interval: 30000, // 30 seconds
+    timeout: 60000, // 60 seconds
+    maxMissedHeartbeats: 2,
+  },
+  enableLogging: true,
+  maxConnections: 1000,
 });
 
 // Initialize database and start server
@@ -110,20 +110,18 @@ async function startServer() {
   try {
     // Connect to database
     await Database.connect();
-    
+
     // Run pending migrations
     const migrationManager = new MigrationManager();
     await migrationManager.runPendingMigrations();
-    
-    // Start server
-    server.listen(PORT, () => {
-      console.log(`🚀 Robium Backend Server running on port ${PORT}`);
-      console.log(`📡 WebSocket server ready for connections`);
-      console.log(`🗃️  Database connected and migrations applied`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-    });
-    
+
+    // Start WebSocket server
+    await wsServer.start(Number(PORT));
+    console.log(`🚀 Robium Backend Server running on port ${PORT}`);
+    console.log(`📡 WebSocket server ready for connections`);
+    console.log(`🗃️  Database connected and migrations applied`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);

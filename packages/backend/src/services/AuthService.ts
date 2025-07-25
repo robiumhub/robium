@@ -1,19 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { UserModel } from '../models/User';
-import { 
-  CreateUserInput, 
-  LoginInput, 
-  User, 
-  JWTPayload
-} from '../types';
-import { 
-  validateCreateUser, 
-  validateLogin 
-} from '../utils/validation';
-import { 
-  ValidationError, 
-  UnauthorizedError, 
-  ConflictError 
+import { CreateUserInput, LoginInput, User, JWTPayload } from '../types';
+import { validateCreateUser, validateLogin } from '../utils/validation';
+import {
+  ValidationError,
+  UnauthorizedError,
+  ConflictError,
 } from '../utils/errors';
 
 export interface AuthResponse {
@@ -41,31 +33,34 @@ export class AuthService {
     const payload: JWTPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
     };
 
-    return jwt.sign(payload, jwtSecret, { 
-      expiresIn: jwtExpiresIn 
+    return jwt.sign(payload, jwtSecret, {
+      expiresIn: jwtExpiresIn,
     });
   }
 
   // Generate refresh token (for future implementation)
   static generateRefreshToken(user: User): string {
-    const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    const jwtRefreshSecret =
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
     const jwtRefreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
     if (!jwtRefreshSecret) {
-      throw new Error('JWT_REFRESH_SECRET environment variable is not configured');
+      throw new Error(
+        'JWT_REFRESH_SECRET environment variable is not configured'
+      );
     }
 
     const payload: JWTPayload = {
       userId: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
     };
 
-    return jwt.sign(payload, jwtRefreshSecret, { 
-      expiresIn: jwtRefreshExpiresIn 
+    return jwt.sign(payload, jwtRefreshSecret, {
+      expiresIn: jwtRefreshExpiresIn,
     });
   }
 
@@ -76,12 +71,16 @@ export class AuthService {
       const validatedData = validateCreateUser(userData);
 
       // Check if user already exists
-      const existingUserByEmail = await UserModel.existsByEmail(validatedData.email);
+      const existingUserByEmail = await UserModel.existsByEmail(
+        validatedData.email
+      );
       if (existingUserByEmail) {
         throw new ConflictError('Email address is already registered');
       }
 
-      const existingUserByUsername = await UserModel.existsByUsername(validatedData.username);
+      const existingUserByUsername = await UserModel.existsByUsername(
+        validatedData.username
+      );
       if (existingUserByUsername) {
         throw new ConflictError('Username is already taken');
       }
@@ -96,14 +95,14 @@ export class AuthService {
       return {
         user: newUser,
         token,
-        refreshToken
+        refreshToken,
       };
     } catch (error) {
       // Re-throw known errors
       if (error instanceof ValidationError || error instanceof ConflictError) {
         throw error;
       }
-      
+
       // Handle unexpected errors
       throw new Error('Registration failed');
     }
@@ -123,13 +122,16 @@ export class AuthService {
       }
 
       // Verify password
-      const isPasswordValid = await UserModel.validatePassword(password, userWithPassword.password_hash);
+      const isPasswordValid = await UserModel.validatePassword(
+        password,
+        userWithPassword.password_hash
+      );
       if (!isPasswordValid) {
         throw new UnauthorizedError('Invalid email or password');
       }
 
       // Remove password hash from user object
-      const { password_hash, ...user } = userWithPassword;
+      const user = userWithPassword;
 
       // Generate token
       const token = this.generateToken(user as User);
@@ -137,14 +139,17 @@ export class AuthService {
       return {
         user: user as User,
         token,
-        expiresIn: process.env.JWT_EXPIRES_IN || '1h'
+        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
       };
     } catch (error) {
       // Re-throw known errors
-      if (error instanceof ValidationError || error instanceof UnauthorizedError) {
+      if (
+        error instanceof ValidationError ||
+        error instanceof UnauthorizedError
+      ) {
         throw error;
       }
-      
+
       // Handle unexpected errors
       throw new UnauthorizedError('Authentication failed');
     }
@@ -160,7 +165,7 @@ export class AuthService {
 
       // Verify JWT token
       const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
-      
+
       // Get user from database
       const user = await UserModel.findById(decoded.userId);
       if (!user) {
@@ -199,11 +204,18 @@ export class AuthService {
   }
 
   // Change password
-  static async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  static async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
     try {
       await UserModel.changePassword(userId, currentPassword, newPassword);
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof UnauthorizedError) {
+      if (
+        error instanceof ValidationError ||
+        error instanceof UnauthorizedError
+      ) {
         throw error;
       }
       throw new Error('Password change failed');
@@ -211,16 +223,21 @@ export class AuthService {
   }
 
   // Refresh token (for future implementation)
-  static async refreshToken(refreshToken: string): Promise<{ token: string; expiresIn: string }> {
+  static async refreshToken(
+    refreshToken: string
+  ): Promise<{ token: string; expiresIn: string }> {
     try {
-      const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+      const jwtRefreshSecret =
+        process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
       if (!jwtRefreshSecret) {
-        throw new Error('JWT_REFRESH_SECRET environment variable is not configured');
+        throw new Error(
+          'JWT_REFRESH_SECRET environment variable is not configured'
+        );
       }
 
       // Verify refresh token
       const decoded = jwt.verify(refreshToken, jwtRefreshSecret) as JWTPayload;
-      
+
       // Get user from database
       const user = await UserModel.findById(decoded.userId);
       if (!user) {
@@ -232,7 +249,7 @@ export class AuthService {
 
       return {
         token: newToken,
-        expiresIn: process.env.JWT_EXPIRES_IN || '1h'
+        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
       };
     } catch (error) {
       if (error instanceof jwt.JsonWebTokenError) {
@@ -252,7 +269,7 @@ export class AuthService {
     // For JWT tokens, logout is typically handled client-side by removing the token
     // In a more advanced implementation, you might maintain a blacklist of tokens
     // or use session-based authentication with server-side session management
-    
+
     // For now, we'll just verify the token is valid
     try {
       await this.verifyToken(token);
@@ -262,4 +279,4 @@ export class AuthService {
       // Token is already invalid, which is fine for logout
     }
   }
-} 
+}
