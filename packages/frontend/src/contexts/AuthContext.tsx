@@ -25,6 +25,7 @@ interface AuthContextType {
     password: string
   ) => Promise<void>;
   logout: () => void;
+  refreshToken: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -93,6 +94,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(false);
   }, []);
 
+  // Automatic token refresh
+  useEffect(() => {
+    if (!token) return;
+
+    // Refresh token 5 minutes before expiration (assuming 1 hour tokens)
+    const refreshInterval = setInterval(
+      async () => {
+        try {
+          await refreshToken();
+        } catch (error) {
+          console.error('Automatic token refresh failed:', error);
+        }
+      },
+      55 * 60 * 1000
+    ); // 55 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, [token]);
+
   const login = async (email: string, password: string) => {
     try {
       setError(null);
@@ -156,6 +176,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshToken = async () => {
+    try {
+      const currentToken = localStorage.getItem('token');
+      if (!currentToken) {
+        throw new Error('No token to refresh');
+      }
+
+      const response = await api.post(
+        '/auth/refresh',
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        }
+      );
+
+      const { token: newToken, user: userData } = response.data;
+
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      setToken(newToken);
+      setUser(userData);
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      logout();
+      throw error;
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -169,6 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
+    refreshToken,
     isLoading,
     error,
   };

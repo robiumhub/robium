@@ -11,6 +11,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ErrorProvider } from './contexts/ErrorContext';
 import ToastProvider from './components/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RoleBasedRoute } from './components/RoleBasedRoute';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
@@ -54,6 +55,20 @@ function App() {
                           <DesignSystemShowcase />
                         </Layout>
                       </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Admin-only routes */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <RoleBasedRoute allowedRoles={['ADMIN']}>
+                        <Layout>
+                          <div>
+                            Admin Dashboard (Only visible to ADMIN users)
+                          </div>
+                        </Layout>
+                      </RoleBasedRoute>
                     }
                   />
 
