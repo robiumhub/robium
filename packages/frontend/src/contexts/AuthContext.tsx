@@ -110,6 +110,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Login failed';
       setError(errorMessage);
+
+      // Log error for debugging
+      console.error('Login error:', error);
+
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -142,6 +146,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const errorMessage =
         error.response?.data?.message || 'Registration failed';
       setError(errorMessage);
+
+      // Log error for debugging
+      console.error('Registration error:', error);
+
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);

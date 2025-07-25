@@ -115,7 +115,9 @@ const Login: React.FC = () => {
             autoComplete="email"
             autoFocus
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setEmail(e.target.value)
+            }
             error={!!emailError}
             helperText={emailError}
             disabled={isSubmitting}
@@ -130,7 +132,9 @@ const Login: React.FC = () => {
             id="password"
             autoComplete="current-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
             error={!!passwordError}
             helperText={passwordError}
             disabled={isSubmitting}

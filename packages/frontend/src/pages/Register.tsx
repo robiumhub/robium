@@ -144,7 +144,9 @@ const Register: React.FC = () => {
             autoComplete="username"
             autoFocus
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setUsername(e.target.value)
+            }
             error={!!usernameError}
             helperText={usernameError}
             disabled={isSubmitting}
@@ -158,7 +160,9 @@ const Register: React.FC = () => {
             name="email"
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setEmail(e.target.value)
+            }
             error={!!emailError}
             helperText={emailError}
             disabled={isSubmitting}
@@ -173,7 +177,9 @@ const Register: React.FC = () => {
             id="password"
             autoComplete="new-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
             error={!!passwordError}
             helperText={passwordError}
             disabled={isSubmitting}
@@ -188,7 +194,9 @@ const Register: React.FC = () => {
             id="confirmPassword"
             autoComplete="new-password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setConfirmPassword(e.target.value)
+            }
             error={!!confirmPasswordError}
             helperText={confirmPasswordError}
             disabled={isSubmitting}
