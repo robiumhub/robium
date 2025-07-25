@@ -13,39 +13,37 @@ export const userValidationSchemas = {
       .messages({
         'string.email': 'Please provide a valid email address',
         'string.max': 'Email address cannot exceed 255 characters',
-        'any.required': 'Email address is required'
+        'any.required': 'Email address is required',
       }),
-    
-    username: Joi.string()
-      .alphanum()
-      .min(3)
-      .max(50)
-      .required()
-      .messages({
-        'string.alphanum': 'Username can only contain letters and numbers',
-        'string.min': 'Username must be at least 3 characters long',
-        'string.max': 'Username cannot exceed 50 characters',
-        'any.required': 'Username is required'
-      }),
-    
+
+    username: Joi.string().alphanum().min(3).max(50).required().messages({
+      'string.alphanum': 'Username can only contain letters and numbers',
+      'string.min': 'Username must be at least 3 characters long',
+      'string.max': 'Username cannot exceed 50 characters',
+      'any.required': 'Username is required',
+    }),
+
     password: Joi.string()
       .min(8)
       .max(128)
-      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+      .pattern(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/
+      )
       .required()
       .messages({
         'string.min': 'Password must be at least 8 characters long',
         'string.max': 'Password cannot exceed 128 characters',
-        'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-        'any.required': 'Password is required'
+        'string.pattern.base':
+          'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+        'any.required': 'Password is required',
       }),
-    
+
     role: Joi.string()
       .valid(...Object.values(UserRole))
       .default(UserRole.USER)
       .messages({
-        'any.only': `Role must be one of: ${Object.values(UserRole).join(', ')}`
-      })
+        'any.only': `Role must be one of: ${Object.values(UserRole).join(', ')}`,
+      }),
   }),
 
   // Schema for updating a user (all fields optional except id)
@@ -55,47 +53,46 @@ export const userValidationSchemas = {
       .max(255)
       .messages({
         'string.email': 'Please provide a valid email address',
-        'string.max': 'Email address cannot exceed 255 characters'
+        'string.max': 'Email address cannot exceed 255 characters',
       }),
-    
-    username: Joi.string()
-      .alphanum()
-      .min(3)
-      .max(50)
-      .messages({
-        'string.alphanum': 'Username can only contain letters and numbers',
-        'string.min': 'Username must be at least 3 characters long',
-        'string.max': 'Username cannot exceed 50 characters'
-      }),
-    
+
+    username: Joi.string().alphanum().min(3).max(50).messages({
+      'string.alphanum': 'Username can only contain letters and numbers',
+      'string.min': 'Username must be at least 3 characters long',
+      'string.max': 'Username cannot exceed 50 characters',
+    }),
+
     role: Joi.string()
       .valid(...Object.values(UserRole))
       .messages({
-        'any.only': `Role must be one of: ${Object.values(UserRole).join(', ')}`
-      })
-  }).min(1).messages({
-    'object.min': 'At least one field must be provided for update'
-  }),
+        'any.only': `Role must be one of: ${Object.values(UserRole).join(', ')}`,
+      }),
+  })
+    .min(1)
+    .messages({
+      'object.min': 'At least one field must be provided for update',
+    }),
 
   // Schema for password change
   changePassword: Joi.object({
-    currentPassword: Joi.string()
-      .required()
-      .messages({
-        'any.required': 'Current password is required'
-      }),
-    
+    currentPassword: Joi.string().required().messages({
+      'any.required': 'Current password is required',
+    }),
+
     newPassword: Joi.string()
       .min(8)
       .max(128)
-      .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+      .pattern(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/
+      )
       .required()
       .messages({
         'string.min': 'New password must be at least 8 characters long',
         'string.max': 'New password cannot exceed 128 characters',
-        'string.pattern.base': 'New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-        'any.required': 'New password is required'
-      })
+        'string.pattern.base':
+          'New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+        'any.required': 'New password is required',
+      }),
   }),
 
   // Schema for login validation
@@ -105,24 +102,19 @@ export const userValidationSchemas = {
       .required()
       .messages({
         'string.email': 'Please provide a valid email address',
-        'any.required': 'Email address is required'
+        'any.required': 'Email address is required',
       }),
-    
-    password: Joi.string()
-      .required()
-      .messages({
-        'any.required': 'Password is required'
-      })
+
+    password: Joi.string().required().messages({
+      'any.required': 'Password is required',
+    }),
   }),
 
   // Schema for UUID validation
-  id: Joi.string()
-    .uuid({ version: 'uuidv4' })
-    .required()
-    .messages({
-      'string.guid': 'Invalid user ID format',
-      'any.required': 'User ID is required'
-    })
+  id: Joi.string().uuid({ version: 'uuidv4' }).required().messages({
+    'string.guid': 'Invalid user ID format',
+    'any.required': 'User ID is required',
+  }),
 };
 
 // Generic validation function
@@ -130,13 +122,13 @@ export const validateData = <T>(data: unknown, schema: Joi.ObjectSchema): T => {
   const { error, value } = schema.validate(data, {
     abortEarly: false, // Collect all validation errors
     stripUnknown: true, // Remove unknown fields
-    convert: true // Convert string numbers to numbers, etc.
+    convert: true, // Convert string numbers to numbers, etc.
   });
 
   if (error) {
-    const validationErrors = error.details.map(detail => ({
+    const validationErrors = error.details.map((detail) => ({
       field: detail.path.join('.'),
-      message: detail.message
+      message: detail.message,
     }));
 
     throw new ValidationError('Validation failed', validationErrors);
@@ -151,7 +143,10 @@ export const validateCreateUser = (data: unknown): CreateUserInput => {
 };
 
 export const validateUpdateUser = (data: unknown): Partial<CreateUserInput> => {
-  return validateData<Partial<CreateUserInput>>(data, userValidationSchemas.update);
+  return validateData<Partial<CreateUserInput>>(
+    data,
+    userValidationSchemas.update
+  );
 };
 
 export const validateChangePassword = (data: unknown) => {
@@ -169,7 +164,7 @@ export const validateUserId = (data: { id: string }) => {
 // Helper function to sanitize user data for responses (remove sensitive fields)
 export const sanitizeUser = (user: unknown) => {
   if (!user) return null;
-  
+
   const userObj = user as { password_hash?: string; [key: string]: unknown };
   const { password_hash, ...sanitizedUser } = userObj;
   return sanitizedUser;
@@ -182,34 +177,38 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 // Helper function to check password strength
-export const checkPasswordStrength = (password: string): {
+export const checkPasswordStrength = (
+  password: string
+): {
   isStrong: boolean;
   issues: string[];
 } => {
   const issues: string[] = [];
-  
+
   if (password.length < 8) {
     issues.push('Password must be at least 8 characters long');
   }
-  
+
   if (!/[a-z]/.test(password)) {
     issues.push('Password must contain at least one lowercase letter');
   }
-  
+
   if (!/[A-Z]/.test(password)) {
     issues.push('Password must contain at least one uppercase letter');
   }
-  
+
   if (!/\d/.test(password)) {
     issues.push('Password must contain at least one number');
   }
-  
+
   if (!/[@$!%*?&]/.test(password)) {
-    issues.push('Password must contain at least one special character (@$!%*?&)');
+    issues.push(
+      'Password must contain at least one special character (@$!%*?&)'
+    );
   }
-  
+
   return {
     isStrong: issues.length === 0,
-    issues
+    issues,
   };
-}; 
+};

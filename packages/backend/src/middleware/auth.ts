@@ -5,11 +5,18 @@ import { UnauthorizedError } from '../utils/errors';
 import { UserModel } from '../models/User';
 
 // Authentication middleware to verify JWT tokens
-export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const authenticateToken = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const token =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : null;
 
     if (!token) {
       throw new UnauthorizedError('Access token is required');
@@ -22,7 +29,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     }
 
     const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
-    
+
     // Verify user still exists (optional security check)
     const user = await UserModel.findById(decoded.userId);
     if (!user) {
@@ -35,7 +42,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       email: decoded.email,
       role: decoded.role,
       iat: decoded.iat,
-      exp: decoded.exp
+      exp: decoded.exp,
     };
 
     next();
@@ -53,17 +60,24 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 };
 
 // Optional middleware for routes that work with or without authentication
-export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const optionalAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const token =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.substring(7)
+        : null;
 
     if (token) {
       const jwtSecret = process.env.JWT_SECRET;
       if (jwtSecret) {
         try {
           const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
-          
+
           // Verify user still exists
           const user = await UserModel.findById(decoded.userId);
           if (user) {
@@ -72,7 +86,7 @@ export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFu
               email: decoded.email,
               role: decoded.role,
               iat: decoded.iat,
-              exp: decoded.exp
+              exp: decoded.exp,
             };
           }
         } catch (error) {
@@ -110,7 +124,9 @@ export const requireRole = (requiredRole: string) => {
 export const requireAdmin = requireRole('admin');
 
 // Middleware to check if user owns the resource or is admin
-export const requireOwnershipOrAdmin = (getUserIdFromParams: (req: Request) => string) => {
+export const requireOwnershipOrAdmin = (
+  getUserIdFromParams: (req: Request) => string
+) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       next(new UnauthorizedError('Authentication required'));
@@ -128,4 +144,4 @@ export const requireOwnershipOrAdmin = (getUserIdFromParams: (req: Request) => s
 
     next();
   };
-}; 
+};

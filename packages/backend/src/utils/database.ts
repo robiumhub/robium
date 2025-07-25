@@ -45,7 +45,11 @@ export class Database {
     try {
       const result = await pool.query(text, params);
       const duration = Date.now() - start;
-      console.log('📊 Query executed', { text, duration, rows: result.rowCount });
+      console.log('📊 Query executed', {
+        text,
+        duration,
+        rows: result.rowCount,
+      });
       return result;
     } catch (error) {
       console.error('❌ Query failed:', { text, params, error });
@@ -53,7 +57,9 @@ export class Database {
     }
   }
 
-  static async transaction<T>(callback: (client: unknown) => Promise<T>): Promise<T> {
+  static async transaction<T>(
+    callback: (client: unknown) => Promise<T>
+  ): Promise<T> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -91,4 +97,4 @@ process.on('SIGTERM', async () => {
   console.log('🔄 Shutting down database connections...');
   await Database.disconnect();
   process.exit(0);
-}); 
+});

@@ -36,7 +36,7 @@ async function main() {
 
       case 'reset': {
         console.log('⚠️  Resetting database (rolling back all migrations)...');
-        
+
         // Rollback all migrations
         let hasMore = true;
         while (hasMore) {
@@ -46,7 +46,7 @@ async function main() {
             hasMore = false;
           }
         }
-        
+
         console.log('✅ Database reset complete');
         break;
       }
@@ -70,7 +70,6 @@ Examples:
         `);
         break;
     }
-
   } catch (error) {
     console.error('❌ Migration failed:', error);
     process.exit(1);
@@ -83,4 +82,4 @@ Examples:
 // Run if called directly
 if (require.main === module) {
   main();
-} 
+}

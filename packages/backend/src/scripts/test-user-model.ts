@@ -24,13 +24,13 @@ async function testUserModel() {
       email: `test${timestamp}@example.com`,
       username: `testuser${timestamp}`,
       password: 'TestPassword123!',
-      role: UserRole.USER
+      role: UserRole.USER,
     });
     console.log('✅ User created:', {
       id: newUser.id,
       email: newUser.email,
       username: newUser.username,
-      role: newUser.role
+      role: newUser.role,
     });
     console.log('');
 
@@ -42,26 +42,33 @@ async function testUserModel() {
 
     // Test 3: Find user by email
     console.log('3️⃣ Testing find user by email...');
-    const foundByEmail = await UserModel.findByEmail(`test${timestamp}@example.com`);
+    const foundByEmail = await UserModel.findByEmail(
+      `test${timestamp}@example.com`
+    );
     console.log('✅ User found by email:', foundByEmail ? 'Success' : 'Failed');
     console.log('');
 
     // Test 4: Update user
     console.log('4️⃣ Testing user update...');
     const updatedUser = await UserModel.update(newUser.id, {
-      username: `updateduser${timestamp}`
+      username: `updateduser${timestamp}`,
     });
     console.log('✅ User updated:', {
       id: updatedUser.id,
-      username: updatedUser.username
+      username: updatedUser.username,
     });
     console.log('');
 
     // Test 5: Test password validation
     console.log('5️⃣ Testing password validation...');
-    const userWithPassword = await UserModel.findByEmailWithPassword(`test${timestamp}@example.com`);
+    const userWithPassword = await UserModel.findByEmailWithPassword(
+      `test${timestamp}@example.com`
+    );
     if (userWithPassword) {
-      const isValid = await UserModel.validatePassword('TestPassword123!', userWithPassword.password_hash);
+      const isValid = await UserModel.validatePassword(
+        'TestPassword123!',
+        userWithPassword.password_hash
+      );
       console.log('✅ Password validation:', isValid ? 'Success' : 'Failed');
     }
     console.log('');
@@ -72,17 +79,21 @@ async function testUserModel() {
     console.log('✅ User list retrieved:', {
       count: userList.users.length,
       total: userList.pagination.total,
-      page: userList.pagination.page
+      page: userList.pagination.page,
     });
     console.log('');
 
     // Test 7: Test existence checks
     console.log('7️⃣ Testing existence checks...');
-    const emailExists = await UserModel.existsByEmail(`test${timestamp}@example.com`);
-    const usernameExists = await UserModel.existsByUsername(`updateduser${timestamp}`);
+    const emailExists = await UserModel.existsByEmail(
+      `test${timestamp}@example.com`
+    );
+    const usernameExists = await UserModel.existsByUsername(
+      `updateduser${timestamp}`
+    );
     console.log('✅ Existence checks:', {
       emailExists,
-      usernameExists
+      usernameExists,
     });
     console.log('');
 
@@ -99,10 +110,9 @@ async function testUserModel() {
     console.log('');
 
     console.log('🎉 All User Model tests passed successfully!');
-
   } catch (error) {
     console.error('❌ Test failed:', error);
-    
+
     if (error instanceof Error) {
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
@@ -123,4 +133,4 @@ if (require.main === module) {
   testUserModel().catch(console.error);
 }
 
-export { testUserModel }; 
+export { testUserModel };

@@ -1,19 +1,15 @@
 import bcrypt from 'bcryptjs';
 import { Database } from '../utils/database';
-import {
-  User,
-  CreateUserInput,
-  UserRole
-} from '../types';
+import { User, CreateUserInput, UserRole } from '../types';
 import {
   validateCreateUser,
   validateUpdateUser,
-  validateUserId
+  validateUserId,
 } from '../utils/validation';
 import {
   NotFoundError,
   ValidationError,
-  handleDatabaseError
+  handleDatabaseError,
 } from '../utils/errors';
 
 export class UserModel {
@@ -34,8 +30,13 @@ export class UserModel {
         RETURNING id, email, username, role, created_at, updated_at
       `;
 
-      const result = await Database.query(query, [email, username, passwordHash, role]) as { rows: User[] };
-      
+      const result = (await Database.query(query, [
+        email,
+        username,
+        passwordHash,
+        role,
+      ])) as { rows: User[] };
+
       if (!result.rows || result.rows.length === 0) {
         throw new Error('Failed to create user');
       }
@@ -46,7 +47,7 @@ export class UserModel {
       if (error.code) {
         throw handleDatabaseError(error);
       }
-      
+
       // Re-throw validation errors and other operational errors
       throw error;
     }
@@ -64,7 +65,7 @@ export class UserModel {
         WHERE id = $1
       `;
 
-      const result = await Database.query(query, [id]) as { rows: User[] };
+      const result = (await Database.query(query, [id])) as { rows: User[] };
       return result.rows[0] || null;
     } catch (error: any) {
       if (error instanceof ValidationError) {
@@ -87,7 +88,9 @@ export class UserModel {
         WHERE email = $1
       `;
 
-      const result = await Database.query(query, [email.toLowerCase()]) as { rows: User[] };
+      const result = (await Database.query(query, [email.toLowerCase()])) as {
+        rows: User[];
+      };
       return result.rows[0] || null;
     } catch (error: any) {
       if (error instanceof ValidationError) {
@@ -98,7 +101,9 @@ export class UserModel {
   }
 
   // Find user by email with password hash (for login)
-  static async findByEmailWithPassword(email: string): Promise<(User & { password_hash: string }) | null> {
+  static async findByEmailWithPassword(
+    email: string
+  ): Promise<(User & { password_hash: string }) | null> {
     try {
       if (!email || typeof email !== 'string') {
         throw new ValidationError('Valid email is required');
@@ -110,7 +115,9 @@ export class UserModel {
         WHERE email = $1
       `;
 
-      const result = await Database.query(query, [email.toLowerCase()]) as { rows: (User & { password_hash: string })[] };
+      const result = (await Database.query(query, [email.toLowerCase()])) as {
+        rows: (User & { password_hash: string })[];
+      };
       return result.rows[0] || null;
     } catch (error: any) {
       if (error instanceof ValidationError) {
@@ -121,7 +128,10 @@ export class UserModel {
   }
 
   // Update user
-  static async update(id: string, updates: Partial<CreateUserInput>): Promise<User> {
+  static async update(
+    id: string,
+    updates: Partial<CreateUserInput>
+  ): Promise<User> {
     try {
       // Validate ID and updates
       validateUserId({ id });
@@ -159,7 +169,7 @@ export class UserModel {
 
       // Add updated_at timestamp
       updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
-      
+
       // Add WHERE clause parameter
       values.push(id);
 
@@ -170,8 +180,8 @@ export class UserModel {
         RETURNING id, email, username, role, created_at, updated_at
       `;
 
-      const result = await Database.query(query, values) as { rows: User[] };
-      
+      const result = (await Database.query(query, values)) as { rows: User[] };
+
       if (!result.rows || result.rows.length === 0) {
         throw new NotFoundError('User', id);
       }
@@ -182,14 +192,18 @@ export class UserModel {
       if (error.code) {
         throw handleDatabaseError(error);
       }
-      
+
       // Re-throw validation and other operational errors
       throw error;
     }
   }
 
   // Change user password
-  static async changePassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
+  static async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
     try {
       // Validate ID
       validateUserId({ id });
@@ -201,8 +215,10 @@ export class UserModel {
         WHERE id = $1
       `;
 
-      const result = await Database.query(query, [id]) as { rows: { id: string; password_hash: string }[] };
-      
+      const result = (await Database.query(query, [id])) as {
+        rows: { id: string; password_hash: string }[];
+      };
+
       if (!result.rows || result.rows.length === 0) {
         throw new NotFoundError('User', id);
       }
@@ -210,7 +226,10 @@ export class UserModel {
       const user = result.rows[0];
 
       // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+      const isCurrentPasswordValid = await bcrypt.compare(
+        currentPassword,
+        user.password_hash
+      );
       if (!isCurrentPasswordValid) {
         throw new ValidationError('Current password is incorrect');
       }
@@ -258,7 +277,10 @@ export class UserModel {
   }
 
   // Validate password against hash
-  static async validatePassword(password: string, hash: string): Promise<boolean> {
+  static async validatePassword(
+    password: string,
+    hash: string
+  ): Promise<boolean> {
     try {
       return await bcrypt.compare(password, hash);
     } catch (error) {
@@ -267,7 +289,10 @@ export class UserModel {
   }
 
   // Get all users (with pagination)
-  static async findAll(page: number = 1, limit: number = 10): Promise<{
+  static async findAll(
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{
     users: User[];
     pagination: {
       page: number;
@@ -284,7 +309,9 @@ export class UserModel {
 
       // Get total count
       const countQuery = `SELECT COUNT(*) as total FROM users`;
-      const countResult = await Database.query(countQuery) as { rows: { total: string }[] };
+      const countResult = (await Database.query(countQuery)) as {
+        rows: { total: string }[];
+      };
       const total = parseInt(countResult.rows[0].total);
 
       // Get users with pagination
@@ -295,7 +322,9 @@ export class UserModel {
         LIMIT $1 OFFSET $2
       `;
 
-      const result = await Database.query(query, [validLimit, offset]) as { rows: User[] };
+      const result = (await Database.query(query, [validLimit, offset])) as {
+        rows: User[];
+      };
 
       return {
         users: result.rows,
@@ -303,8 +332,8 @@ export class UserModel {
           page: validPage,
           limit: validLimit,
           total,
-          totalPages: Math.ceil(total / validLimit)
-        }
+          totalPages: Math.ceil(total / validLimit),
+        },
       };
     } catch (error: any) {
       throw handleDatabaseError(error);
@@ -315,7 +344,9 @@ export class UserModel {
   static async existsByEmail(email: string): Promise<boolean> {
     try {
       const query = `SELECT 1 FROM users WHERE email = $1 LIMIT 1`;
-      const result = await Database.query(query, [email.toLowerCase()]) as { rows: any[] };
+      const result = (await Database.query(query, [email.toLowerCase()])) as {
+        rows: any[];
+      };
       return result.rows.length > 0;
     } catch (error: any) {
       throw handleDatabaseError(error);
@@ -326,7 +357,9 @@ export class UserModel {
   static async existsByUsername(username: string): Promise<boolean> {
     try {
       const query = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`;
-      const result = await Database.query(query, [username]) as { rows: any[] };
+      const result = (await Database.query(query, [username])) as {
+        rows: any[];
+      };
       return result.rows.length > 0;
     } catch (error: any) {
       throw handleDatabaseError(error);
@@ -342,16 +375,18 @@ export class UserModel {
         GROUP BY role
       `;
 
-      const result = await Database.query(query) as { rows: { role: UserRole; count: string }[] };
-      
+      const result = (await Database.query(query)) as {
+        rows: { role: UserRole; count: string }[];
+      };
+
       // Initialize counts for all roles
       const counts: Record<UserRole, number> = {
         [UserRole.ADMIN]: 0,
-        [UserRole.USER]: 0
+        [UserRole.USER]: 0,
       };
 
       // Fill in actual counts
-      result.rows.forEach(row => {
+      result.rows.forEach((row) => {
         counts[row.role] = parseInt(row.count);
       });
 
@@ -360,4 +395,4 @@ export class UserModel {
       throw handleDatabaseError(error);
     }
   }
-} 
+}

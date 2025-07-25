@@ -9,4 +9,4 @@
 
 ## Additional Rules
 
-- (Add other project rules here) 
+- (Add other project rules here)

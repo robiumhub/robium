@@ -7,13 +7,13 @@ import { WebSocketServer } from './websocket/WebSocketServer';
 import { Database } from './utils/database';
 import { MigrationManager } from './utils/migrations';
 import { logger } from './utils/logger';
-import { 
-  addRequestId, 
-  requestTiming, 
-  globalErrorHandler, 
-  notFoundHandler, 
+import {
+  addRequestId,
+  requestTiming,
+  globalErrorHandler,
+  notFoundHandler,
   gracefulShutdown,
-  setupErrorHandlers 
+  setupErrorHandlers,
 } from './middleware/errorHandler';
 
 // Load environment variables
@@ -46,13 +46,15 @@ app.use(addRequestId);
 app.use(requestTiming);
 
 // Logging middleware
-app.use(morgan('combined', {
-  stream: {
-    write: (message: string) => {
-      logger.info('HTTP Request', { message: message.trim() });
-    }
-  }
-}));
+app.use(
+  morgan('combined', {
+    stream: {
+      write: (message: string) => {
+        logger.info('HTTP Request', { message: message.trim() });
+      },
+    },
+  })
+);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -74,10 +76,12 @@ app.get('/health', async (req, res) => {
         database: dbHealth ? 'healthy' : 'unhealthy',
         websocket: 'ready',
       },
-      requestId: req.requestId
+      requestId: req.requestId,
     });
   } catch (error) {
-    logger.error('Health check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
+    logger.error('Health check failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     res.status(503).json({
       status: 'ERROR',
       message: 'Service Unavailable',
@@ -85,7 +89,7 @@ app.get('/health', async (req, res) => {
       version: '0.1.0',
       database: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
-      requestId: req.requestId
+      requestId: req.requestId,
     });
   }
 });
@@ -105,11 +109,11 @@ app.use(globalErrorHandler);
 const wsServer = new WebSocketServer(app, {
   heartbeat: {
     interval: 30000, // 30 seconds
-    timeout: 5000,   // 5 seconds
-    maxMissedHeartbeats: 2
+    timeout: 5000, // 5 seconds
+    maxMissedHeartbeats: 2,
   },
   maxConnections: 1000,
-  enableLogging: true
+  enableLogging: true,
 });
 
 // Start server
@@ -129,7 +133,7 @@ async function startServer() {
       logger.info(`Server started on port ${PORT}`, {
         port: PORT,
         environment: process.env.NODE_ENV || 'development',
-        nodeVersion: process.version
+        nodeVersion: process.version,
       });
     });
 
@@ -140,9 +144,10 @@ async function startServer() {
     // Setup graceful shutdown
     process.on('SIGTERM', () => gracefulShutdown(server, 'SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown(server, 'SIGINT'));
-
   } catch (error) {
-    logger.error('Failed to start server', { error: error instanceof Error ? error.message : 'Unknown error' });
+    logger.error('Failed to start server', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     process.exit(1);
   }
 }

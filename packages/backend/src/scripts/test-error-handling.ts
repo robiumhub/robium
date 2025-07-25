@@ -14,8 +14,8 @@ async function testErrorHandling() {
     const response = await fetch(`${BASE_URL}/nonexistent-route`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
@@ -38,15 +38,15 @@ async function testErrorHandling() {
     const invalidData = {
       email: 'invalid-email',
       username: 'ab', // too short
-      password: 'weak' // too weak
+      password: 'weak', // too weak
     };
 
     const response = await fetch(`${BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(invalidData)
+      body: JSON.stringify(invalidData),
     });
 
     if (!response.ok) {
@@ -69,9 +69,9 @@ async function testErrorHandling() {
     const response = await fetch(`${BASE_URL}/admin/dashboard`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
         // No Authorization header
-      }
+      },
     });
 
     if (!response.ok) {
@@ -93,8 +93,8 @@ async function testErrorHandling() {
     const response = await fetch(`${BASE_URL}/auth/users/invalid-uuid`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
@@ -116,8 +116,8 @@ async function testErrorHandling() {
     const response = await fetch(`${BASE_URL}/health`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
 
     const requestId = response.headers.get('X-Request-ID');
@@ -140,8 +140,8 @@ async function testErrorHandling() {
     const response = await fetch(`${BASE_URL}/health`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
 
     if (response.ok) {
@@ -165,9 +165,9 @@ async function testErrorHandling() {
     const response = await fetch(`${BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/plain'
+        'Content-Type': 'text/plain',
       },
-      body: 'invalid json'
+      body: 'invalid json',
     });
 
     if (!response.ok) {
@@ -196,4 +196,4 @@ if (require.main === module) {
   testErrorHandling().catch(console.error);
 }
 
-export { testErrorHandling }; 
+export { testErrorHandling };

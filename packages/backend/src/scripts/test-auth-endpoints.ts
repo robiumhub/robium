@@ -22,7 +22,7 @@ async function testAuthEndpoints() {
   const testUser = {
     email: `testauth${timestamp}@example.com`,
     username: `testauth${timestamp}`,
-    password: 'TestPassword123!'
+    password: 'TestPassword123!',
   };
 
   let authToken: string = '';
@@ -39,12 +39,12 @@ async function testAuthEndpoints() {
     });
 
     const signupData: ApiResponse = await signupResponse.json();
-    
+
     if (signupResponse.ok && signupData.success) {
       console.log('✅ Registration successful:', {
         status: signupResponse.status,
         user: signupData.data?.user?.email,
-        hasToken: !!signupData.data?.token
+        hasToken: !!signupData.data?.token,
       });
       authToken = signupData.data?.token || '';
     } else {
@@ -62,18 +62,18 @@ async function testAuthEndpoints() {
       },
       body: JSON.stringify({
         email: testUser.email,
-        password: testUser.password
+        password: testUser.password,
       }),
     });
 
     const loginData: ApiResponse = await loginResponse.json();
-    
+
     if (loginResponse.ok && loginData.success) {
       console.log('✅ Login successful:', {
         status: loginResponse.status,
         user: loginData.data?.user?.email,
         hasToken: !!loginData.data?.token,
-        expiresIn: loginData.data?.expiresIn
+        expiresIn: loginData.data?.expiresIn,
       });
       authToken = loginData.data?.token || authToken; // Use login token
     } else {
@@ -86,13 +86,13 @@ async function testAuthEndpoints() {
     const meResponse = await fetch(`${BASE_URL}/auth/me`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        Authorization: `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
     });
 
     const meData: ApiResponse = await meResponse.json();
-    
+
     if (meResponse.ok && meData.success) {
       console.log('✅ Get profile successful:', {
         status: meResponse.status,
@@ -100,8 +100,8 @@ async function testAuthEndpoints() {
           id: meData.data?.id,
           email: meData.data?.email,
           username: meData.data?.username,
-          role: meData.data?.role
-        }
+          role: meData.data?.role,
+        },
       });
     } else {
       console.log('❌ Get profile failed:', meData);
@@ -113,18 +113,18 @@ async function testAuthEndpoints() {
     const verifyResponse = await fetch(`${BASE_URL}/auth/verify`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        Authorization: `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
     });
 
     const verifyData: ApiResponse = await verifyResponse.json();
-    
+
     if (verifyResponse.ok && verifyData.success) {
       console.log('✅ Token verification successful:', {
         status: verifyResponse.status,
         valid: verifyData.data?.valid,
-        userId: verifyData.data?.user?.userId
+        userId: verifyData.data?.user?.userId,
       });
     } else {
       console.log('❌ Token verification failed:', verifyData);
@@ -136,17 +136,17 @@ async function testAuthEndpoints() {
     const invalidTokenResponse = await fetch(`${BASE_URL}/auth/me`, {
       method: 'GET',
       headers: {
-        'Authorization': 'Bearer invalid_token_here',
+        Authorization: 'Bearer invalid_token_here',
         'Content-Type': 'application/json',
       },
     });
 
     const invalidTokenData: ApiResponse = await invalidTokenResponse.json();
-    
+
     if (invalidTokenResponse.status === 401) {
       console.log('✅ Invalid token properly rejected:', {
         status: invalidTokenResponse.status,
-        error: invalidTokenData.error
+        error: invalidTokenData.error,
       });
     } else {
       console.log('❌ Invalid token not properly handled:', invalidTokenData);
@@ -163,11 +163,11 @@ async function testAuthEndpoints() {
     });
 
     const noTokenData: ApiResponse = await noTokenResponse.json();
-    
+
     if (noTokenResponse.status === 401) {
       console.log('✅ Missing token properly rejected:', {
         status: noTokenResponse.status,
-        error: noTokenData.error
+        error: noTokenData.error,
       });
     } else {
       console.log('❌ Missing token not properly handled:', noTokenData);
@@ -179,17 +179,17 @@ async function testAuthEndpoints() {
     const logoutResponse = await fetch(`${BASE_URL}/auth/logout`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        Authorization: `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
     });
 
     const logoutData: ApiResponse = await logoutResponse.json();
-    
+
     if (logoutResponse.ok && logoutData.success) {
       console.log('✅ Logout successful:', {
         status: logoutResponse.status,
-        message: logoutData.message
+        message: logoutData.message,
       });
     } else {
       console.log('❌ Logout failed:', logoutData);
@@ -207,14 +207,17 @@ async function testAuthEndpoints() {
     });
 
     const duplicateData: ApiResponse = await duplicateResponse.json();
-    
+
     if (duplicateResponse.status === 409) {
       console.log('✅ Duplicate registration properly prevented:', {
         status: duplicateResponse.status,
-        error: duplicateData.error
+        error: duplicateData.error,
       });
     } else {
-      console.log('❌ Duplicate registration not properly handled:', duplicateData);
+      console.log(
+        '❌ Duplicate registration not properly handled:',
+        duplicateData
+      );
     }
     console.log('');
 
@@ -227,16 +230,16 @@ async function testAuthEndpoints() {
       },
       body: JSON.stringify({
         email: testUser.email,
-        password: 'WrongPassword123!'
+        password: 'WrongPassword123!',
       }),
     });
 
     const invalidLoginData: ApiResponse = await invalidLoginResponse.json();
-    
+
     if (invalidLoginResponse.status === 401) {
       console.log('✅ Invalid login properly rejected:', {
         status: invalidLoginResponse.status,
-        error: invalidLoginData.error
+        error: invalidLoginData.error,
       });
     } else {
       console.log('❌ Invalid login not properly handled:', invalidLoginData);
@@ -244,10 +247,9 @@ async function testAuthEndpoints() {
     console.log('');
 
     console.log('🎉 All Authentication Endpoint tests completed!');
-
   } catch (error) {
     console.error('❌ Test failed:', error);
-    
+
     if (error instanceof Error) {
       console.error('Error message:', error.message);
     }
@@ -259,4 +261,4 @@ if (require.main === module) {
   testAuthEndpoints().catch(console.error);
 }
 
-export { testAuthEndpoints }; 
+export { testAuthEndpoints };

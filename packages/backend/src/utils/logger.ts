@@ -7,7 +7,7 @@ export enum LogLevel {
   WARN = 1,
   INFO = 2,
   DEBUG = 3,
-  TRACE = 4
+  TRACE = 4,
 }
 
 // Log level names for display
@@ -16,7 +16,7 @@ export const LOG_LEVEL_NAMES: Record<LogLevel, string> = {
   [LogLevel.WARN]: 'WARN',
   [LogLevel.INFO]: 'INFO',
   [LogLevel.DEBUG]: 'DEBUG',
-  [LogLevel.TRACE]: 'TRACE'
+  [LogLevel.TRACE]: 'TRACE',
 };
 
 // Log entry interface
@@ -55,7 +55,7 @@ const DEFAULT_CONFIG: LoggerConfig = {
   logDir: 'logs',
   maxFileSize: 10 * 1024 * 1024, // 10MB
   maxFiles: 5,
-  format: 'json'
+  format: 'json',
 };
 
 export class Logger {
@@ -118,7 +118,7 @@ export class Logger {
       const parts = [
         `[${entry.timestamp}]`,
         `${entry.levelName}`,
-        entry.message
+        entry.message,
       ];
 
       if (entry.context) {
@@ -148,7 +148,12 @@ export class Logger {
     return level <= this.config.level;
   }
 
-  private log(level: LogLevel, message: string, context?: Record<string, unknown>, error?: Error): void {
+  private log(
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>,
+    error?: Error
+  ): void {
     if (!this.shouldLog(level)) return;
 
     const entry: LogEntry = {
@@ -157,17 +162,22 @@ export class Logger {
       levelName: LOG_LEVEL_NAMES[level],
       message,
       context,
-      error
+      error,
     };
 
     const formattedEntry = this.formatLogEntry(entry);
 
     // Console output
     if (this.config.enableConsole) {
-      const consoleMethod = level === LogLevel.ERROR ? 'error' : 
-                           level === LogLevel.WARN ? 'warn' : 
-                           level === LogLevel.INFO ? 'info' : 'log';
-      
+      const consoleMethod =
+        level === LogLevel.ERROR
+          ? 'error'
+          : level === LogLevel.WARN
+            ? 'warn'
+            : level === LogLevel.INFO
+              ? 'info'
+              : 'log';
+
       console[consoleMethod](formattedEntry.trim());
     }
 
@@ -178,7 +188,11 @@ export class Logger {
   }
 
   // Public logging methods
-  error(message: string, context?: Record<string, unknown>, error?: Error): void {
+  error(
+    message: string,
+    context?: Record<string, unknown>,
+    error?: Error
+  ): void {
     this.log(LogLevel.ERROR, message, context, error);
   }
 
@@ -203,9 +217,14 @@ export class Logger {
     const context: Record<string, unknown> = {
       method: (req as { method?: string }).method,
       url: (req as { url?: string }).url,
-      ip: (req as { ip?: string; connection?: { remoteAddress?: string } }).ip || (req as { connection?: { remoteAddress?: string } }).connection?.remoteAddress,
-      userAgent: (req as { get?: (header: string) => string }).get?.('User-Agent'),
-      duration: duration ? `${duration}ms` : undefined
+      ip:
+        (req as { ip?: string; connection?: { remoteAddress?: string } }).ip ||
+        (req as { connection?: { remoteAddress?: string } }).connection
+          ?.remoteAddress,
+      userAgent: (req as { get?: (header: string) => string }).get?.(
+        'User-Agent'
+      ),
+      duration: duration ? `${duration}ms` : undefined,
     };
 
     if ((req as { user?: { userId?: string } }).user?.userId) {
@@ -225,8 +244,13 @@ export class Logger {
     if (req) {
       context.method = (req as { method?: string }).method;
       context.url = (req as { url?: string }).url;
-      context.ip = (req as { ip?: string; connection?: { remoteAddress?: string } }).ip || (req as { connection?: { remoteAddress?: string } }).connection?.remoteAddress;
-      context.userAgent = (req as { get?: (header: string) => string }).get?.('User-Agent');
+      context.ip =
+        (req as { ip?: string; connection?: { remoteAddress?: string } }).ip ||
+        (req as { connection?: { remoteAddress?: string } }).connection
+          ?.remoteAddress;
+      context.userAgent = (req as { get?: (header: string) => string }).get?.(
+        'User-Agent'
+      );
 
       if ((req as { user?: { userId?: string } }).user?.userId) {
         context.userId = (req as { user: { userId: string } }).user.userId;
@@ -251,10 +275,12 @@ export class Logger {
 
 // Create default logger instance
 export const logger = new Logger({
-  level: (process.env.LOG_LEVEL as keyof typeof LogLevel) ? LogLevel[process.env.LOG_LEVEL as keyof typeof LogLevel] : LogLevel.INFO,
+  level: (process.env.LOG_LEVEL as keyof typeof LogLevel)
+    ? LogLevel[process.env.LOG_LEVEL as keyof typeof LogLevel]
+    : LogLevel.INFO,
   enableConsole: process.env.NODE_ENV !== 'test',
   enableFile: process.env.NODE_ENV === 'production',
-  format: process.env.NODE_ENV === 'production' ? 'json' : 'text'
+  format: process.env.NODE_ENV === 'production' ? 'json' : 'text',
 });
 
 // Graceful shutdown
@@ -268,4 +294,4 @@ process.on('SIGTERM', () => {
   logger.info('Shutting down logger...');
   logger.close();
   process.exit(0);
-}); 
+});

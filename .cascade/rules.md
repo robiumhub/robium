@@ -7,6 +7,7 @@ Robium is a comprehensive web-based robotics development studio IDE that enables
 ## Current Project Architecture
 
 ### Monorepo Structure
+
 - **npm workspaces** for dependency management
 - **TypeScript** throughout the entire stack
 - **Docker Compose** for development environment
@@ -76,18 +77,21 @@ robium/
 ## Database Architecture
 
 ### Schema Design
+
 - **users**: User accounts with authentication (UUID, email, username, password_hash, role)
 - **projects**: User projects with ownership (UUID, name, description, owner_id)
 - **sessions**: JWT session management (UUID, user_id, token_hash, expires_at)
 - **project_members**: Project collaboration (UUID, project_id, user_id, role)
 
 ### Migration System
+
 - **Custom migration framework** with UP/DOWN support
 - **CLI commands**: `npm run migrate:up`, `migrate:down`, `migrate:status`, `migrate:reset`
 - **Automatic execution** on server startup
 - **Transaction-based** migrations for data integrity
 
 ### Database Features
+
 - **UUID primary keys** for all tables
 - **Role-based access control** (admin/user, project permissions)
 - **Automatic timestamps** with PostgreSQL triggers
@@ -99,6 +103,7 @@ robium/
 ### Backend Development Rules
 
 1. **Express.js Patterns**:
+
    ```typescript
    // ✅ DO: Use async/await with proper error handling
    app.get('/api/endpoint', async (req: AuthRequest, res: Response) => {
@@ -109,7 +114,7 @@ robium/
        res.status(500).json({ error: error.message });
      }
    });
-   
+
    // ❌ DON'T: Use callbacks or missing error handling
    app.get('/api/endpoint', (req, res) => {
      Database.query('SELECT * FROM table', (err, result) => {
@@ -119,19 +124,19 @@ robium/
    ```
 
 2. **Database Operations**:
+
    ```typescript
    // ✅ DO: Use parameterized queries
-   const result = await Database.query(
-     'SELECT * FROM users WHERE email = $1',
-     [email]
-   );
-   
+   const result = await Database.query('SELECT * FROM users WHERE email = $1', [
+     email,
+   ]);
+
    // ✅ DO: Use transactions for complex operations
    await Database.transaction(async (client) => {
      await client.query('INSERT INTO users ...');
      await client.query('INSERT INTO projects ...');
    });
-   
+
    // ❌ DON'T: Use string concatenation (SQL injection risk)
    const result = await Database.query(
      `SELECT * FROM users WHERE email = '${email}'`
@@ -139,6 +144,7 @@ robium/
    ```
 
 3. **TypeScript Types**:
+
    ```typescript
    // ✅ DO: Define interfaces in src/types/index.ts
    interface User {
@@ -147,7 +153,7 @@ robium/
      username: string;
      role: UserRole;
    }
-   
+
    interface AuthRequest extends Request {
      user?: JWTPayload;
    }
@@ -156,16 +162,17 @@ robium/
 ### Frontend Development Rules
 
 1. **React Component Structure**:
+
    ```typescript
    // ✅ DO: Use functional components with TypeScript
    interface ComponentProps {
      title: string;
      onSubmit: (data: FormData) => void;
    }
-   
+
    export const Component: React.FC<ComponentProps> = ({ title, onSubmit }) => {
      const [loading, setLoading] = useState(false);
-     
+
      const handleSubmit = useCallback(async (data: FormData) => {
        setLoading(true);
        try {
@@ -174,7 +181,7 @@ robium/
          setLoading(false);
        }
      }, [onSubmit]);
-     
+
      return <div>{title}</div>;
    };
    ```
@@ -187,7 +194,7 @@ robium/
        const response = await fetch(`/api/users/${id}`);
        if (!response.ok) throw new Error('Failed to fetch user');
        return response.json();
-     }
+     },
    };
    ```
 
@@ -200,12 +207,13 @@ robium/
    - **ROS**: Ubuntu container ready for ROS2 integration
 
 2. **Volume Mount Strategy**:
+
    ```yaml
    # ✅ DO: Mount source directories only, not entire packages
    volumes:
      - ./packages/frontend/src:/app/packages/frontend/src
      - ./packages/backend/src:/app/packages/backend/src
-   
+
    # ❌ DON'T: Mount entire package (overwrites node_modules)
    volumes:
      - ./packages/frontend:/app
@@ -214,18 +222,21 @@ robium/
 ## Code Quality Standards
 
 ### TypeScript Configuration
+
 - **Strict mode enabled** for all packages
 - **Shared types** in `packages/shared/` when needed
 - **Path mapping** configured for imports
 - **No any types** allowed in production code
 
 ### Testing Requirements
+
 - **Jest** for unit and integration tests
 - **Test setup** in `src/__tests__/setup.ts`
 - **Coverage reports** generated for all packages
 - **Database tests** use transaction rollback
 
 ### Code Formatting
+
 - **Prettier** for consistent formatting
 - **ESLint** for code quality and TypeScript rules
 - **Husky pre-commit hooks** for automated checks
@@ -234,18 +245,21 @@ robium/
 ## Security Implementation
 
 ### Authentication System
+
 - **JWT tokens** with secure secrets from environment
 - **bcryptjs** for password hashing (12 rounds)
 - **Session management** with refresh tokens
 - **Role-based access control** (admin/user roles)
 
 ### Database Security
+
 - **Parameterized queries** to prevent SQL injection
 - **Connection pooling** with proper limits
 - **Environment variables** for sensitive configuration
 - **UUID primary keys** instead of incremental IDs
 
 ### Container Security
+
 - **Non-root users** in production containers
 - **Minimal base images** (node:18-alpine)
 - **Environment isolation** between services
@@ -254,12 +268,14 @@ robium/
 ## Task Master Integration
 
 ### Project Management
+
 - **AI-powered task generation** from PRDs
 - **Subtask breakdown** with complexity analysis
 - **Migration tracking** and status reporting
 - **Progress logging** with timestamped updates
 
 ### Development Workflow
+
 1. **Initialize** Task Master in project root
 2. **Parse PRD** to generate initial tasks
 3. **Expand tasks** into subtasks based on complexity
@@ -269,18 +285,21 @@ robium/
 ## Performance Guidelines
 
 ### Backend Performance
+
 - **Connection pooling** for database (2-20 connections)
 - **Query optimization** with proper indexes
 - **Async/await** for non-blocking operations
 - **Error handling** with appropriate HTTP status codes
 
 ### Frontend Performance
+
 - **Code splitting** with dynamic imports
 - **Lazy loading** for non-critical components
 - **Memoization** for expensive calculations
 - **Bundle optimization** with Create React App
 
 ### Database Performance
+
 - **Indexes** on frequently queried columns
 - **Foreign key constraints** with CASCADE options
 - **Triggers** for automatic timestamp updates
@@ -289,6 +308,7 @@ robium/
 ## Common Patterns
 
 ### API Response Structure
+
 ```typescript
 // ✅ DO: Consistent API response format
 interface ApiResponse<T = any> {
@@ -300,19 +320,21 @@ interface ApiResponse<T = any> {
 ```
 
 ### Error Handling
+
 ```typescript
 // ✅ DO: Comprehensive error handling
 app.use((err: ApiError, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err);
-  
+
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
 ```
 
 ### Migration Pattern
+
 ```sql
 -- ✅ DO: Include both UP and DOWN sections
 -- UP
@@ -341,6 +363,7 @@ When working on this project, AI assistants should:
 ## Current Development Status
 
 ### Completed (Task 1 & 2.1-2.2)
+
 - ✅ **Monorepo setup** with npm workspaces
 - ✅ **Docker multi-service environment** (frontend, backend, database, ROS)
 - ✅ **Express.js backend** with TypeScript and comprehensive middleware
@@ -350,6 +373,7 @@ When working on this project, AI assistants should:
 - ✅ **Health check endpoints** with database status monitoring
 
 ### In Progress (Task 2.3+)
+
 - 🔄 **User Model implementation** with validation and business logic
 - ⏳ **Authentication endpoints** (signup, login, logout)
 - ⏳ **JWT handling** with refresh tokens
@@ -357,6 +381,7 @@ When working on this project, AI assistants should:
 - ⏳ **WebSocket authentication** and real-time features
 
 ### Architecture Notes
+
 - **Database**: PostgreSQL with custom migration framework
 - **Authentication**: JWT-based with bcryptjs password hashing
 - **Real-time**: WebSocket server integrated with Express

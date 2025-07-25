@@ -13,7 +13,7 @@ export interface User {
 
 export enum UserRole {
   ADMIN = 'admin',
-  USER = 'user'
+  USER = 'user',
 }
 
 export interface CreateUserInput {
@@ -99,4 +99,4 @@ export interface ValidationError {
 export interface ApiError extends Error {
   status: number;
   errors?: ValidationError[];
-} 
+}
