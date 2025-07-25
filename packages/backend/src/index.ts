@@ -6,9 +6,21 @@ import dotenv from 'dotenv';
 import { WebSocketServer } from './websocket/WebSocketServer';
 import { Database } from './utils/database';
 import { MigrationManager } from './utils/migrations';
+import { logger } from './utils/logger';
+import { 
+  addRequestId, 
+  requestTiming, 
+  globalErrorHandler, 
+  notFoundHandler, 
+  gracefulShutdown,
+  setupErrorHandlers 
+} from './middleware/errorHandler';
 
 // Load environment variables
 dotenv.config();
+
+// Setup global error handlers
+setupErrorHandlers();
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -29,8 +41,18 @@ app.use(
   })
 );
 
+// Request tracking middleware
+app.use(addRequestId);
+app.use(requestTiming);
+
 // Logging middleware
-app.use(morgan('combined'));
+app.use(morgan('combined', {
+  stream: {
+    write: (message: string) => {
+      logger.info('HTTP Request', { message: message.trim() });
+    }
+  }
+}));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -52,8 +74,10 @@ app.get('/health', async (req, res) => {
         database: dbHealth ? 'healthy' : 'unhealthy',
         websocket: 'ready',
       },
+      requestId: req.requestId
     });
   } catch (error) {
+    logger.error('Health check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
     res.status(503).json({
       status: 'ERROR',
       message: 'Service Unavailable',
@@ -61,6 +85,7 @@ app.get('/health', async (req, res) => {
       version: '0.1.0',
       database: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
+      requestId: req.requestId
     });
   }
 });
@@ -71,64 +96,68 @@ app.use('/admin', adminRoutes);
 // app.use('/api', apiRoutes);
 
 // 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    message: `Cannot ${req.method} ${req.originalUrl}`,
-  });
-});
+app.use('*', notFoundHandler);
 
-// Global error handler
-app.use(
-  (
-    err: Error & { status?: number },
-    req: express.Request,
-    res: express.Response
-  ) => {
-    console.error('Error:', err);
-
-    res.status(err.status || 500).json({
-      error: err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-    });
-  }
-);
+// Global error handler (must be last)
+app.use(globalErrorHandler);
 
 // Create WebSocket server
 const wsServer = new WebSocketServer(app, {
   heartbeat: {
     interval: 30000, // 30 seconds
-    timeout: 60000, // 60 seconds
-    maxMissedHeartbeats: 2,
+    timeout: 5000,   // 5 seconds
+    maxMissedHeartbeats: 2
   },
-  enableLogging: true,
   maxConnections: 1000,
+  enableLogging: true
 });
 
-// Initialize database and start server
+// Start server
 async function startServer() {
   try {
-    // Connect to database
+    // Initialize database
     await Database.connect();
+    logger.info('Database connected successfully');
 
-    // Run pending migrations
+    // Run migrations
     const migrationManager = new MigrationManager();
     await migrationManager.runPendingMigrations();
+    logger.info('Database migrations completed');
+
+    // Start HTTP server
+    const server = app.listen(Number(PORT), () => {
+      logger.info(`Server started on port ${PORT}`, {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+        nodeVersion: process.version
+      });
+    });
 
     // Start WebSocket server
     await wsServer.start(Number(PORT));
-    console.log(`🚀 Robium Backend Server running on port ${PORT}`);
-    console.log(`📡 WebSocket server ready for connections`);
-    console.log(`🗃️  Database connected and migrations applied`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    logger.info('WebSocket server started');
+
+    // Setup graceful shutdown
+    process.on('SIGTERM', () => gracefulShutdown(server, 'SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown(server, 'SIGINT'));
+
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error('Failed to start server', { error: error instanceof Error ? error.message : 'Unknown error' });
     process.exit(1);
   }
 }
 
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception', {}, error);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection', { reason, promise });
+  process.exit(1);
+});
+
 // Start the server
 startServer();
-
-export default app;
