@@ -32,6 +32,7 @@ const Login: React.FC = () => {
   ];
 
   const handleSubmit = async (formData: Record<string, any>) => {
+    console.log('Login form submitted with data:', formData);
     await login(formData.email, formData.password);
     navigate('/dashboard');
   };

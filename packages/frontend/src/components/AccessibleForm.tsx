@@ -117,6 +117,7 @@ export const AccessibleForm: React.FC<AccessibleFormProps> = ({
   };
 
   const handleFieldChange = (name: string, value: any) => {
+    console.log(`Field ${name} changed to:`, value);
     setFormData((prev) => ({ ...prev, [name]: value }));
 
     // Validate on change if field has been touched
