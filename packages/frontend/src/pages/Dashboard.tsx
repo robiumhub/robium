@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
     };
 
     loadDashboardData();
-  }, [user?.role, showSuccess, showError, addError]);
+  }, [user?.role]); // Only depend on user role, not the functions
 
   const handleRetry = () => {
     setLoading(true);
