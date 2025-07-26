@@ -50,20 +50,21 @@ export const AccessibleForm: React.FC<AccessibleFormProps> = ({
   loading = false,
   initialValues = {},
 }) => {
-  const [formData, setFormData] = useState<Record<string, any>>(initialValues);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { announceToScreenReader } = useAccessibility();
-
-  // Initialize form data
-  useEffect(() => {
+  // Initialize form data properly
+  const getInitialFormData = () => {
     const initialData: Record<string, any> = {};
     fields.forEach((field) => {
       initialData[field.name] = initialValues[field.name] || '';
     });
-    setFormData(initialData);
-  }, [fields, initialValues]);
+    return initialData;
+  };
+
+  const [formData, setFormData] =
+    useState<Record<string, any>>(getInitialFormData);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { announceToScreenReader } = useAccessibility();
 
   const validateField = (name: string, value: any): string | null => {
     const field = fields.find((f) => f.name === name);
