@@ -8,8 +8,7 @@ import { ErrorProvider } from './contexts/ErrorContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { ToastProvider } from './components/Toast';
-import Layout from './components/Layout';
-import DesignSystemShowcase from './pages/DesignSystemShowcase';
+import AppRoutes from './routes';
 
 function App() {
   return (
@@ -21,9 +20,7 @@ function App() {
             <NavigationProvider>
               <AccessibilityProvider>
                 <ToastProvider>
-                  <Layout>
-                    <DesignSystemShowcase />
-                  </Layout>
+                  <AppRoutes />
                 </ToastProvider>
               </AccessibilityProvider>
             </NavigationProvider>
