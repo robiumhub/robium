@@ -30,7 +30,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' react-scripts build",
+    "build": "node build-simple.js",
     "build:simple": "node build-simple.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
