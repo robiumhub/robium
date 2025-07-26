@@ -99,111 +99,114 @@ const themeOptions: ThemeOptions = {
       fontSize: typography.fontSize['4xl'],
       fontWeight: typography.fontWeight.bold,
       lineHeight: typography.lineHeight.tight,
-      letterSpacing: '-0.02em',
+      letterSpacing: typography.letterSpacing.tight,
     },
     h2: {
       fontSize: typography.fontSize['3xl'],
       fontWeight: typography.fontWeight.bold,
       lineHeight: typography.lineHeight.tight,
-      letterSpacing: '-0.01em',
+      letterSpacing: typography.letterSpacing.tight,
     },
     h3: {
       fontSize: typography.fontSize['2xl'],
       fontWeight: typography.fontWeight.semibold,
-      lineHeight: typography.lineHeight.tight,
+      lineHeight: typography.lineHeight.relaxed,
+      letterSpacing: typography.letterSpacing.normal,
     },
     h4: {
       fontSize: typography.fontSize.xl,
       fontWeight: typography.fontWeight.semibold,
-      lineHeight: typography.lineHeight.normal,
+      lineHeight: typography.lineHeight.relaxed,
+      letterSpacing: typography.letterSpacing.normal,
     },
     h5: {
       fontSize: typography.fontSize.lg,
       fontWeight: typography.fontWeight.medium,
-      lineHeight: typography.lineHeight.normal,
+      lineHeight: typography.lineHeight.relaxed,
+      letterSpacing: typography.letterSpacing.normal,
     },
     h6: {
       fontSize: typography.fontSize.base,
       fontWeight: typography.fontWeight.medium,
-      lineHeight: typography.lineHeight.normal,
-    },
-    subtitle1: {
-      fontSize: typography.fontSize.base,
-      fontWeight: typography.fontWeight.normal,
-      lineHeight: typography.lineHeight.normal,
-    },
-    subtitle2: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: typography.fontWeight.medium,
-      lineHeight: typography.lineHeight.normal,
+      lineHeight: typography.lineHeight.relaxed,
+      letterSpacing: typography.letterSpacing.normal,
     },
     body1: {
       fontSize: typography.fontSize.base,
       fontWeight: typography.fontWeight.normal,
       lineHeight: typography.lineHeight.relaxed,
+      letterSpacing: typography.letterSpacing.normal,
     },
     body2: {
       fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.normal,
       lineHeight: typography.lineHeight.relaxed,
+      letterSpacing: typography.letterSpacing.normal,
     },
     button: {
       fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.medium,
-      lineHeight: typography.lineHeight.normal,
+      lineHeight: typography.lineHeight.tight,
+      letterSpacing: typography.letterSpacing.wide,
       textTransform: 'none',
     },
     caption: {
       fontSize: typography.fontSize.xs,
       fontWeight: typography.fontWeight.normal,
-      lineHeight: typography.lineHeight.normal,
+      lineHeight: typography.lineHeight.relaxed,
+      letterSpacing: typography.letterSpacing.normal,
     },
     overline: {
       fontSize: typography.fontSize.xs,
       fontWeight: typography.fontWeight.medium,
-      lineHeight: typography.lineHeight.normal,
+      lineHeight: typography.lineHeight.tight,
+      letterSpacing: typography.letterSpacing.wide,
       textTransform: 'uppercase',
-      letterSpacing: '0.1em',
     },
   },
 
+  spacing: spacing.base * 8, // Convert to Material-UI spacing unit
+
   shape: {
-    borderRadius: parseInt(borderRadius.base),
+    borderRadius: borderRadius.md,
   },
 
   shadows: [
     'none',
     shadows.sm,
-    shadows.base,
     shadows.md,
     shadows.lg,
     shadows.xl,
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
-    shadows['2xl'],
+    ...Array(19).fill(shadows.xl), // Material-UI expects 25 shadows
   ],
 
   breakpoints: {
-    values: breakpoints,
+    values: {
+      xs: breakpoints.xs,
+      sm: breakpoints.sm,
+      md: breakpoints.md,
+      lg: breakpoints.lg,
+      xl: breakpoints.xl,
+    },
   },
 
-  spacing: (factor: number) => `${factor * 0.25}rem`, // 4px base unit
+  transitions: {
+    easing: {
+      easeInOut: transitions.easeInOut,
+      easeOut: transitions.easeOut,
+      easeIn: transitions.easeIn,
+      sharp: transitions.sharp,
+    },
+    duration: {
+      shortest: transitions.duration.shortest,
+      shorter: transitions.duration.shorter,
+      short: transitions.duration.short,
+      standard: transitions.duration.standard,
+      complex: transitions.duration.complex,
+      enteringScreen: transitions.duration.enteringScreen,
+      leavingScreen: transitions.duration.leavingScreen,
+    },
+  },
 
   components: {
     MuiButton: {
@@ -212,137 +215,92 @@ const themeOptions: ThemeOptions = {
           borderRadius: borderRadius.md,
           textTransform: 'none',
           fontWeight: typography.fontWeight.medium,
-          transition: `all ${transitions.duration.normal} ${transitions.easing.ease}`,
-          '&:hover': {
-            transform: 'translateY(-1px)',
-            boxShadow: shadows.md,
+          '&:focus': {
+            outline: '2px solid',
+            outlineOffset: '2px',
           },
-        },
-        sizeSmall: {
-          height: '32px',
-          padding: '6px 16px',
-          fontSize: typography.fontSize.xs,
-        },
-        sizeMedium: {
-          height: '40px',
-          padding: '8px 24px',
-          fontSize: typography.fontSize.sm,
-        },
-        sizeLarge: {
-          height: '48px',
-          padding: '12px 32px',
-          fontSize: typography.fontSize.base,
-        },
-        contained: {
-          boxShadow: shadows.sm,
-          '&:hover': {
-            boxShadow: shadows.md,
-          },
-        },
-        outlined: {
-          borderWidth: '2px',
-          '&:hover': {
-            borderWidth: '2px',
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineOffset: '2px',
           },
         },
       },
     },
-
     MuiTextField: {
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
-            borderRadius: borderRadius.md,
-            transition: `all ${transitions.duration.normal} ${transitions.easing.ease}`,
-            '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: colors.primary[300],
-            },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-              borderColor: colors.primary[500],
-              borderWidth: '2px',
+            '&:focus-within': {
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderWidth: '2px',
+              },
             },
           },
         },
       },
     },
-
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          '&:focus': {
+            outline: '2px solid',
+            outlineOffset: '2px',
+          },
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineOffset: '2px',
+          },
+        },
+      },
+    },
+    MuiLink: {
+      styleOverrides: {
+        root: {
+          '&:focus': {
+            outline: '2px solid',
+            outlineOffset: '2px',
+          },
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineOffset: '2px',
+          },
+        },
+      },
+    },
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: borderRadius.lg,
-          boxShadow: shadows.base,
-          transition: `all ${transitions.duration.normal} ${transitions.easing.ease}`,
-          '&:hover': {
-            boxShadow: shadows.md,
-            transform: 'translateY(-2px)',
+          '&:focus-within': {
+            outline: '2px solid',
+            outlineOffset: '2px',
           },
         },
       },
     },
-
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: borderRadius.md,
-        },
-        elevation1: {
-          boxShadow: shadows.sm,
-        },
-        elevation2: {
-          boxShadow: shadows.base,
-        },
-        elevation3: {
-          boxShadow: shadows.md,
-        },
-        elevation4: {
-          boxShadow: shadows.lg,
-        },
-        elevation5: {
-          boxShadow: shadows.xl,
-        },
-      },
-    },
-
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          boxShadow: shadows.sm,
-        },
-      },
-    },
-
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          borderRight: 'none',
-          boxShadow: shadows.lg,
-        },
-      },
-    },
-
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: borderRadius.full,
-          fontWeight: typography.fontWeight.medium,
+          '&:focus': {
+            outline: '2px solid',
+            outlineOffset: '2px',
+          },
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineOffset: '2px',
+          },
         },
       },
     },
-
     MuiAlert: {
       styleOverrides: {
         root: {
-          borderRadius: borderRadius.md,
-          fontWeight: typography.fontWeight.normal,
-        },
-      },
-    },
-
-    MuiSnackbar: {
-      styleOverrides: {
-        root: {
-          '& .MuiAlert-root': {
-            borderRadius: borderRadius.md,
+          '&:focus': {
+            outline: '2px solid',
+            outlineOffset: '2px',
+          },
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineOffset: '2px',
           },
         },
       },
@@ -350,7 +308,87 @@ const themeOptions: ThemeOptions = {
   },
 };
 
-// Create and export the theme
-const theme = createTheme(themeOptions);
+// Create the base theme
+const baseTheme = createTheme(themeOptions);
 
-export default theme;
+// Create high contrast theme variant
+const highContrastTheme = createTheme({
+  ...themeOptions,
+  palette: {
+    ...themeOptions.palette,
+    mode: 'light',
+    primary: {
+      ...themeOptions.palette!.primary!,
+      main: '#000000',
+      contrastText: '#ffffff',
+    },
+    secondary: {
+      ...themeOptions.palette!.secondary!,
+      main: '#ffffff',
+      contrastText: '#000000',
+    },
+    background: {
+      default: '#ffffff',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#000000',
+      secondary: '#000000',
+      disabled: '#666666',
+    },
+    divider: '#000000',
+  },
+  components: {
+    ...themeOptions.components,
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          ...themeOptions.components?.MuiButton?.styleOverrides?.root,
+          border: '2px solid #000000',
+          '&:focus': {
+            outline: '3px solid #000000',
+            outlineOffset: '3px',
+          },
+          '&:focus-visible': {
+            outline: '3px solid #000000',
+            outlineOffset: '3px',
+          },
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            border: '2px solid #000000',
+            '&:focus-within': {
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderWidth: '3px',
+                borderColor: '#000000',
+              },
+            },
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          border: '2px solid #000000',
+          '&:focus': {
+            outline: '3px solid #000000',
+            outlineOffset: '3px',
+          },
+          '&:focus-visible': {
+            outline: '3px solid #000000',
+            outlineOffset: '3px',
+          },
+        },
+      },
+    },
+  },
+});
+
+// Export both themes
+export { baseTheme as theme, highContrastTheme };
+export default baseTheme;

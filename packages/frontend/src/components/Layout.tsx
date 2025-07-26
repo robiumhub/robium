@@ -174,8 +174,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </AppBar>
       <Box
         component="nav"
+        id="main-navigation"
+        role="navigation"
+        aria-label="Main navigation"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        aria-label="mailbox folders"
       >
         <Drawer
           variant="temporary"
@@ -210,6 +212,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </Box>
       <Box
         component="main"
+        id="main-content"
+        role="main"
+        aria-label="Main content"
         sx={{
           flexGrow: 1,
           p: { xs: 2, sm: 3 },

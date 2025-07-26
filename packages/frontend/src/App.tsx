@@ -14,6 +14,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleBasedRoute } from './components/RoleBasedRoute';
 import Layout from './components/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
+import AccessibilityProvider from './components/AccessibilityProvider';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -28,61 +29,63 @@ function App() {
         <ErrorProvider>
           <ToastProvider>
             <AuthProvider>
-              <Router>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
+              <AccessibilityProvider>
+                <Router>
+                  <Routes>
+                    {/* Public routes */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
 
-                  {/* Protected routes */}
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Layout>
-                          <Dashboard />
-                        </Layout>
-                      </ProtectedRoute>
-                    }
-                  />
+                    {/* Protected routes */}
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <Dashboard />
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
 
-                  {/* Design System Showcase */}
-                  <Route
-                    path="/design-system"
-                    element={
-                      <ProtectedRoute>
-                        <Layout>
-                          <DesignSystemShowcase />
-                        </Layout>
-                      </ProtectedRoute>
-                    }
-                  />
+                    {/* Design System Showcase */}
+                    <Route
+                      path="/design-system"
+                      element={
+                        <ProtectedRoute>
+                          <Layout>
+                            <DesignSystemShowcase />
+                          </Layout>
+                        </ProtectedRoute>
+                      }
+                    />
 
-                  {/* Admin-only routes */}
-                  <Route
-                    path="/admin"
-                    element={
-                      <RoleBasedRoute allowedRoles={['ADMIN']}>
-                        <Layout>
-                          <div>
-                            Admin Dashboard (Only visible to ADMIN users)
-                          </div>
-                        </Layout>
-                      </RoleBasedRoute>
-                    }
-                  />
+                    {/* Admin-only routes */}
+                    <Route
+                      path="/admin"
+                      element={
+                        <RoleBasedRoute allowedRoles={['ADMIN']}>
+                          <Layout>
+                            <div>
+                              Admin Dashboard (Only visible to ADMIN users)
+                            </div>
+                          </Layout>
+                        </RoleBasedRoute>
+                      }
+                    />
 
-                  {/* Default redirect */}
-                  <Route
-                    path="/"
-                    element={<Navigate to="/dashboard" replace />}
-                  />
-                  <Route
-                    path="*"
-                    element={<Navigate to="/dashboard" replace />}
-                  />
-                </Routes>
-              </Router>
+                    {/* Default redirect */}
+                    <Route
+                      path="/"
+                      element={<Navigate to="/dashboard" replace />}
+                    />
+                    <Route
+                      path="*"
+                      element={<Navigate to="/dashboard" replace />}
+                    />
+                  </Routes>
+                </Router>
+              </AccessibilityProvider>
             </AuthProvider>
           </ToastProvider>
         </ErrorProvider>
