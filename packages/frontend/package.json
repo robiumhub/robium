@@ -29,7 +29,7 @@
     "typescript": "^4.9.5"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "FAST_REFRESH=false react-scripts start",
     "build": "node build-simple.js",
     "build:simple": "node build-simple.js",
     "test": "react-scripts test",

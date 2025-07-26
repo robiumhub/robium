@@ -5,15 +5,11 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
-import axios from 'axios';
-
-// Types
-interface User {
-  id: string;
-  email: string;
-  username: string;
-  role: 'USER' | 'ADMIN';
-}
+import ApiService, {
+  User,
+  LoginRequest,
+  RegisterRequest,
+} from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -28,43 +24,11 @@ interface AuthContextType {
   refreshToken: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
 }
 
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// API base URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-// Axios instance
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle token expiration
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -74,25 +38,121 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    // Initialize error from localStorage to persist across re-mounts
+    const storedError = localStorage.getItem('auth_error');
+    return storedError || null;
+  });
 
-  // Check for existing token on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+  // Clear error function
+  const clearError = () => {
+    setError(null);
+    localStorage.removeItem('auth_error');
+  };
 
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
+  // Set error with localStorage persistence
+  const setErrorWithLog = (error: string | null) => {
+    setError(error);
+
+    // Persist error in localStorage to survive re-mounts
+    if (error) {
+      localStorage.setItem('auth_error', error);
+    } else {
+      localStorage.removeItem('auth_error');
     }
-    setIsLoading(false);
+  };
+
+  // Check for existing token on mount and validate it
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const storedToken = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
+
+        if (storedToken && storedUser) {
+          try {
+            // Validate token by getting current user
+            const currentUser = await ApiService.getCurrentUser();
+            setToken(storedToken);
+            setUser(currentUser);
+          } catch (error) {
+            // Token is invalid, clear storage
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
+
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      setErrorWithLog(null);
+
+      const response = await ApiService.login({ email, password });
+
+      setUser(response.user);
+      setToken(response.token);
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Login failed';
+      setErrorWithLog(errorMessage);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const register = async (
+    username: string,
+    email: string,
+    password: string
+  ) => {
+    try {
+      setIsLoading(true);
+      setErrorWithLog(null);
+
+      const response = await ApiService.register({
+        username,
+        email,
+        password,
+      });
+
+      setUser(response.user);
+      setToken(response.token);
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+    } catch (error) {
+      setErrorWithLog(
+        error instanceof Error ? error.message : 'Registration failed'
+      );
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshToken = async () => {
+    try {
+      const response = await ApiService.refreshToken();
+
+      localStorage.setItem('token', response.token);
+      setToken(response.token);
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      logout();
+      throw error;
+    }
+  };
 
   // Automatic token refresh
   useEffect(() => {
@@ -105,126 +165,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await refreshToken();
         } catch (error) {
           console.error('Automatic token refresh failed:', error);
+          // If refresh fails, logout user
+          logout();
         }
       },
       55 * 60 * 1000
     ); // 55 minutes
 
     return () => clearInterval(refreshInterval);
-  }, [token]);
+  }, [token, refreshToken]);
 
-  const login = async (email: string, password: string) => {
+  const logout = async () => {
     try {
-      setError(null);
-      setIsLoading(true);
-
-      // Mock login - simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Create mock user data
-      const mockUser = {
-        id: '1',
-        email,
-        username: email.split('@')[0], // Use email prefix as username
-        role: 'USER' as const,
-      };
-
-      const mockToken = 'mock-jwt-token-' + Date.now();
-
-      // Store token and user data
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-
-      setToken(mockToken);
-      setUser(mockUser);
-
-      console.log('Mock login successful:', mockUser);
-    } catch (error: any) {
-      const errorMessage = 'Login failed';
-      setError(errorMessage);
-      console.error('Login error:', error);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (
-    username: string,
-    email: string,
-    password: string
-  ) => {
-    try {
-      setError(null);
-      setIsLoading(true);
-
-      // Mock registration - simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Create mock user data
-      const mockUser = {
-        id: '1',
-        email,
-        username,
-        role: 'USER' as const,
-      };
-
-      const mockToken = 'mock-jwt-token-' + Date.now();
-
-      // Store token and user data
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-
-      setToken(mockToken);
-      setUser(mockUser);
-
-      console.log('Mock registration successful:', mockUser);
-    } catch (error: any) {
-      const errorMessage = 'Registration failed';
-      setError(errorMessage);
-      console.error('Registration error:', error);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const refreshToken = async () => {
-    try {
-      const currentToken = localStorage.getItem('token');
-      if (!currentToken) {
-        throw new Error('No token to refresh');
-      }
-
-      const response = await api.post(
-        '/auth/refresh',
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${currentToken}`,
-          },
-        }
-      );
-
-      const { token: newToken, user: userData } = response.data;
-
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      setToken(newToken);
-      setUser(userData);
+      // Call logout endpoint
+      await ApiService.logout();
     } catch (error) {
-      console.error('Token refresh failed:', error);
-      logout();
-      throw error;
+      console.warn('Logout server call failed:', error);
+    } finally {
+      // Always clear local storage and state
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('auth_error');
+      setToken(null);
+      setUser(null);
+      setError(null);
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
   };
 
   const value: AuthContextType = {
@@ -236,6 +201,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshToken,
     isLoading,
     error,
+    clearError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

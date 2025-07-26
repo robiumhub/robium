@@ -37,7 +37,7 @@ app.use(helmet());
 // CORS configuration
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
     credentials: true,
   })
 );
@@ -129,22 +129,17 @@ async function startServer() {
     await migrationManager.runPendingMigrations();
     logger.info('Database migrations completed');
 
-    // Start HTTP server
-    const server = app.listen(Number(PORT), () => {
-      logger.info(`Server started on port ${PORT}`, {
-        port: PORT,
-        environment: process.env.NODE_ENV || 'development',
-        nodeVersion: process.version,
-      });
+    // Start WebSocket server (which also handles HTTP)
+    await wsServer.start(Number(PORT));
+    logger.info(`Server started on port ${PORT}`, {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      nodeVersion: process.version,
     });
 
-    // Start WebSocket server
-    await wsServer.start(Number(PORT));
-    logger.info('WebSocket server started');
-
     // Setup graceful shutdown
-    process.on('SIGTERM', () => gracefulShutdown(server, 'SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown(server, 'SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown(wsServer, 'SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown(wsServer, 'SIGINT'));
   } catch (error) {
     logger.error('Failed to start server', {
       error: error instanceof Error ? error.message : 'Unknown error',

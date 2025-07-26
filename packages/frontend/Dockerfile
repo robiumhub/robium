@@ -15,4 +15,4 @@ COPY packages/frontend/public ./public
 COPY packages/frontend/tsconfig.json ./
 
 EXPOSE 3000
-CMD ["npm", "start"] 
+CMD ["sh", "-c", "FAST_REFRESH=false npm start"] 

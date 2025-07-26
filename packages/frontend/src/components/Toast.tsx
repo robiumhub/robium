@@ -33,6 +33,7 @@ interface ToastProviderProps {
 }
 
 // Toast provider component
+let toastCounter = 0;
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -41,7 +42,8 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     type: AlertColor = 'info',
     duration: number = 6000
   ) => {
-    const id = Date.now().toString();
+    toastCounter += 1;
+    const id = `${Date.now()}-${toastCounter}`;
     const newToast: ToastMessage = {
       id,
       message,

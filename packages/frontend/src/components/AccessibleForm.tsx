@@ -63,6 +63,7 @@ export const AccessibleForm: React.FC<AccessibleFormProps> = ({
     useState<Record<string, any>>(getInitialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [hasSubmitAttempted, setHasSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { announceToScreenReader } = useAccessibility();
 
@@ -177,6 +178,7 @@ export const AccessibleForm: React.FC<AccessibleFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasSubmitAttempted(true);
 
     if (!validateForm()) {
       return;
@@ -349,7 +351,7 @@ export const AccessibleForm: React.FC<AccessibleFormProps> = ({
         </Box>
       )}
 
-      {Object.keys(errors).length > 0 && (
+      {hasSubmitAttempted && Object.keys(errors).length > 0 && (
         <Alert
           severity="error"
           sx={{ mb: 2 }}

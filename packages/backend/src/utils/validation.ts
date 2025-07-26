@@ -23,20 +23,11 @@ export const userValidationSchemas = {
       'any.required': 'Username is required',
     }),
 
-    password: Joi.string()
-      .min(8)
-      .max(128)
-      .pattern(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/
-      )
-      .required()
-      .messages({
-        'string.min': 'Password must be at least 8 characters long',
-        'string.max': 'Password cannot exceed 128 characters',
-        'string.pattern.base':
-          'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-        'any.required': 'Password is required',
-      }),
+    password: Joi.string().min(6).max(128).required().messages({
+      'string.min': 'Password must be at least 6 characters long',
+      'string.max': 'Password cannot exceed 128 characters',
+      'any.required': 'Password is required',
+    }),
 
     role: Joi.string()
       .valid(...Object.values(UserRole))
@@ -79,20 +70,11 @@ export const userValidationSchemas = {
       'any.required': 'Current password is required',
     }),
 
-    newPassword: Joi.string()
-      .min(8)
-      .max(128)
-      .pattern(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/
-      )
-      .required()
-      .messages({
-        'string.min': 'New password must be at least 8 characters long',
-        'string.max': 'New password cannot exceed 128 characters',
-        'string.pattern.base':
-          'New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-        'any.required': 'New password is required',
-      }),
+    newPassword: Joi.string().min(6).max(128).required().messages({
+      'string.min': 'New password must be at least 6 characters long',
+      'string.max': 'New password cannot exceed 128 characters',
+      'any.required': 'New password is required',
+    }),
   }),
 
   // Schema for login validation
@@ -188,26 +170,8 @@ export const checkPasswordStrength = (
 } => {
   const issues: string[] = [];
 
-  if (password.length < 8) {
-    issues.push('Password must be at least 8 characters long');
-  }
-
-  if (!/[a-z]/.test(password)) {
-    issues.push('Password must contain at least one lowercase letter');
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    issues.push('Password must contain at least one uppercase letter');
-  }
-
-  if (!/\d/.test(password)) {
-    issues.push('Password must contain at least one number');
-  }
-
-  if (!/[@$!%*?&]/.test(password)) {
-    issues.push(
-      'Password must contain at least one special character (@$!%*?&)'
-    );
+  if (password.length < 6) {
+    issues.push('Password must be at least 6 characters long');
   }
 
   return {

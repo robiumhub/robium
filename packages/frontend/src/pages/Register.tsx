@@ -148,7 +148,10 @@ const Register: React.FC = () => {
               setUsername(e.target.value)
             }
             error={!!usernameError}
-            helperText={usernameError}
+            helperText={
+              usernameError ||
+              'Username must be 3-50 characters, letters and numbers only'
+            }
             disabled={isSubmitting}
           />
           <TextField
@@ -164,7 +167,7 @@ const Register: React.FC = () => {
               setEmail(e.target.value)
             }
             error={!!emailError}
-            helperText={emailError}
+            helperText={emailError || 'Enter a valid email address'}
             disabled={isSubmitting}
           />
           <TextField
@@ -181,7 +184,9 @@ const Register: React.FC = () => {
               setPassword(e.target.value)
             }
             error={!!passwordError}
-            helperText={passwordError}
+            helperText={
+              passwordError || 'Password must be at least 6 characters'
+            }
             disabled={isSubmitting}
           />
           <TextField
@@ -198,7 +203,9 @@ const Register: React.FC = () => {
               setConfirmPassword(e.target.value)
             }
             error={!!confirmPasswordError}
-            helperText={confirmPasswordError}
+            helperText={
+              confirmPasswordError || 'Re-enter your password to confirm'
+            }
             disabled={isSubmitting}
           />
           <Button

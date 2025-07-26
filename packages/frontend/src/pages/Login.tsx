@@ -18,6 +18,7 @@ const Login: React.FC = () => {
         pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
       },
       placeholder: 'Enter your email address',
+      helperText: 'Enter the email address you used to register',
     },
     {
       name: 'password',
@@ -28,13 +29,17 @@ const Login: React.FC = () => {
         minLength: 6,
       },
       placeholder: 'Enter your password',
+      helperText: 'Enter your password',
     },
   ];
 
   const handleSubmit = async (formData: Record<string, any>) => {
-    console.log('Login form submitted with data:', formData);
-    await login(formData.email, formData.password);
-    navigate('/dashboard');
+    try {
+      await login(formData.email, formData.password);
+      navigate('/dashboard');
+    } catch (error) {
+      // Error is already handled by AuthContext and will be displayed
+    }
   };
 
   return (

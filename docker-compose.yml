@@ -12,6 +12,7 @@ services:
       - ./packages/frontend/.env
     environment:
       - NODE_ENV=development
+      - FAST_REFRESH=false
     depends_on:
       - backend
 
@@ -20,7 +21,7 @@ services:
       context: .
       dockerfile: ./packages/backend/Dockerfile
     ports:
-      - '8000:8000'
+      - '8001:8000'
     volumes:
       - ./packages/backend/src:/app/packages/backend/src
     env_file:
