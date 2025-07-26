@@ -1,4 +1,5 @@
 import React from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import theme from './design/theme';
@@ -12,22 +13,24 @@ import DesignSystemShowcase from './pages/DesignSystemShowcase';
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <ErrorProvider>
-        <AuthProvider>
-          <NavigationProvider>
-            <AccessibilityProvider>
-              <ToastProvider>
-                <Layout>
-                  <DesignSystemShowcase />
-                </Layout>
-              </ToastProvider>
-            </AccessibilityProvider>
-          </NavigationProvider>
-        </AuthProvider>
-      </ErrorProvider>
-    </ThemeProvider>
+    <Router>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <ErrorProvider>
+          <AuthProvider>
+            <NavigationProvider>
+              <AccessibilityProvider>
+                <ToastProvider>
+                  <Layout>
+                    <DesignSystemShowcase />
+                  </Layout>
+                </ToastProvider>
+              </AccessibilityProvider>
+            </NavigationProvider>
+          </AuthProvider>
+        </ErrorProvider>
+      </ThemeProvider>
+    </Router>
   );
 }
 
