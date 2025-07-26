@@ -65,10 +65,11 @@ class MigrationManager {
     async runMigration(migration) {
         try {
             await database_1.Database.transaction(async (client) => {
+                const poolClient = client;
                 // Execute the UP migration
-                await client.query(migration.up);
+                await poolClient.query(migration.up);
                 // Record the migration as executed
-                await client.query('INSERT INTO migrations (id, name) VALUES ($1, $2)', [migration.id, migration.name]);
+                await poolClient.query('INSERT INTO migrations (id, name) VALUES ($1, $2)', [migration.id, migration.name]);
             });
             console.log(`✅ Migration executed: ${migration.name}`);
         }
@@ -111,10 +112,11 @@ class MigrationManager {
         }
         try {
             await database_1.Database.transaction(async (client) => {
+                const poolClient = client;
                 // Execute the DOWN migration
-                await client.query(downSection);
+                await poolClient.query(downSection);
                 // Remove the migration record
-                await client.query('DELETE FROM migrations WHERE id = $1', [
+                await poolClient.query('DELETE FROM migrations WHERE id = $1', [
                     lastMigration.id,
                 ]);
             });

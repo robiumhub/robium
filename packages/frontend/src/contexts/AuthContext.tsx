@@ -118,22 +118,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setError(null);
       setIsLoading(true);
 
-      const response = await api.post('/auth/login', { email, password });
-      const { token: newToken, user: userData } = response.data;
+      // Mock login - simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Create mock user data
+      const mockUser = {
+        id: '1',
+        email,
+        username: email.split('@')[0], // Use email prefix as username
+        role: 'USER' as const,
+      };
+
+      const mockToken = 'mock-jwt-token-' + Date.now();
 
       // Store token and user data
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', mockToken);
+      localStorage.setItem('user', JSON.stringify(mockUser));
 
-      setToken(newToken);
-      setUser(userData);
+      setToken(mockToken);
+      setUser(mockUser);
+
+      console.log('Mock login successful:', mockUser);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Login failed';
+      const errorMessage = 'Login failed';
       setError(errorMessage);
-
-      // Log error for debugging
       console.error('Login error:', error);
-
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -149,27 +158,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setError(null);
       setIsLoading(true);
 
-      const response = await api.post('/auth/register', {
-        username,
+      // Mock registration - simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Create mock user data
+      const mockUser = {
+        id: '1',
         email,
-        password,
-      });
-      const { token: newToken, user: userData } = response.data;
+        username,
+        role: 'USER' as const,
+      };
+
+      const mockToken = 'mock-jwt-token-' + Date.now();
 
       // Store token and user data
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', mockToken);
+      localStorage.setItem('user', JSON.stringify(mockUser));
 
-      setToken(newToken);
-      setUser(userData);
+      setToken(mockToken);
+      setUser(mockUser);
+
+      console.log('Mock registration successful:', mockUser);
     } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.message || 'Registration failed';
+      const errorMessage = 'Registration failed';
       setError(errorMessage);
-
-      // Log error for debugging
       console.error('Registration error:', error);
-
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);

@@ -59,7 +59,7 @@ app.get('/health', async (req, res) => {
                 database: dbHealth ? 'healthy' : 'unhealthy',
                 websocket: 'ready',
             },
-            requestId: req.requestId,
+            requestId: req.requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
         });
     }
     catch (error) {
@@ -73,7 +73,7 @@ app.get('/health', async (req, res) => {
             version: '0.1.0',
             database: 'error',
             error: error instanceof Error ? error.message : 'Unknown error',
-            requestId: req.requestId,
+            requestId: req.requestId, // eslint-disable-line @typescript-eslint/no-explicit-any
         });
     }
 });

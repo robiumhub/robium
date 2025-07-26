@@ -113,7 +113,7 @@ const validateData = (data, schema) => {
     });
     if (error) {
         const validationErrors = error.details.map((detail) => ({
-            field: detail.path.join('.'),
+            field: detail.path.map(String).join('.'),
             message: detail.message,
         }));
         throw new errors_1.ValidationError('Validation failed', validationErrors);

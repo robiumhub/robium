@@ -5,8 +5,8 @@ const logger_1 = require("../utils/logger");
 const errors_1 = require("../utils/errors");
 // Request ID middleware to track requests
 const addRequestId = (req, res, next) => {
-    req.requestId = generateRequestId();
-    res.setHeader('X-Request-ID', req.requestId);
+    req.requestId = generateRequestId(); // eslint-disable-line @typescript-eslint/no-explicit-any
+    res.setHeader('X-Request-ID', req.requestId); // eslint-disable-line @typescript-eslint/no-explicit-any
     next();
 };
 exports.addRequestId = addRequestId;

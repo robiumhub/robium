@@ -23,7 +23,7 @@ class AuthService {
         };
         return jsonwebtoken_1.default.sign(payload, jwtSecret, {
             expiresIn: jwtExpiresIn,
-        });
+        }); // eslint-disable-line @typescript-eslint/no-explicit-any
     }
     // Generate refresh token (for future implementation)
     static generateRefreshToken(user) {
@@ -39,7 +39,7 @@ class AuthService {
         };
         return jsonwebtoken_1.default.sign(payload, jwtRefreshSecret, {
             expiresIn: jwtRefreshExpiresIn,
-        });
+        }); // eslint-disable-line @typescript-eslint/no-explicit-any
     }
     // User registration
     static async register(userData) {
