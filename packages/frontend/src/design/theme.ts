@@ -99,73 +99,62 @@ const themeOptions: ThemeOptions = {
       fontSize: typography.fontSize['4xl'],
       fontWeight: typography.fontWeight.bold,
       lineHeight: typography.lineHeight.tight,
-      letterSpacing: typography.letterSpacing.tight,
     },
     h2: {
       fontSize: typography.fontSize['3xl'],
       fontWeight: typography.fontWeight.bold,
       lineHeight: typography.lineHeight.tight,
-      letterSpacing: typography.letterSpacing.tight,
     },
     h3: {
       fontSize: typography.fontSize['2xl'],
       fontWeight: typography.fontWeight.semibold,
       lineHeight: typography.lineHeight.relaxed,
-      letterSpacing: typography.letterSpacing.normal,
     },
     h4: {
       fontSize: typography.fontSize.xl,
       fontWeight: typography.fontWeight.semibold,
       lineHeight: typography.lineHeight.relaxed,
-      letterSpacing: typography.letterSpacing.normal,
     },
     h5: {
       fontSize: typography.fontSize.lg,
       fontWeight: typography.fontWeight.medium,
       lineHeight: typography.lineHeight.relaxed,
-      letterSpacing: typography.letterSpacing.normal,
     },
     h6: {
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.lg,
       fontWeight: typography.fontWeight.medium,
       lineHeight: typography.lineHeight.relaxed,
-      letterSpacing: typography.letterSpacing.normal,
     },
     body1: {
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.lg,
       fontWeight: typography.fontWeight.normal,
       lineHeight: typography.lineHeight.relaxed,
-      letterSpacing: typography.letterSpacing.normal,
     },
     body2: {
       fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.normal,
       lineHeight: typography.lineHeight.relaxed,
-      letterSpacing: typography.letterSpacing.normal,
     },
     button: {
       fontSize: typography.fontSize.sm,
       fontWeight: typography.fontWeight.medium,
       lineHeight: typography.lineHeight.tight,
-      letterSpacing: typography.letterSpacing.wide,
       textTransform: 'none',
     },
     caption: {
       fontSize: typography.fontSize.xs,
       fontWeight: typography.fontWeight.normal,
       lineHeight: typography.lineHeight.relaxed,
-      letterSpacing: typography.letterSpacing.normal,
     },
     overline: {
       fontSize: typography.fontSize.xs,
       fontWeight: typography.fontWeight.medium,
       lineHeight: typography.lineHeight.tight,
-      letterSpacing: typography.letterSpacing.wide,
       textTransform: 'uppercase',
     },
   },
 
-  spacing: spacing.base * 8, // Convert to Material-UI spacing unit
+  spacing: 8, // Material-UI spacing unit (8px)
 
   shape: {
     borderRadius: borderRadius.md,
@@ -192,19 +181,19 @@ const themeOptions: ThemeOptions = {
 
   transitions: {
     easing: {
-      easeInOut: transitions.easeInOut,
-      easeOut: transitions.easeOut,
-      easeIn: transitions.easeIn,
-      sharp: transitions.sharp,
+      easeInOut: transitions.easing.easeInOut,
+      easeOut: transitions.easing.easeOut,
+      easeIn: transitions.easing.easeIn,
+      sharp: 'cubic-bezier(0.4, 0, 0.6, 1)',
     },
     duration: {
-      shortest: transitions.duration.shortest,
-      shorter: transitions.duration.shorter,
-      short: transitions.duration.short,
-      standard: transitions.duration.standard,
-      complex: transitions.duration.complex,
-      enteringScreen: transitions.duration.enteringScreen,
-      leavingScreen: transitions.duration.leavingScreen,
+      shortest: 150,
+      shorter: 200,
+      short: 250,
+      standard: 300,
+      complex: 375,
+      enteringScreen: 225,
+      leavingScreen: 195,
     },
   },
 
