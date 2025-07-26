@@ -82,6 +82,7 @@ const Dashboard: React.FC = () => {
     };
 
     loadDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role]); // Only depend on user role, not the functions
 
   const handleRetry = () => {
