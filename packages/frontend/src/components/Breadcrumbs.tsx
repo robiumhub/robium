@@ -5,39 +5,12 @@ import {
   Typography,
   Box,
 } from '@mui/material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { NavigateNext as NavigateNextIcon } from '@mui/icons-material';
-
-interface BreadcrumbItem {
-  label: string;
-  path?: string;
-}
+import { useNavigation } from '../contexts/NavigationContext';
 
 const Breadcrumbs: React.FC = () => {
-  const location = useLocation();
-
-  const getBreadcrumbs = (): BreadcrumbItem[] => {
-    const pathnames = location.pathname.split('/').filter((x) => x);
-
-    const breadcrumbs: BreadcrumbItem[] = [
-      { label: 'Home', path: '/dashboard' },
-    ];
-
-    pathnames.forEach((name, index) => {
-      const path = `/${pathnames.slice(0, index + 1).join('/')}`;
-      const label = name.charAt(0).toUpperCase() + name.slice(1);
-
-      if (index === pathnames.length - 1) {
-        breadcrumbs.push({ label });
-      } else {
-        breadcrumbs.push({ label, path });
-      }
-    });
-
-    return breadcrumbs;
-  };
-
-  const breadcrumbs = getBreadcrumbs();
+  const { breadcrumbs } = useNavigation();
 
   if (breadcrumbs.length <= 1) {
     return null;

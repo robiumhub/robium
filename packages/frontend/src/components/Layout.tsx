@@ -23,9 +23,14 @@ import {
   Settings as SettingsIcon,
   Person as PersonIcon,
   Logout as LogoutIcon,
+  Folder as FolderIcon,
+  SmartToy as RobotIcon,
+  Palette as PaletteIcon,
+  AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useNavigation } from '../contexts/NavigationContext';
 import Breadcrumbs from './Breadcrumbs';
 
 const drawerWidth = 240;
@@ -40,6 +45,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { activeMenuItem, setActiveMenuItem } = useNavigation();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -59,12 +65,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
+  const handleNavigation = (path: string) => {
+    setActiveMenuItem(path);
+    navigate(path);
+    setMobileOpen(false);
+  };
+
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Projects', icon: <DashboardIcon />, path: '/projects' },
-    { text: 'Robots', icon: <SettingsIcon />, path: '/robots' },
+    { text: 'Projects', icon: <FolderIcon />, path: '/projects' },
+    { text: 'Robots', icon: <RobotIcon />, path: '/robots' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
+    { text: 'Design System', icon: <PaletteIcon />, path: '/design-system' },
   ];
+
+  // Add admin menu item if user has admin role
+  if (user?.role === 'ADMIN') {
+    menuItems.push({ text: 'Admin', icon: <AdminIcon />, path: '/admin' });
+  }
 
   const drawer = (
     <div>
@@ -77,7 +96,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
-            <ListItemButton onClick={() => navigate(item.path)}>
+            <ListItemButton
+              onClick={() => handleNavigation(item.path)}
+              selected={activeMenuItem === item.path}
+              sx={{
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.light',
+                  '&:hover': {
+                    backgroundColor: 'primary.light',
+                  },
+                },
+              }}
+            >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItemButton>
