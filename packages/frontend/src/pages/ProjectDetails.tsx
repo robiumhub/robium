@@ -26,21 +26,21 @@ const ProjectDetails: React.FC = () => {
   // Mock data - in real app this would come from API
   const project = {
     id: projectId,
-    name: 'Autonomous Navigation Robot',
+    name: 'Autonomous Navigation Project',
     description:
-      'A robot capable of navigating complex environments autonomously using advanced AI algorithms and sensor fusion.',
+      'A project for navigating complex environments autonomously using advanced AI algorithms and sensor fusion.',
     status: 'active',
-    robotCount: 3,
+    moduleCount: 3,
     lastUpdated: '2024-01-15',
     createdDate: '2023-12-01',
-    robots: [
-      { id: '1', name: 'NavBot-001', status: 'online', type: 'Navigation' },
-      { id: '2', name: 'NavBot-002', status: 'offline', type: 'Navigation' },
+    modules: [
+      { id: '1', name: 'navigation_core', status: 'active', type: 'Navigation' },
+      { id: '2', name: 'sensor_fusion', status: 'active', type: 'Perception' },
       {
         id: '3',
-        name: 'NavBot-003',
-        status: 'maintenance',
-        type: 'Navigation',
+        name: 'perception_basic',
+        status: 'active',
+        type: 'Perception',
       },
     ],
   };
@@ -89,7 +89,7 @@ const ProjectDetails: React.FC = () => {
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <Chip label={`Status: ${project.status}`} color="primary" />
-                <Chip label={`${project.robotCount} Robots`} />
+                <Chip label={`${project.moduleCount} Modules`} />
                 <Chip label={`Created: ${project.createdDate}`} />
                 <Chip label={`Updated: ${project.lastUpdated}`} />
               </Box>
@@ -99,14 +99,14 @@ const ProjectDetails: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Robots in Project
+                Modules in Project
               </Typography>
               <List>
-                {project.robots.map((robot) => (
-                  <React.Fragment key={robot.id}>
+                {project.modules.map((module) => (
+                  <React.Fragment key={module.id}>
                     <ListItem>
                       <ListItemAvatar>
-                        <Avatar>{robot.name.charAt(0)}</Avatar>
+                        <Avatar>{module.name.charAt(0)}</Avatar>
                       </ListItemAvatar>
                       <ListItemText
                         primary={
@@ -118,20 +118,20 @@ const ProjectDetails: React.FC = () => {
                             }}
                           >
                             <Typography variant="subtitle1">
-                              {robot.name}
+                              {module.name}
                             </Typography>
                             <Chip
-                              label={robot.status}
-                              color={getStatusColor(robot.status) as any}
+                              label={module.status}
+                              color={getStatusColor(module.status) as any}
                               size="small"
                             />
                           </Box>
                         }
-                        secondary={`Type: ${robot.type}`}
+                        secondary={`Type: ${module.type}`}
                       />
                       <Button
                         component={RouterLink}
-                        to={`/robots/${robot.id}`}
+                        to={`/modules`}
                         size="small"
                       >
                         View Details
@@ -164,9 +164,9 @@ const ProjectDetails: React.FC = () => {
                   variant="outlined"
                   fullWidth
                   component={RouterLink}
-                  to={`/projects/${projectId}/robots/add`}
+                  to={`/modules`}
                 >
-                  Add Robot
+                  Browse Modules
                 </Button>
                 <Button
                   variant="outlined"

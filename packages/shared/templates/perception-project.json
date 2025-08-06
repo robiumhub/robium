@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "name": "perception-project"
+  },
+  "modules": [
+    "perception_basic",
+    "sensor_fusion"
+  ]
+} 

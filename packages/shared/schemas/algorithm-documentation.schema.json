@@ -1,0 +1,531 @@
+{
+  "title": "Algorithm Documentation",
+  "description": "Comprehensive documentation schema for ROS algorithms including task definitions, input/output specifications, and detailed metadata",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the algorithm"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the algorithm"
+    },
+    "version": {
+      "type": "string",
+      "description": "Algorithm version following semantic versioning"
+    },
+    "taskDefinition": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Brief title describing what the algorithm does"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the algorithm's purpose and functionality"
+        },
+        "problemStatement": {
+          "type": "string",
+          "description": "Clear statement of the problem this algorithm solves"
+        },
+        "useCases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of specific use cases where this algorithm is applicable"
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of assumptions the algorithm makes about inputs and environment"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Known limitations and constraints of the algorithm"
+        }
+      },
+      "required": ["title", "description", "problemStatement"]
+    },
+    "inputOutputSpecification": {
+      "type": "object",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Input parameter name"
+              },
+              "type": {
+                "type": "string",
+                "description": "Data type (e.g., sensor_msgs/LaserScan, geometry_msgs/Pose)"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the input"
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether this input is required"
+              },
+              "default": {
+                "description": "Default value if not required"
+              },
+              "constraints": {
+                "type": "object",
+                "description": "Constraints on the input value"
+              }
+            },
+            "required": ["name", "type", "description", "required"]
+          },
+          "description": "List of input parameters and their specifications"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Output parameter name"
+              },
+              "type": {
+                "type": "string",
+                "description": "Data type of the output"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the output"
+              },
+              "format": {
+                "type": "string",
+                "description": "Format specification for the output"
+              }
+            },
+            "required": ["name", "type", "description"]
+          },
+          "description": "List of output parameters and their specifications"
+        },
+        "sideEffects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of side effects the algorithm may have"
+        }
+      },
+      "required": ["inputs", "outputs"]
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "configurable": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Parameter name"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["int", "float", "double", "bool", "string", "array", "object"],
+                "description": "Parameter data type"
+              },
+              "description": {
+                "type": "string",
+                "description": "Parameter description"
+              },
+              "default": {
+                "description": "Default value"
+              },
+              "min": {
+                "description": "Minimum value (for numeric types)"
+              },
+              "max": {
+                "description": "Maximum value (for numeric types)"
+              },
+              "options": {
+                "type": "array",
+                "description": "Valid options (for enum-like parameters)"
+              },
+              "unit": {
+                "type": "string",
+                "description": "Unit of measurement"
+              },
+              "category": {
+                "type": "string",
+                "description": "Parameter category for grouping"
+              }
+            },
+            "required": ["name", "type", "description"]
+          },
+          "description": "List of configurable parameters"
+        },
+        "advanced": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Parameter name"
+              },
+              "type": {
+                "type": "string",
+                "description": "Parameter data type"
+              },
+              "description": {
+                "type": "string",
+                "description": "Parameter description"
+              },
+              "default": {
+                "description": "Default value"
+              },
+              "warning": {
+                "type": "string",
+                "description": "Warning about parameter usage"
+              }
+            },
+            "required": ["name", "type", "description"]
+          },
+          "description": "Advanced parameters for expert users"
+        }
+      },
+      "required": ["configurable"]
+    },
+    "dependencies": {
+      "type": "object",
+      "properties": {
+        "rosPackages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "ROS package name"
+              },
+              "version": {
+                "type": "string",
+                "description": "Required version or version range"
+              },
+              "purpose": {
+                "type": "string",
+                "description": "Purpose of this dependency"
+              },
+              "optional": {
+                "type": "boolean",
+                "description": "Whether this dependency is optional"
+              }
+            },
+            "required": ["name", "purpose"]
+          },
+          "description": "Required ROS packages"
+        },
+        "systemLibraries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "System libraries required"
+        },
+        "pythonPackages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Python package name"
+              },
+              "version": {
+                "type": "string",
+                "description": "Required version"
+              }
+            },
+            "required": ["name"]
+          },
+          "description": "Python packages required"
+        },
+        "algorithms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Other algorithms this depends on"
+        }
+      },
+      "required": ["rosPackages"]
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "complexity": {
+          "type": "string",
+          "enum": ["O(1)", "O(log n)", "O(n)", "O(n log n)", "O(n²)", "O(n³)", "O(2ⁿ)", "O(n!)"],
+          "description": "Time complexity of the algorithm"
+        },
+        "spaceComplexity": {
+          "type": "string",
+          "description": "Space complexity of the algorithm"
+        },
+        "executionTime": {
+          "type": "object",
+          "properties": {
+            "typical": {
+              "type": "string",
+              "description": "Typical execution time"
+            },
+            "worstCase": {
+              "type": "string",
+              "description": "Worst case execution time"
+            },
+            "bestCase": {
+              "type": "string",
+              "description": "Best case execution time"
+            }
+          }
+        },
+        "memoryUsage": {
+          "type": "object",
+          "properties": {
+            "typical": {
+              "type": "string",
+              "description": "Typical memory usage"
+            },
+            "peak": {
+              "type": "string",
+              "description": "Peak memory usage"
+            }
+          }
+        },
+        "throughput": {
+          "type": "string",
+          "description": "Processing throughput (e.g., frames per second)"
+        }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["C++", "Python", "C", "Java"],
+          "description": "Primary implementation language"
+        },
+        "architecture": {
+          "type": "string",
+          "description": "Architectural pattern used"
+        },
+        "threading": {
+          "type": "string",
+          "enum": ["single-threaded", "multi-threaded", "asynchronous"],
+          "description": "Threading model"
+        },
+        "realTime": {
+          "type": "boolean",
+          "description": "Whether the algorithm supports real-time execution"
+        },
+        "optimizations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of optimizations applied"
+        }
+      },
+      "required": ["language"]
+    },
+    "testing": {
+      "type": "object",
+      "properties": {
+        "testCoverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Test coverage percentage"
+        },
+        "testTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["unit", "integration", "performance", "regression", "stress"]
+          },
+          "description": "Types of tests available"
+        },
+        "testData": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Available test datasets"
+        },
+        "benchmarks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Benchmark name"
+              },
+              "description": {
+                "type": "string",
+                "description": "Benchmark description"
+              },
+              "results": {
+                "type": "object",
+                "description": "Benchmark results"
+              }
+            }
+          },
+          "description": "Performance benchmarks"
+        }
+      }
+    },
+    "documentation": {
+      "type": "object",
+      "properties": {
+        "apiReference": {
+          "type": "string",
+          "description": "URL to API reference documentation"
+        },
+        "tutorials": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Tutorial title"
+              },
+              "url": {
+                "type": "string",
+                "description": "Tutorial URL"
+              },
+              "difficulty": {
+                "type": "string",
+                "enum": ["beginner", "intermediate", "advanced"],
+                "description": "Tutorial difficulty level"
+              }
+            }
+          },
+          "description": "Available tutorials"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Example name"
+              },
+              "description": {
+                "type": "string",
+                "description": "Example description"
+              },
+              "codeUrl": {
+                "type": "string",
+                "description": "URL to example code"
+              },
+              "demoUrl": {
+                "type": "string",
+                "description": "URL to live demo"
+              }
+            }
+          },
+          "description": "Code examples and demos"
+        },
+        "papers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Paper title"
+              },
+              "authors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Paper authors"
+              },
+              "url": {
+                "type": "string",
+                "description": "Paper URL"
+              },
+              "year": {
+                "type": "integer",
+                "description": "Publication year"
+              }
+            }
+          },
+          "description": "Related research papers"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "version": {
+          "type": "string",
+          "description": "Documentation schema version"
+        },
+        "maintainer": {
+          "type": "string",
+          "description": "Maintainer information"
+        },
+        "license": {
+          "type": "string",
+          "description": "License information"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["stable", "beta", "experimental", "deprecated"],
+          "description": "Algorithm stability status"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tags for categorizing and searching"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Categories this algorithm belongs to"
+        }
+      },
+      "required": ["createdAt", "updatedAt", "status"]
+    }
+  },
+  "required": ["id", "name", "version", "taskDefinition", "inputOutputSpecification", "parameters", "dependencies", "metadata"]
+} 

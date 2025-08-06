@@ -1,22 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Card, CardContent, Paper } from '@mui/material';
+import { 
+  Box, 
+  Typography, 
+  Card, 
+  CardContent, 
+  Paper, 
+  TextField, 
+  Button, 
+  Grid, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  ListItemIcon,
+  Chip,
+  Avatar,
+  Divider,
+  IconButton,
+  InputAdornment,
+} from '@mui/material';
 import {
   Dashboard as DashboardIcon,
   Settings as SettingsIcon,
   Person as PersonIcon,
+  Add as AddIcon,
+  Folder as FolderIcon,
+  Send as SendIcon,
+  SmartToy as RobotIcon,
+  AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import { useError } from '../contexts/ErrorContext';
 import DataFetchWrapper from '../components/DataFetchWrapper';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { showSuccess, showError } = useToast();
   const { addError } = useError();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [chatMessage, setChatMessage] = useState('');
+  const [recentProjects, setRecentProjects] = useState([
+    {
+      id: '1',
+      name: 'gfdgdfg',
+      description: 'Test project',
+      lastModified: '2025-08-01T03:48:40Z',
+      status: 'active',
+    },
+  ]);
   const [stats, setStats] = useState([
     {
       title: 'Active Projects',
@@ -25,7 +60,7 @@ const Dashboard: React.FC = () => {
       color: 'primary.main',
     },
     {
-      title: 'Total Robots',
+      title: 'Available Modules',
       value: '0',
       icon: <SettingsIcon />,
       color: 'secondary.main',
@@ -57,8 +92,8 @@ const Dashboard: React.FC = () => {
             color: 'primary.main',
           },
           {
-            title: 'Total Robots',
-            value: '12',
+            title: 'Available Modules',
+            value: '11',
             icon: <SettingsIcon />,
             color: 'secondary.main',
           },
@@ -92,6 +127,24 @@ const Dashboard: React.FC = () => {
     window.location.reload();
   };
 
+  const handleChatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (chatMessage.trim()) {
+      // In real app, this would send to LLM API
+      console.log('Chat message:', chatMessage);
+      setChatMessage('');
+      showSuccess('Message sent to AI assistant!');
+    }
+  };
+
+  const handleCreateProject = () => {
+    navigate('/projects/new');
+  };
+
+  const handleOpenProject = (projectId: string) => {
+    navigate(`/workspace/${projectId}`);
+  };
+
   return (
     <DataFetchWrapper
       loading={loading}
@@ -103,83 +156,53 @@ const Dashboard: React.FC = () => {
       showSkeleton={true}
       skeletonType="dashboard"
     >
-      <Box>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Welcome back, {user?.username}!
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-          Manage your robotics projects and monitor your robots from this
-          dashboard.
-        </Typography>
-
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2, 1fr)',
-              md: 'repeat(3, 1fr)',
-            },
-            gap: 3,
-            mb: 4,
-          }}
-        >
-          {stats.map((stat) => (
-            <Card key={stat.title}>
-              <CardContent>
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                >
-                  <Box>
-                    <Typography color="textSecondary" gutterBottom>
-                      {stat.title}
-                    </Typography>
-                    <Typography variant="h4" component="div">
-                      {stat.value}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      color: stat.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
-                    {stat.icon}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
-        </Box>
-
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
-            gap: 3,
-          }}
-        >
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Recent Activity
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              No recent activity to display. Start by creating your first
-              robotics project!
-            </Typography>
-          </Paper>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Quick Actions
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Quick action buttons will be available here once you have projects
-              set up.
-            </Typography>
-          </Paper>
+      <Box 
+        sx={{ 
+          height: '100vh', 
+          display: 'flex', 
+          flexDirection: 'column',
+          width: '100%'
+        }}
+      >
+        {/* Stats Cards */}
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
+            Platform Overview
+          </Typography>
+          <Grid container spacing={4} sx={{ height: '100%' }}>
+            {stats.map((stat) => (
+              <Grid item xs={12} sm={6} md={4} key={stat.title}>
+                <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', boxShadow: 3 }}>
+                  <CardContent sx={{ width: '100%' }}>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
+                      <Box>
+                        <Typography color="textSecondary" gutterBottom sx={{ fontSize: '0.9rem' }}>
+                          {stat.title}
+                        </Typography>
+                        <Typography variant="h2" component="div" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+                          {stat.value}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          color: stat.color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          fontSize: '2.5rem',
+                        }}
+                      >
+                        {stat.icon}
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
         </Box>
       </Box>
     </DataFetchWrapper>

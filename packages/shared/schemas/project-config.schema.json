@@ -1,0 +1,18 @@
+{
+  "title": "Project Configuration",
+  "description": "Schema for a Robium project configuration",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "$ref": "project-metadata.schema.json"
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of module names to include in this project"
+    }
+  },
+  "required": ["metadata", "modules"]
+} 

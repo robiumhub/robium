@@ -76,13 +76,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setToken(storedToken);
             setUser(currentUser);
           } catch (error) {
-            // Token is invalid, clear storage
+            // Token is invalid, clear storage silently
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            console.log('Invalid token cleared, redirecting to login');
           }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        // Network error or other issues - clear storage and continue
+        console.log('Auth initialization error, clearing storage:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       } finally {
         setIsLoading(false);
       }

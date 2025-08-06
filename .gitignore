@@ -1,5 +1,6 @@
 # Dependencies
-/node_modules
+node_modules/
+**/node_modules/
 /.pnp
 .pnp.js
 
@@ -7,6 +8,9 @@
 /dist
 /build
 /out
+**/dist/
+**/build/
+**/out/
 
 # Logs
 logs
@@ -40,7 +44,36 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
-
 # Cache files
 **/.cache/
 **/node_modules/.cache/
+.eslintcache
+
+# Test coverage
+coverage/
+**/coverage/
+
+# Temporary files
+*.tmp
+*.temp
+test-output/
+
+# Generated files and cache
+**/generated/
+**/cache/
+**/test-output/
+
+# Performance test files
+**/perf-test-*.json
+
+# Package lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# yarn.lock
+
+# Docker
+.dockerignore
+
+# ROS build artifacts
+**/build/
+**/install/
+**/log/

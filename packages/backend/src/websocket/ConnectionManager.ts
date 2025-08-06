@@ -14,6 +14,7 @@ import {
 } from './types';
 import { AuthService } from '../services/AuthService';
 import { JWTPayload } from '../types';
+import { ExecutionHandler } from './ExecutionHandler';
 
 export class ConnectionManager {
   private connections: Map<string, WebSocketConnection> = new Map();
@@ -23,6 +24,7 @@ export class ConnectionManager {
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private serverStartTime: number;
   private totalMessages: number = 0;
+  private executionHandler: ExecutionHandler;
 
   constructor(
     private wss: WebSocketServer,
@@ -34,6 +36,7 @@ export class ConnectionManager {
   ) {
     this.heartbeatConfig = heartbeatConfig;
     this.serverStartTime = Date.now();
+    this.executionHandler = new ExecutionHandler();
     this.setupWebSocketServer();
     this.startHeartbeat();
   }
@@ -336,6 +339,16 @@ export class ConnectionManager {
       case WebSocketEventType.USER_STATUS_UPDATE:
         this.handleUserStatusUpdate(ws, message);
         break;
+      // Execution-related messages
+      case WebSocketEventType.TERMINAL_CREATE:
+      case WebSocketEventType.TERMINAL_COMMAND:
+      case WebSocketEventType.TERMINAL_RESIZE:
+      case WebSocketEventType.TERMINAL_CLOSE:
+      case WebSocketEventType.LOG_STREAM_CREATE:
+      case WebSocketEventType.LOG_STREAM_UPDATE:
+      case WebSocketEventType.LOG_STREAM_CLOSE:
+        this.executionHandler.handleMessage(ws, message);
+        break;
       default:
         // Handle unknown message types
         this.sendMessage(ws, {
@@ -479,6 +492,9 @@ export class ConnectionManager {
     if (ws.metadata?.userId) {
       const userId = ws.metadata.userId;
       const username = ws.metadata.username;
+
+      // Cleanup user sessions
+      this.executionHandler.cleanupUserSessions(userId);
 
       // Remove from connections
       this.connections.delete(userId);

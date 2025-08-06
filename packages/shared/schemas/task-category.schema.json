@@ -1,0 +1,164 @@
+{
+  "title": "Task Category",
+  "description": "Task category definition within a meta-category for organizing specific algorithms",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the task category"
+    },
+    "metaCategoryId": {
+      "type": "string",
+      "description": "ID of the parent meta-category"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the task category"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the task category"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Icon identifier for UI representation"
+    },
+    "hierarchy": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Hierarchy level within the meta-category"
+        },
+        "parent": {
+          "type": "string",
+          "description": "Parent task category ID (if applicable)"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Child task category IDs"
+        },
+        "order": {
+          "type": "integer",
+          "description": "Display order within the same level"
+        }
+      }
+    },
+    "algorithms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique algorithm identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Algorithm name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Algorithm description"
+          },
+          "version": {
+            "type": "string",
+            "description": "Algorithm version"
+          },
+          "complexity": {
+            "type": "string",
+            "enum": ["basic", "intermediate", "advanced", "expert"],
+            "description": "Algorithm complexity level"
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "ROS packages required for this algorithm"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other algorithms this depends on"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Algorithm-specific parameters"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tags for categorizing the algorithm"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["stable", "beta", "experimental", "deprecated"],
+            "description": "Algorithm stability status"
+          }
+        },
+        "required": ["id", "name", "description", "version", "complexity", "packages"]
+      },
+      "description": "List of algorithms in this task category"
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "hardware": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Hardware requirements for algorithms in this category"
+        },
+        "software": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Software dependencies"
+        },
+        "rosVersion": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Supported ROS versions"
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        },
+        "version": {
+          "type": "string",
+          "description": "Schema version"
+        },
+        "maintainer": {
+          "type": "string",
+          "description": "Maintainer information"
+        }
+      }
+    }
+  },
+  "required": ["id", "metaCategoryId", "name", "description", "hierarchy", "algorithms"]
+} 

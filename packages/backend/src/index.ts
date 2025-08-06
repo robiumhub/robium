@@ -26,6 +26,9 @@ setupErrorHandlers();
 // Import routes
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
+import modulesRoutes from './routes/modules';
+import projectsRoutes from './routes/projects';
+import dockerfilesRoutes from './routes/dockerfiles';
 // import apiRoutes from './routes/api';
 
 const app = express();
@@ -98,6 +101,9 @@ app.get('/health', async (req, res) => {
 // API routes
 app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
+app.use('/modules', modulesRoutes);
+app.use('/projects', projectsRoutes);
+app.use('/dockerfiles', dockerfilesRoutes);
 // app.use('/api', apiRoutes);
 
 // 404 handler

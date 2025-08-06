@@ -22,7 +22,7 @@ import {
 
 const DesignSystemShowcase: React.FC = () => {
   return (
-    <Box sx={{ p: 4, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
       <Typography variant="h3" component="h1" gutterBottom>
         Design System Showcase
       </Typography>

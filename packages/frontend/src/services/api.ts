@@ -163,8 +163,21 @@ export class ApiService {
       } else {
         throw new Error(response.data.message || 'Failed to get user data');
       }
-    } catch (error) {
-      throw ApiService.handleApiError(error);
+    } catch (error: any) {
+      // For getCurrentUser, handle network errors more gracefully
+      if (error.response) {
+        // Server responded with error status
+        const { data, status } = error.response;
+        if (status === 401) {
+          throw new Error('Token expired or invalid');
+        }
+        throw new Error(data?.message || data?.error || 'Failed to get user data');
+      } else if (error.request) {
+        // Network error - don't throw, just return null or throw a specific error
+        throw new Error('Network unavailable');
+      } else {
+        throw new Error(error.message || 'Failed to get user data');
+      }
     }
   }
 

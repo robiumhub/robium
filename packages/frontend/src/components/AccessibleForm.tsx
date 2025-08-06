@@ -322,6 +322,11 @@ export const AccessibleForm: React.FC<AccessibleFormProps> = ({
             onChange={(e) => handleFieldChange(field.name, e.target.value)}
             fullWidth
             margin="normal"
+            inputProps={{
+              autoComplete: field.type === 'email' ? 'email' : 
+                           field.type === 'password' ? 'current-password' : 
+                           field.name === 'username' ? 'username' : 'off'
+            }}
           />
         );
     }

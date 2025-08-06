@@ -1,0 +1,45 @@
+{
+  "title": "Module Metadata",
+  "description": "Metadata for a Robium module",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique name of the module"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of what the module provides"
+    },
+    "version": {
+      "type": "string",
+      "description": "Module version"
+    },
+    "category": {
+      "type": "string",
+      "description": "Module category (e.g., navigation, perception, control)"
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of ROS package names included in this module"
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of other module names this module depends on"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags for categorizing and searching modules"
+    }
+  },
+  "required": ["name", "description", "version", "category", "packages"]
+} 

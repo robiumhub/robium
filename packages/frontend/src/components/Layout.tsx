@@ -1,10 +1,8 @@
 import React, { ReactNode, useState } from 'react';
 import {
-  AppBar,
   Box,
   CssBaseline,
   Drawer,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -12,26 +10,21 @@ import {
   ListItemText,
   Toolbar,
   Typography,
-  Avatar,
-  Menu,
-  MenuItem,
   Divider,
 } from '@mui/material';
 import {
-  Menu as MenuIcon,
-  Dashboard as DashboardIcon,
   Settings as SettingsIcon,
-  Person as PersonIcon,
-  Logout as LogoutIcon,
   Folder as FolderIcon,
-  SmartToy as RobotIcon,
-  Palette as PaletteIcon,
   AdminPanelSettings as AdminIcon,
+  Extension as ModuleIcon,
+  Article as TemplateIcon,
+  Storage as StorageIcon,
+  Home as HomeIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNavigation } from '../contexts/NavigationContext';
-import Breadcrumbs from './Breadcrumbs';
 
 const drawerWidth = 240;
 const mobileDrawerWidth = 280;
@@ -42,27 +35,12 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { activeMenuItem, setActiveMenuItem } = useNavigation();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
-  };
-
-  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleProfileMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleLogout = () => {
-    logout();
-    handleProfileMenuClose();
-    navigate('/login');
   };
 
   const handleNavigation = (path: string) => {
@@ -72,12 +50,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Home', icon: <HomeIcon />, path: '/' },
     { text: 'Projects', icon: <FolderIcon />, path: '/projects' },
-    { text: 'Robots', icon: <RobotIcon />, path: '/robots' },
+    { text: 'Modules', icon: <ModuleIcon />, path: '/modules' },
+    { text: 'Templates', icon: <TemplateIcon />, path: '/templates' },
+    { text: 'Datasets', icon: <StorageIcon />, path: '/datasets' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
-    { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
-    { text: 'Design System', icon: <PaletteIcon />, path: '/design-system' },
   ];
 
   // Add admin menu item if user has admin role
@@ -118,90 +96,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', height: '100vh' }}>
       <CssBaseline />
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{
-              flexGrow: 1,
-              display: { xs: 'none', sm: 'block' },
-            }}
-          >
-            Robium - Robot Management Platform
-          </Typography>
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{
-              flexGrow: 1,
-              display: { xs: 'block', sm: 'none' },
-            }}
-          >
-            Robium
-          </Typography>
-          <IconButton
-            size="large"
-            edge="end"
-            aria-label="account of current user"
-            aria-controls="primary-search-account-menu"
-            aria-haspopup="true"
-            onClick={handleProfileMenuOpen}
-            color="inherit"
-          >
-            <Avatar sx={{ width: 32, height: 32 }}>
-              <PersonIcon />
-            </Avatar>
-          </IconButton>
-          <Menu
-            id="primary-search-account-menu"
-            anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: 'bottom',
-              horizontal: 'right',
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
-            open={Boolean(anchorEl)}
-            onClose={handleProfileMenuClose}
-          >
-            <MenuItem onClick={handleProfileMenuClose}>
-              <ListItemIcon>
-                <PersonIcon fontSize="small" />
-              </ListItemIcon>
-              Profile
-            </MenuItem>
-            <MenuItem onClick={handleLogout}>
-              <ListItemIcon>
-                <LogoutIcon fontSize="small" />
-              </ListItemIcon>
-              Logout
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
       <Box
         component="nav"
         id="main-navigation"
@@ -233,6 +129,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              borderRight: 'none',
+              bgcolor: 'grey.50',
             },
           }}
           open
@@ -247,21 +145,81 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         aria-label="Main content"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3 },
+          p: 0, // Remove padding from main container for all pages
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
-          backgroundColor: 'grey.50',
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Same gradient as home page
         }}
       >
-        <Toolbar />
+        {/* Breadcrumb Section - Unified for all pages */}
+        <Box sx={{ py: 2, px: { xs: 2, md: 4 } }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              color: 'text.secondary',
+            }}
+          >
+            {(activeMenuItem === '/projects' ||
+              activeMenuItem.startsWith('/projects/')) && (
+              <FolderIcon sx={{ fontSize: 20 }} />
+            )}
+            {activeMenuItem === '/modules' && (
+              <ModuleIcon sx={{ fontSize: 20 }} />
+            )}
+            {activeMenuItem === '/templates' && (
+              <TemplateIcon sx={{ fontSize: 20 }} />
+            )}
+            {activeMenuItem === '/datasets' && (
+              <StorageIcon sx={{ fontSize: 20 }} />
+            )}
+            {activeMenuItem === '/settings' && (
+              <SettingsIcon sx={{ fontSize: 20 }} />
+            )}
+            {activeMenuItem === '/admin' && <AdminIcon sx={{ fontSize: 20 }} />}
+            {activeMenuItem.startsWith('/workspace/') && (
+              <CodeIcon sx={{ fontSize: 20 }} />
+            )}
+            {(activeMenuItem === '/' || activeMenuItem === '/home') && (
+              <HomeIcon sx={{ fontSize: 20 }} />
+            )}
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {activeMenuItem === '/projects' && 'Projects'}
+              {activeMenuItem.startsWith('/projects/') &&
+                activeMenuItem !== '/projects' && (
+                  <>
+                    <span
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate('/projects')}
+                    >
+                      Projects
+                    </span>
+                    <span style={{ margin: '0 8px' }}>/</span>
+                    {activeMenuItem === '/projects/new' && 'Create Project'}
+                    {activeMenuItem.match(/^\/projects\/[^\/]+$/) &&
+                      activeMenuItem !== '/projects/new' &&
+                      'Project Details'}
+                  </>
+                )}
+              {activeMenuItem === '/modules' && 'Modules'}
+              {activeMenuItem === '/templates' && 'Templates'}
+              {activeMenuItem === '/datasets' && 'Datasets'}
+              {activeMenuItem === '/settings' && 'Settings'}
+              {activeMenuItem === '/admin' && 'Admin'}
+              {activeMenuItem.startsWith('/workspace/') && 'Workspace'}
+              {(activeMenuItem === '/' || activeMenuItem === '/home') && 'Home'}
+            </Typography>
+          </Box>
+        </Box>
+
         <Box
           sx={{
-            maxWidth: '1200px',
-            mx: 'auto',
-            mt: { xs: 1, sm: 2 },
+            width: '100%',
+            px: { xs: 2, md: 4 }, // Add consistent horizontal padding for all pages
+            mt: { xs: 1, sm: 2 }, // Consistent top margin for all pages
           }}
         >
-          <Breadcrumbs />
           {children}
         </Box>
       </Box>

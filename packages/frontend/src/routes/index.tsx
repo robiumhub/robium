@@ -5,17 +5,26 @@ import { RoleBasedRoute } from '../components/RoleBasedRoute';
 import Layout from '../components/Layout';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
-import Dashboard from '../pages/Dashboard';
+
 import DesignSystemShowcase from '../pages/DesignSystemShowcase';
 
 // Lazy load components for better performance
+const Home = React.lazy(() => import('../pages/Home'));
 const Projects = React.lazy(() => import('../pages/Projects'));
 const ProjectDetails = React.lazy(() => import('../pages/ProjectDetails'));
-const Robots = React.lazy(() => import('../pages/Robots'));
-const RobotDetails = React.lazy(() => import('../pages/RobotDetails'));
+const ProjectWorkspace = React.lazy(() => import('../pages/ProjectWorkspace'));
+const ProjectCreationWizard = React.lazy(
+  () => import('../pages/ProjectCreationWizard')
+);
+const Templates = React.lazy(() => import('../pages/Templates'));
+const Datasets = React.lazy(() => import('../pages/Datasets'));
+const Modules = React.lazy(() => import('../pages/Modules'));
 const Settings = React.lazy(() => import('../pages/Settings'));
 const Profile = React.lazy(() => import('../pages/Profile'));
 const AdminDashboard = React.lazy(() => import('../pages/AdminDashboard'));
+const ExecutionEnvironment = React.lazy(
+  () => import('../pages/ExecutionEnvironment')
+);
 const NotFound = React.lazy(() => import('../pages/NotFound'));
 
 // Route configuration interface
@@ -53,25 +62,28 @@ export const routes: RouteConfig[] = [
   },
   {
     path: '/',
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/home" replace />,
   },
   {
-    path: '/dashboard',
+    path: '/home',
     element: (
       <ProtectedRoute>
         <Layout>
-          <Dashboard />
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <Home />
+          </React.Suspense>
         </Layout>
       </ProtectedRoute>
     ),
     meta: {
-      title: 'Dashboard',
-      description: 'Overview of your projects and robots',
+      title: 'Home',
+      description: 'AI-powered project assistant and overview',
       requiresAuth: true,
-      breadcrumb: 'Dashboard',
-      icon: 'dashboard',
+      breadcrumb: 'Home',
+      icon: 'home',
     },
   },
+
   {
     path: '/projects',
     element: (
@@ -85,12 +97,26 @@ export const routes: RouteConfig[] = [
     ),
     meta: {
       title: 'Projects',
-      description: 'Manage your robot projects',
+      description: 'Manage your robotics projects',
       requiresAuth: true,
       breadcrumb: 'Projects',
       icon: 'folder',
     },
     children: [
+      {
+        path: 'new',
+        element: (
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <ProjectCreationWizard />
+          </React.Suspense>
+        ),
+        meta: {
+          title: 'Create New Project',
+          description: 'Create a new robotics project',
+          requiresAuth: true,
+          breadcrumb: 'Create Project',
+        },
+      },
       {
         path: ':projectId',
         element: (
@@ -108,39 +134,77 @@ export const routes: RouteConfig[] = [
     ],
   },
   {
-    path: '/robots',
+    path: '/workspace/:projectId',
+    element: (
+      <ProtectedRoute>
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <ProjectWorkspace />
+        </React.Suspense>
+      </ProtectedRoute>
+    ),
+    meta: {
+      title: 'Project Workspace',
+      description: 'IDE-like workspace for project development',
+      requiresAuth: true,
+      breadcrumb: 'Workspace',
+    },
+  },
+  {
+    path: '/templates',
     element: (
       <ProtectedRoute>
         <Layout>
           <React.Suspense fallback={<div>Loading...</div>}>
-            <Robots />
+            <Templates />
           </React.Suspense>
         </Layout>
       </ProtectedRoute>
     ),
     meta: {
-      title: 'Robots',
-      description: 'Manage your robots',
+      title: 'Templates',
+      description: 'Browse and clone project templates',
       requiresAuth: true,
-      breadcrumb: 'Robots',
-      icon: 'smart_toy',
+      breadcrumb: 'Templates',
+      icon: 'article',
     },
-    children: [
-      {
-        path: ':robotId',
-        element: (
+  },
+  {
+    path: '/datasets',
+    element: (
+      <ProtectedRoute>
+        <Layout>
           <React.Suspense fallback={<div>Loading...</div>}>
-            <RobotDetails />
+            <Datasets />
           </React.Suspense>
-        ),
-        meta: {
-          title: 'Robot Details',
-          description: 'View and control robot',
-          requiresAuth: true,
-          breadcrumb: 'Robot Details',
-        },
-      },
-    ],
+        </Layout>
+      </ProtectedRoute>
+    ),
+    meta: {
+      title: 'Datasets',
+      description: 'Browse and download datasets for robotics projects',
+      requiresAuth: true,
+      breadcrumb: 'Datasets',
+      icon: 'storage',
+    },
+  },
+  {
+    path: '/modules',
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <Modules />
+          </React.Suspense>
+        </Layout>
+      </ProtectedRoute>
+    ),
+    meta: {
+      title: 'Modules',
+      description: 'Browse and manage available robotics modules',
+      requiresAuth: true,
+      breadcrumb: 'Modules',
+      icon: 'extension',
+    },
   },
   {
     path: '/settings',
@@ -198,6 +262,26 @@ export const routes: RouteConfig[] = [
       allowedRoles: ['ADMIN'],
       breadcrumb: 'Admin',
       icon: 'admin_panel_settings',
+    },
+  },
+  {
+    path: '/execution',
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <ExecutionEnvironment />
+          </React.Suspense>
+        </Layout>
+      </ProtectedRoute>
+    ),
+    meta: {
+      title: 'Execution Environment',
+      description:
+        'Manage containers, monitor resources, and debug applications',
+      requiresAuth: true,
+      breadcrumb: 'Execution',
+      icon: 'terminal',
     },
   },
   {

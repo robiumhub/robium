@@ -1,0 +1,14 @@
+{
+  "name": "perception_basic",
+  "description": "Basic perception capabilities including object detection and vision processing",
+  "version": "1.0.0",
+  "category": "perception",
+  "packages": [
+    "vision_msgs",
+    "object_detection",
+    "image_processing",
+    "point_cloud_processing"
+  ],
+  "dependencies": [],
+  "tags": ["perception", "vision", "object-detection", "image-processing"]
+} 

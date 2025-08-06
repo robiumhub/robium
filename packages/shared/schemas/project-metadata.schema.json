@@ -1,0 +1,11 @@
+{
+  "title": "Project Metadata",
+  "description": "Metadata for a Robium project",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": ["name"]
+} 

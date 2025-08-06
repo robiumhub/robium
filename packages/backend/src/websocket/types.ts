@@ -49,6 +49,19 @@ export enum WebSocketEventType {
   SESSION_START = 'session_start',
   SESSION_UPDATE = 'session_update',
   SESSION_END = 'session_end',
+
+  // Terminal events
+  TERMINAL_CREATE = 'terminal_create',
+  TERMINAL_COMMAND = 'terminal_command',
+  TERMINAL_OUTPUT = 'terminal_output',
+  TERMINAL_RESIZE = 'terminal_resize',
+  TERMINAL_CLOSE = 'terminal_close',
+
+  // Log streaming events
+  LOG_STREAM_CREATE = 'log_stream_create',
+  LOG_STREAM_UPDATE = 'log_stream_update',
+  LOG_ENTRY = 'log_entry',
+  LOG_STREAM_CLOSE = 'log_stream_close',
 }
 
 // WebSocket message structure
@@ -216,6 +229,67 @@ export interface NotificationData {
   message: string;
   data?: unknown;
   actionUrl?: string;
+}
+
+// Terminal data
+export interface TerminalCreateData {
+  containerId: string;
+  shell?: string;
+  cwd?: string;
+  env?: Record<string, string>;
+  maxBufferSize?: number;
+}
+
+export interface TerminalCommandData {
+  sessionId: string;
+  command: string;
+}
+
+export interface TerminalOutputData {
+  sessionId: string;
+  type: 'stdout' | 'stderr' | 'error';
+  data: string;
+  timestamp: number;
+}
+
+export interface TerminalResizeData {
+  sessionId: string;
+  cols: number;
+  rows: number;
+}
+
+// Log streaming data
+export interface LogStreamCreateData {
+  containerId: string;
+  follow?: boolean;
+  tail?: number;
+  since?: string;
+  until?: string;
+  filters?: {
+    level?: 'error' | 'warning' | 'info' | 'debug';
+    source?: string;
+    search?: string;
+  };
+  maxBufferSize?: number;
+}
+
+export interface LogStreamUpdateData {
+  streamId: string;
+  filters: {
+    level?: 'error' | 'warning' | 'info' | 'debug';
+    source?: string;
+    search?: string;
+  };
+}
+
+export interface LogEntryData {
+  streamId: string;
+  timestamp: Date;
+  level: 'error' | 'warning' | 'info' | 'debug';
+  source: string;
+  containerId: string;
+  message: string;
+  metadata?: Record<string, unknown>;
 }
 
 // WebSocket statistics

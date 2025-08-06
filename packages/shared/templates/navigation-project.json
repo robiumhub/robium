@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "name": "navigation-project"
+  },
+  "modules": [
+    "navigation_core",
+    "sensor_fusion"
+  ]
+} 
