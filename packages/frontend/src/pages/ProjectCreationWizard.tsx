@@ -382,18 +382,26 @@ const ProjectCreationWizard: React.FC = () => {
   };
 
   // Handle tag input
-  const handleTagInput = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && event.currentTarget?.value?.trim()) {
-      const newTag = event.currentTarget.value.trim();
-      if (!projectData.tags.includes(newTag)) {
-        setProjectData((prev) => ({
-          ...prev,
-          tags: [...prev.tags, newTag],
-        }));
-      }
-      if (event.currentTarget) {
-        event.currentTarget.value = '';
-      }
+  const handleTagInput = (
+    event: React.KeyboardEvent
+  ) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+
+    const inputElement =
+      (event.target as HTMLInputElement | HTMLTextAreaElement) || null;
+    const value = (inputElement?.value || '').trim();
+    if (!value) return;
+
+    if (!projectData.tags.includes(value)) {
+      setProjectData((prev) => ({
+        ...prev,
+        tags: [...prev.tags, value],
+      }));
+    }
+
+    if (inputElement) {
+      inputElement.value = '';
     }
   };
 
