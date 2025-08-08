@@ -6,52 +6,9 @@ import AIProjectGenerationService, {
   AIProjectSuggestion,
 } from '../services/AIProjectGenerationService';
 import { ApiService } from '../services/api';
-import {
-  Box,
-  Typography,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  Button,
-  Paper,
-  Card,
-  CardContent,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  Checkbox,
-  FormControlLabel,
-  Alert,
-  CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Radio,
-  RadioGroup,
-  FormLabel,
-  Slider,
-  Switch,
-  IconButton,
-} from '@mui/material';
+import { Box, Typography, Stepper, Step, StepLabel, StepContent, Button, Paper, Card, CardContent, TextField, FormControl, InputLabel, Select, MenuItem, Chip, Checkbox, Alert, CircularProgress, List, ListItem, ListItemText, ListItemIcon } from '@mui/material';
 import { Grid } from '@mui/material';
-import {
-  Check as CheckIcon,
-  Add as AddIcon,
-  Remove as RemoveIcon,
-  Save as SaveIcon,
-  ArrowBack as ArrowBackIcon,
-  ArrowForward as ArrowForwardIcon,
-  Folder as FolderIcon,
-  Code as CodeIcon,
-  Settings as SettingsIcon,
-  Preview as PreviewIcon,
-  SmartToy as RobotIcon,
-} from '@mui/icons-material';
+import { Check as CheckIcon, Save as SaveIcon, ArrowBack as ArrowBackIcon, ArrowForward as ArrowForwardIcon, Folder as FolderIcon, Code as CodeIcon, Preview as PreviewIcon, SmartToy as RobotIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Types
@@ -60,31 +17,19 @@ interface ProjectData {
   description: string;
   tags: string[];
   algorithms: string[];
-  environment: EnvironmentConfig;
-  settings: ProjectSettings;
+  robot: string;
+  hardware: string;
 }
 
-interface EnvironmentConfig {
-  baseImage: string;
-  pythonVersion: string;
-  nodeVersion: string;
-  systemDependencies: string[];
-  pythonDependencies: string[];
-  nodeDependencies: string[];
-  environmentVariables: Record<string, string>;
-  ports: number[];
-  volumes: string[];
-}
-
-interface ProjectSettings {
-  autoSave: boolean;
-  enableDebugging: boolean;
-  enableLogging: boolean;
-  maxMemory: number;
-  cpuLimit: number;
-  enableGPU: boolean;
-  backupFrequency: 'daily' | 'weekly' | 'monthly' | 'never';
-}
+// Robot and hardware options
+const robotOptions = [
+  { value: 'turtlebot3', label: 'TurtleBot 3' },
+  { value: 'turtlebot4', label: 'TurtleBot 4' },
+];
+const hardwareOptions = [
+  { value: 'raspberrypi', label: 'Raspberry Pi' },
+  { value: 'nvidia-orin', label: 'NVIDIA Orin' },
+];
 
 interface WizardStep {
   label: string;
@@ -108,26 +53,8 @@ const ProjectCreationWizard: React.FC = () => {
     description: '',
     tags: [],
     algorithms: [],
-    environment: {
-      baseImage: 'python:3.9-slim',
-      pythonVersion: '3.9',
-      nodeVersion: '16',
-      systemDependencies: [],
-      pythonDependencies: [],
-      nodeDependencies: [],
-      environmentVariables: {},
-      ports: [8080],
-      volumes: [],
-    },
-    settings: {
-      autoSave: true,
-      enableDebugging: false,
-      enableLogging: true,
-      maxMemory: 2048,
-      cpuLimit: 2,
-      enableGPU: false,
-      backupFrequency: 'weekly',
-    },
+    robot: '',
+    hardware: '',
   });
 
   // Real-time form validation
@@ -180,15 +107,7 @@ const ProjectCreationWizard: React.FC = () => {
     validateOnChange: true,
   });
 
-  const baseImages = [
-    { value: 'python:3.9-slim', label: 'Python 3.9 (Slim)' },
-    { value: 'python:3.10-slim', label: 'Python 3.10 (Slim)' },
-    { value: 'python:3.11-slim', label: 'Python 3.11 (Slim)' },
-    { value: 'node:16-alpine', label: 'Node.js 16 (Alpine)' },
-    { value: 'node:18-alpine', label: 'Node.js 18 (Alpine)' },
-    { value: 'ubuntu:20.04', label: 'Ubuntu 20.04' },
-    { value: 'ubuntu:22.04', label: 'Ubuntu 22.04' },
-  ];
+  // No environment config for now
 
   // Modules fetched from backend
   const [modules, setModules] = useState<
@@ -240,9 +159,9 @@ const ProjectCreationWizard: React.FC = () => {
         valid: false,
       },
       {
-        label: 'Environment Configuration',
-        description: 'Configure development environment',
-        icon: <SettingsIcon />,
+        label: 'Robot Configuration',
+        description: 'Select robot and hardware',
+        icon: <RobotIcon />,
         completed: false,
         valid: false,
       },
@@ -276,11 +195,10 @@ const ProjectCreationWizard: React.FC = () => {
         case 1:
           return projectData.algorithms.length > 0;
         case 2:
-          return projectData.environment.baseImage.length > 0;
+          return projectData.robot.length > 0 && projectData.hardware.length > 0;
         case 3:
-          return true; // Settings are optional
-        case 4:
           return true; // Review step
+        
         default:
           return false;
       }
@@ -345,8 +263,8 @@ const ProjectCreationWizard: React.FC = () => {
         description: projectData.description,
         tags: projectData.tags,
         algorithms: projectData.algorithms,
-        environment: projectData.environment,
-        settings: projectData.settings,
+        robot: projectData.robot,
+        hardware: projectData.hardware,
       };
 
       // Call the API using ApiService
@@ -674,250 +592,60 @@ const ProjectCreationWizard: React.FC = () => {
                     </Box>
                   )}
 
-                  {/* Step 3: Environment Configuration */}
+                  {/* Step 3: Robot Configuration */}
                   {index === 2 && (
                     <Box>
                       <Typography variant="h6" gutterBottom>
-                        Configure Development Environment
+                        Robot Configuration
                       </Typography>
                       <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
                           <FormControl fullWidth>
-                            <InputLabel>Base Image</InputLabel>
+                            <InputLabel>Robot</InputLabel>
                             <Select
-                              value={projectData.environment.baseImage}
-                              label="Base Image"
+                              value={projectData.robot}
+                              label="Robot"
                               onChange={(e) =>
                                 setProjectData((prev) => ({
                                   ...prev,
-                                  environment: {
-                                    ...prev.environment,
-                                    baseImage: e.target.value,
-                                  },
+                                  robot: e.target.value,
                                 }))
                               }
                             >
-                              {baseImages.map((image) => (
-                                <MenuItem key={image.value} value={image.value}>
-                                  {image.label}
+                              {robotOptions.map((r) => (
+                                <MenuItem key={r.value} value={r.value}>
+                                  {r.label}
                                 </MenuItem>
                               ))}
                             </Select>
                           </FormControl>
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField
-                            fullWidth
-                            label="Python Version"
-                            value={projectData.environment.pythonVersion}
-                            onChange={(e) =>
-                              setProjectData((prev) => ({
-                                ...prev,
-                                environment: {
-                                  ...prev.environment,
-                                  pythonVersion: e.target.value,
-                                },
-                              }))
-                            }
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            Environment Variables
-                          </Typography>
-                          <Box sx={{ mb: 2 }}>
-                            {Object.entries(
-                              projectData.environment.environmentVariables
-                            ).map(([key, value]) => (
-                              <Box
-                                key={key}
-                                sx={{ display: 'flex', gap: 1, mb: 1 }}
-                              >
-                                <TextField
-                                  size="small"
-                                  label="Key"
-                                  value={key}
-                                  onChange={(e) => {
-                                    const newEnvVars = {
-                                      ...projectData.environment
-                                        .environmentVariables,
-                                    };
-                                    delete newEnvVars[key];
-                                    newEnvVars[e.target.value] = value;
-                                    setProjectData((prev) => ({
-                                      ...prev,
-                                      environment: {
-                                        ...prev.environment,
-                                        environmentVariables: newEnvVars,
-                                      },
-                                    }));
-                                  }}
-                                />
-                                <TextField
-                                  size="small"
-                                  label="Value"
-                                  value={value}
-                                  onChange={(e) =>
-                                    updateEnvironmentVariable(
-                                      key,
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                                <IconButton
-                                  size="small"
-                                  onClick={() => removeEnvironmentVariable(key)}
-                                  color="error"
-                                >
-                                  <RemoveIcon />
-                                </IconButton>
-                              </Box>
-                            ))}
-                            <Button
-                              startIcon={<AddIcon />}
-                              onClick={addEnvironmentVariable}
-                              size="small"
-                            >
-                              Add Environment Variable
-                            </Button>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  )}
-
-                  {/* Step 4: Project Settings */}
-                  {index === 3 && (
-                    <Box>
-                      <Typography variant="h6" gutterBottom>
-                        Advanced Project Settings
-                      </Typography>
-                      <Grid container spacing={3}>
-                        <Grid item xs={12} md={6}>
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={projectData.settings.autoSave}
-                                onChange={(e) =>
-                                  setProjectData((prev) => ({
-                                    ...prev,
-                                    settings: {
-                                      ...prev.settings,
-                                      autoSave: e.target.checked,
-                                    },
-                                  }))
-                                }
-                              />
-                            }
-                            label="Auto-save changes"
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={projectData.settings.enableDebugging}
-                                onChange={(e) =>
-                                  setProjectData((prev) => ({
-                                    ...prev,
-                                    settings: {
-                                      ...prev.settings,
-                                      enableDebugging: e.target.checked,
-                                    },
-                                  }))
-                                }
-                              />
-                            }
-                            label="Enable debugging"
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                          <Typography gutterBottom>
-                            Memory Limit (MB)
-                          </Typography>
-                          <Slider
-                            value={projectData.settings.maxMemory}
-                            onChange={(_, value) =>
-                              setProjectData((prev) => ({
-                                ...prev,
-                                settings: {
-                                  ...prev.settings,
-                                  maxMemory: value as number,
-                                },
-                              }))
-                            }
-                            min={512}
-                            max={8192}
-                            step={512}
-                            marks
-                            valueLabelDisplay="auto"
-                          />
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                          <Typography gutterBottom>
-                            CPU Limit (cores)
-                          </Typography>
-                          <Slider
-                            value={projectData.settings.cpuLimit}
-                            onChange={(_, value) =>
-                              setProjectData((prev) => ({
-                                ...prev,
-                                settings: {
-                                  ...prev.settings,
-                                  cpuLimit: value as number,
-                                },
-                              }))
-                            }
-                            min={1}
-                            max={8}
-                            step={1}
-                            marks
-                            valueLabelDisplay="auto"
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <FormControl component="fieldset">
-                            <FormLabel component="legend">
-                              Backup Frequency
-                            </FormLabel>
-                            <RadioGroup
-                              value={projectData.settings.backupFrequency}
+                          <FormControl fullWidth>
+                            <InputLabel>Hardware</InputLabel>
+                            <Select
+                              value={projectData.hardware}
+                              label="Hardware"
                               onChange={(e) =>
                                 setProjectData((prev) => ({
                                   ...prev,
-                                  settings: {
-                                    ...prev.settings,
-                                    backupFrequency: e.target.value as any,
-                                  },
+                                  hardware: e.target.value,
                                 }))
                               }
                             >
-                              <FormControlLabel
-                                value="daily"
-                                control={<Radio />}
-                                label="Daily"
-                              />
-                              <FormControlLabel
-                                value="weekly"
-                                control={<Radio />}
-                                label="Weekly"
-                              />
-                              <FormControlLabel
-                                value="monthly"
-                                control={<Radio />}
-                                label="Monthly"
-                              />
-                              <FormControlLabel
-                                value="never"
-                                control={<Radio />}
-                                label="Never"
-                              />
-                            </RadioGroup>
+                              {hardwareOptions.map((h) => (
+                                <MenuItem key={h.value} value={h.value}>
+                                  {h.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
                           </FormControl>
                         </Grid>
                       </Grid>
                     </Box>
                   )}
+
+                  {/* Step 4 removed (Project Settings) */}
 
                   {/* Step 5: Review */}
                   {index === 4 && (
