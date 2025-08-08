@@ -425,7 +425,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       const placeholders: string[] = [];
       let idx = 1;
       for (const moduleId of algorithms) {
-        placeholders.push(`($${idx++}, $${idx++}, 'required', NULL, ${idx++ - 1})`);
+        placeholders.push(
+          `($${idx++}, $${idx++}, 'required', NULL, ${idx++ - 1})`
+        );
         // project_id, module_id, dependency_type 'required', version_constraint NULL, order_index
         values.push(newProject.id, moduleId, String(placeholders.length - 1));
       }

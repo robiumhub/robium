@@ -174,7 +174,7 @@ export const routes: RouteConfig[] = [
     element: (
       <ProtectedRoute>
         <Layout>
-          <React.Suspense fallback={<div>Loading...</div>}> 
+          <React.Suspense fallback={<div>Loading...</div>}>
             <Robots />
           </React.Suspense>
         </Layout>

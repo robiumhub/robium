@@ -36,5 +36,3 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 export default router;
-
-

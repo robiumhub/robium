@@ -225,7 +225,9 @@ const Templates: React.FC = () => {
                     onClick={async () => {
                       try {
                         await ApiService.delete(`/projects/${template.id}`);
-                        setTemplates((prev) => prev.filter((t) => t.id !== template.id));
+                        setTemplates((prev) =>
+                          prev.filter((t) => t.id !== template.id)
+                        );
                       } catch (e) {
                         console.error('Failed to delete template', e);
                       }

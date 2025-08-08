@@ -42,7 +42,11 @@ const Robots: React.FC = () => {
             <Card>
               <CardContent>
                 <Typography variant="h6">{r.name}</Typography>
-                <Chip label={`${r.module_count} modules`} size="small" sx={{ mt: 1 }} />
+                <Chip
+                  label={`${r.module_count} modules`}
+                  size="small"
+                  sx={{ mt: 1 }}
+                />
               </CardContent>
             </Card>
           </Grid>
@@ -53,5 +57,3 @@ const Robots: React.FC = () => {
 };
 
 export default Robots;
-
-
