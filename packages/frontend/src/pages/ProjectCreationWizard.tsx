@@ -30,6 +30,7 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  FormControlLabel,
 } from '@mui/material';
 import { Grid } from '@mui/material';
 import {
@@ -52,6 +53,7 @@ interface ProjectData {
   algorithms: string[];
   robot: string;
   hardware: string;
+  is_template?: boolean;
 }
 
 // Robot and hardware options
@@ -88,6 +90,7 @@ const ProjectCreationWizard: React.FC = () => {
     algorithms: [],
     robot: '',
     hardware: '',
+    is_template: false,
   });
 
   // Real-time form validation
@@ -290,6 +293,7 @@ const ProjectCreationWizard: React.FC = () => {
         algorithms: projectData.algorithms,
         robot: projectData.robot,
         hardware: projectData.hardware,
+        is_template: projectData.is_template === true,
       };
 
       // Call the API using ApiService
@@ -479,6 +483,23 @@ const ProjectCreationWizard: React.FC = () => {
                           ))}
                         </Box>
                       </Grid>
+
+                      <Grid item xs={12}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={Boolean(projectData.is_template)}
+                              onChange={(e) =>
+                                setProjectData((prev) => ({
+                                  ...prev,
+                                  is_template: e.target.checked,
+                                }))
+                              }
+                            />
+                          }
+                          label="Save this project as a template"
+                        />
+                      </Grid>
                     </Grid>
                   )}
 
@@ -640,6 +661,14 @@ const ProjectCreationWizard: React.FC = () => {
                                     primary="Tags"
                                     secondary={
                                       projectData.tags.join(', ') || 'None'
+                                    }
+                                  />
+                                </ListItem>
+                                <ListItem>
+                                  <ListItemText
+                                    primary="Template"
+                                    secondary={
+                                      projectData.is_template ? 'Yes' : 'No'
                                     }
                                   />
                                 </ListItem>
