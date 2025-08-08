@@ -31,6 +31,7 @@ import modulesRoutes from './routes/modules';
 import projectsRoutes from './routes/projects';
 import dockerfilesRoutes from './routes/dockerfiles';
 import rosPackagesRoutes from './routes/ros-packages';
+import robotsRoutes from './routes/robots';
 // import apiRoutes from './routes/api';
 
 const app = express();
@@ -107,6 +108,7 @@ app.use('/modules', modulesRoutes);
 app.use('/projects', projectsRoutes);
 app.use('/dockerfiles', dockerfilesRoutes);
 app.use('/ros-packages', rosPackagesRoutes);
+app.use('/robots', robotsRoutes);
 // app.use('/api', apiRoutes);
 
 // Serve static files from the frontend build directory (for production)

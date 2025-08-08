@@ -381,8 +381,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       description,
       tags = [],
       algorithms = [],
-      environment = {},
-      settings = {},
+      is_template = false,
     } = req.body;
 
     // Validate required fields
@@ -400,9 +399,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     const result = (await Database.query(
       `
       INSERT INTO projects (
-        id, name, description, owner_id, tags
+        id, name, description, owner_id, tags, is_template, type
       ) VALUES (
-        $1, $2, $3, $4, $5
+        $1, $2, $3, $4, $5, $6, $7
       ) RETURNING *
     `,
       [
@@ -411,6 +410,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         description,
         userId, // owner_id
         Array.isArray(tags) ? tags : [],
+        Boolean(is_template),
+        Boolean(is_template) ? 'template' : 'custom',
       ]
     )) as { rows: Array<Record<string, any>> };
 

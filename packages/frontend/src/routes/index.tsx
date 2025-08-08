@@ -19,6 +19,7 @@ const ProjectCreationWizard = React.lazy(
 const Templates = React.lazy(() => import('../pages/Templates'));
 const Datasets = React.lazy(() => import('../pages/Datasets'));
 const Modules = React.lazy(() => import('../pages/Modules'));
+const Robots = React.lazy(() => import('../pages/Robots'));
 const Settings = React.lazy(() => import('../pages/Settings'));
 const Profile = React.lazy(() => import('../pages/Profile'));
 const AdminDashboard = React.lazy(() => import('../pages/AdminDashboard'));
@@ -166,6 +167,25 @@ export const routes: RouteConfig[] = [
       requiresAuth: true,
       breadcrumb: 'Templates',
       icon: 'article',
+    },
+  },
+  {
+    path: '/robots',
+    element: (
+      <ProtectedRoute>
+        <Layout>
+          <React.Suspense fallback={<div>Loading...</div>}> 
+            <Robots />
+          </React.Suspense>
+        </Layout>
+      </ProtectedRoute>
+    ),
+    meta: {
+      title: 'Robots',
+      description: 'Supported robots and compatible modules',
+      requiresAuth: true,
+      breadcrumb: 'Robots',
+      icon: 'smart_toy',
     },
   },
   {

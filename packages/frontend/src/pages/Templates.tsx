@@ -36,24 +36,21 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { ApiService } from '../services/api';
 
-interface Template {
+interface TemplateProject {
   id: string;
   name: string;
   description: string;
-  category: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
   tags: string[];
-  imageUrl?: string;
-  features: string[];
-  estimatedTime: string;
-  requirements: string[];
+  module_count: number;
+  package_count: number;
+  created_at: string;
 }
 
 const Templates: React.FC = () => {
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templates, setTemplates] = useState<TemplateProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateProject | null>(
     null
   );
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
@@ -61,146 +58,14 @@ const Templates: React.FC = () => {
   const [cloning, setCloning] = useState(false);
   const navigate = useNavigate();
 
-  // Mock templates data - in real app, this would come from API
-  const mockTemplates: Template[] = [
-    {
-      id: '1',
-      name: 'Autonomous Navigation Robot',
-      description:
-        'A complete ROS2-based autonomous navigation system with SLAM, path planning, and obstacle avoidance.',
-      category: 'Navigation',
-      difficulty: 'intermediate',
-      tags: ['ROS2', 'SLAM', 'Navigation', 'Lidar'],
-      features: [
-        'SLAM mapping',
-        'Path planning',
-        'Obstacle avoidance',
-        'Multi-sensor fusion',
-      ],
-      estimatedTime: '2-3 weeks',
-      requirements: ['ROS2 Humble', 'Lidar sensor', 'IMU sensor', 'Camera'],
-    },
-    {
-      id: '2',
-      name: 'Computer Vision Robot',
-      description:
-        'Robot with advanced computer vision capabilities for object detection, recognition, and tracking.',
-      category: 'Vision',
-      difficulty: 'advanced',
-      tags: ['Computer Vision', 'OpenCV', 'YOLO', 'TensorFlow'],
-      features: [
-        'Object detection',
-        'Face recognition',
-        'Gesture control',
-        'Real-time tracking',
-      ],
-      estimatedTime: '3-4 weeks',
-      requirements: [
-        'High-resolution camera',
-        'GPU support',
-        'OpenCV',
-        'Deep learning framework',
-      ],
-    },
-    {
-      id: '3',
-      name: 'Manipulation Robot',
-      description:
-        'Robotic arm with pick-and-place capabilities, trajectory planning, and force control.',
-      category: 'Manipulation',
-      difficulty: 'advanced',
-      tags: ['Robotic Arm', 'MoveIt', 'Trajectory Planning', 'Force Control'],
-      features: [
-        'Pick and place',
-        'Trajectory optimization',
-        'Force feedback',
-        'Gripper control',
-      ],
-      estimatedTime: '4-5 weeks',
-      requirements: [
-        'Robotic arm',
-        'MoveIt framework',
-        'Force sensors',
-        'Gripper',
-      ],
-    },
-    {
-      id: '4',
-      name: 'AI Assistant Robot',
-      description:
-        'Intelligent robot assistant with natural language processing and conversational AI.',
-      category: 'AI',
-      difficulty: 'intermediate',
-      tags: ['NLP', 'ChatGPT', 'Speech Recognition', 'Conversational AI'],
-      features: [
-        'Voice commands',
-        'Natural conversations',
-        'Task automation',
-        'Learning capabilities',
-      ],
-      estimatedTime: '2-3 weeks',
-      requirements: [
-        'Microphone array',
-        'Speaker',
-        'OpenAI API',
-        'Speech recognition',
-      ],
-    },
-    {
-      id: '5',
-      name: 'Basic Mobile Robot',
-      description:
-        'Simple mobile robot with basic movement control and sensor integration.',
-      category: 'Basic',
-      difficulty: 'beginner',
-      tags: ['Basic Movement', 'Sensors', 'Arduino', 'Simple Control'],
-      features: [
-        'Forward/backward movement',
-        'Turning',
-        'Basic obstacle detection',
-        'Remote control',
-      ],
-      estimatedTime: '1-2 weeks',
-      requirements: [
-        'Arduino board',
-        'Motor drivers',
-        'Ultrasonic sensors',
-        'Battery pack',
-      ],
-    },
-    {
-      id: '6',
-      name: 'Multi-Modal Robot',
-      description:
-        'Advanced robot combining navigation, vision, and manipulation capabilities.',
-      category: 'Advanced',
-      difficulty: 'advanced',
-      tags: ['Multi-Modal', 'Integration', 'Advanced Control', 'System Design'],
-      features: [
-        'Integrated navigation',
-        'Vision-based manipulation',
-        'Multi-task coordination',
-        'Advanced planning',
-      ],
-      estimatedTime: '6-8 weeks',
-      requirements: [
-        'Complete robot platform',
-        'Multiple sensors',
-        'High-end computing',
-        'Advanced software stack',
-      ],
-    },
-  ];
+  // Load templates from backend
 
   useEffect(() => {
-    // Simulate API call
     const loadTemplates = async () => {
       try {
         setLoading(true);
-        // In real app: const response = await ApiService.get('/templates');
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setTemplates(mockTemplates);
+        const data = await ApiService.get<any[]>('/projects/templates');
+        setTemplates(Array.isArray(data) ? data : []);
       } catch (err) {
         setError('Failed to load templates');
         console.error('Error loading templates:', err);
@@ -212,7 +77,7 @@ const Templates: React.FC = () => {
     loadTemplates();
   }, []);
 
-  const handleCloneTemplate = (template: Template) => {
+  const handleCloneTemplate = (template: TemplateProject) => {
     setSelectedTemplate(template);
     setNewProjectName(`${template.name} - Copy`);
     setCloneDialogOpen(true);
@@ -303,8 +168,7 @@ const Templates: React.FC = () => {
         Project Templates
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Choose from our collection of pre-built project templates to jumpstart
-        your robotics development.
+        Templates are projects created by Robium developers. Clone to start.
       </Typography>
 
       <Grid container spacing={3}>
@@ -319,19 +183,10 @@ const Templates: React.FC = () => {
             >
               <CardContent sx={{ flexGrow: 1 }}>
                 <Box display="flex" alignItems="center" mb={2}>
-                  <Avatar sx={{ mr: 1, bgcolor: 'primary.main' }}>
-                    {getCategoryIcon(template.category)}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6" component="h2">
-                      {template.name}
-                    </Typography>
-                    <Chip
-                      label={template.difficulty}
-                      color={getDifficultyColor(template.difficulty) as any}
-                      size="small"
-                    />
-                  </Box>
+                  <Avatar sx={{ mr: 1, bgcolor: 'primary.main' }}>{template.name.charAt(0)}</Avatar>
+                  <Typography variant="h6" component="h2">
+                    {template.name}
+                  </Typography>
                 </Box>
 
                 <Typography
@@ -343,7 +198,7 @@ const Templates: React.FC = () => {
                 </Typography>
 
                 <Box sx={{ mb: 2 }}>
-                  {template.tags.map((tag) => (
+                  {template.tags?.map((tag) => (
                     <Chip
                       key={tag}
                       label={tag}
@@ -354,28 +209,8 @@ const Templates: React.FC = () => {
                   ))}
                 </Box>
 
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Features:</strong>
-                </Typography>
-                <Box component="ul" sx={{ pl: 2, mb: 2 }}>
-                  {template.features.slice(0, 3).map((feature, index) => (
-                    <Typography key={index} variant="body2" component="li">
-                      {feature}
-                    </Typography>
-                  ))}
-                  {template.features.length > 3 && (
-                    <Typography
-                      variant="body2"
-                      component="li"
-                      color="text.secondary"
-                    >
-                      +{template.features.length - 3} more...
-                    </Typography>
-                  )}
-                </Box>
-
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Estimated time:</strong> {template.estimatedTime}
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(template.created_at).toLocaleDateString()} • {template.module_count} modules
                 </Typography>
               </CardContent>
 

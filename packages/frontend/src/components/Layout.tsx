@@ -21,6 +21,7 @@ import {
   Storage as StorageIcon,
   Home as HomeIcon,
   Code as CodeIcon,
+  SmartToy as RobotIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -54,6 +55,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Projects', icon: <FolderIcon />, path: '/projects' },
     { text: 'Modules', icon: <ModuleIcon />, path: '/modules' },
     { text: 'Templates', icon: <TemplateIcon />, path: '/templates' },
+    { text: 'Robots', icon: <RobotIcon />, path: '/robots' },
     { text: 'Datasets', icon: <StorageIcon />, path: '/datasets' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
@@ -170,6 +172,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             )}
             {activeMenuItem === '/templates' && (
               <TemplateIcon sx={{ fontSize: 20 }} />
+            )}
+            {activeMenuItem === '/robots' && (
+              <RobotIcon sx={{ fontSize: 20 }} />
             )}
             {activeMenuItem === '/datasets' && (
               <StorageIcon sx={{ fontSize: 20 }} />
