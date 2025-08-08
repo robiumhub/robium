@@ -11,6 +11,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     let query = `
       SELECT m.*, 
+             COALESCE(m.supported_robots, '{}'::text[]) AS supported_robots,
              COUNT(DISTINCT mp.package_id) as package_count,
              COUNT(DISTINCT md.dependency_module_id) as dependency_count
       FROM modules m

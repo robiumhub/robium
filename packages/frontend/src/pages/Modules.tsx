@@ -50,16 +50,14 @@ interface ModuleMetadata {
   packages: string[];
   dependencies?: string[];
   tags?: string[];
-  complexity?: 'basic' | 'intermediate' | 'advanced' | 'expert';
-  status?: 'stable' | 'beta' | 'experimental' | 'deprecated';
+  supported_robots?: string[];
   parameters?: Record<string, unknown>;
 }
 
 interface ModuleFilters {
   search: string;
   category: string;
-  complexity: string;
-  status: string;
+  robots: string[];
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }
@@ -80,8 +78,7 @@ const Modules: React.FC = () => {
   const [filters, setFilters] = useState<ModuleFilters>({
     search: '',
     category: 'all',
-    complexity: 'all',
-    status: 'all',
+    robots: [],
     sortBy: 'name',
     sortOrder: 'asc',
   });
@@ -137,14 +134,12 @@ const Modules: React.FC = () => {
       filtered = filtered.filter(module => module.category === filters.category);
     }
 
-    // Apply complexity filter
-    if (filters.complexity !== 'all') {
-      filtered = filtered.filter(module => module.complexity === filters.complexity);
-    }
-
-    // Apply status filter
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(module => module.status === filters.status);
+    // Apply robots filter (intersection)
+    if (filters.robots.length > 0) {
+      filtered = filtered.filter(module => {
+        const robots = module.supported_robots || [];
+        return filters.robots.every(r => robots.includes(r));
+      });
     }
 
     // Apply sorting
@@ -159,14 +154,6 @@ const Modules: React.FC = () => {
         case 'category':
           aValue = a.category.toLowerCase();
           bValue = b.category.toLowerCase();
-          break;
-        case 'complexity':
-          aValue = a.complexity || 'unknown';
-          bValue = b.complexity || 'unknown';
-          break;
-        case 'status':
-          aValue = a.status || 'unknown';
-          bValue = b.status || 'unknown';
           break;
         default:
           aValue = a.name.toLowerCase();
@@ -271,32 +258,19 @@ const Modules: React.FC = () => {
               ))}
             </Select>
           </FormControl>
-          <FormControl sx={{ minWidth: 150 }}>
-            <InputLabel>Complexity</InputLabel>
+          <FormControl sx={{ minWidth: 220 }}>
+            <InputLabel>Supported Robots</InputLabel>
             <Select
-              value={filters.complexity}
-              label="Complexity"
-              onChange={(e) => setFilters(prev => ({ ...prev, complexity: e.target.value }))}
+              multiple
+              value={filters.robots}
+              label="Supported Robots"
+              onChange={(e) => setFilters(prev => ({ ...prev, robots: e.target.value as string[] }))}
+              renderValue={(selected) => (selected as string[]).map(r => r.replace(/_/g, ' ')).join(', ')}
             >
-              <MenuItem value="all">All Complexities</MenuItem>
-              <MenuItem value="basic">Basic</MenuItem>
-              <MenuItem value="intermediate">Intermediate</MenuItem>
-              <MenuItem value="advanced">Advanced</MenuItem>
-              <MenuItem value="expert">Expert</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl sx={{ minWidth: 150 }}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={filters.status}
-              label="Status"
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            >
-              <MenuItem value="all">All Statuses</MenuItem>
-              <MenuItem value="stable">Stable</MenuItem>
-              <MenuItem value="beta">Beta</MenuItem>
-              <MenuItem value="experimental">Experimental</MenuItem>
-              <MenuItem value="deprecated">Deprecated</MenuItem>
+              <MenuItem value="turtlebot3">TurtleBot 3</MenuItem>
+              <MenuItem value="turtlebot4">TurtleBot 4</MenuItem>
+              <MenuItem value="raspberrypi">Raspberry Pi</MenuItem>
+              <MenuItem value="nvidia-orin">NVIDIA Orin</MenuItem>
             </Select>
           </FormControl>
           <FormControl sx={{ minWidth: 150 }}>
@@ -447,23 +421,12 @@ const Modules: React.FC = () => {
                       fontSize: '0.75rem'
                     }}
                   />
-                  {module.complexity && (
-                    <Chip
-                      label={module.complexity}
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: '0.75rem' }}
-                    />
-                  )}
-                  {module.status && (
-                    <Chip
-                      label={module.status}
-                      size="small"
-                      variant="outlined"
-                      color={module.status === 'stable' ? 'success' : module.status === 'deprecated' ? 'error' : 'warning'}
-                      sx={{ fontSize: '0.75rem' }}
-                    />
-                  )}
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                  {(module.supported_robots || []).map((r) => (
+                    <Chip key={r} label={r.replace(/_/g, ' ')} size="small" variant="outlined" />
+                  ))}
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>

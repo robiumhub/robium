@@ -108,7 +108,6 @@ interface Package {
 
 interface ProjectFilters {
   search: string;
-  type: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }
@@ -122,7 +121,6 @@ const Projects: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<ProjectFilters>({
     search: '',
-    type: '',
     sortBy: 'lastUpdated',
     sortOrder: 'desc',
   });
@@ -221,9 +219,7 @@ const Projects: React.FC = () => {
           pkg.name.toLowerCase().includes(filters.search.toLowerCase())
         );
 
-      const matchesType = !filters.type || project.type === filters.type;
-
-      return matchesSearch && matchesType;
+      return matchesSearch;
     });
 
     // Sort projects
@@ -262,10 +258,7 @@ const Projects: React.FC = () => {
     return filtered;
   }, [projects, filters]);
 
-  const types = useMemo(() => {
-    const uniqueTypes = Array.from(new Set(projects.map((p) => p.type)));
-    return uniqueTypes.sort();
-  }, [projects]);
+  // Removed type filtering; all projects are custom
 
   // Handle project actions
   const handleEditProject = (project: Project) => {
@@ -481,27 +474,6 @@ const Projects: React.FC = () => {
 
           <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Type</InputLabel>
-                <Select
-                  value={filters.type}
-                  label="Type"
-                  onChange={(e) =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      type: e.target.value,
-                    }))
-                  }
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {types.map((type) => (
-                    <MenuItem key={type} value={type}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
               <FormControl size="small" sx={{ minWidth: 140 }}>
                 <InputLabel>Sort By</InputLabel>
                 <Select
@@ -568,7 +540,7 @@ const Projects: React.FC = () => {
             No projects found
           </Typography>
           <Typography variant="body2">
-            {filters.search || filters.type
+            {filters.search
               ? 'Try adjusting your search or filters'
               : 'Create your first project to get started'}
           </Typography>
