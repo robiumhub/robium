@@ -90,7 +90,7 @@ const Register: React.FC = () => {
 
     try {
       await register(username, email, password);
-      navigate('/dashboard');
+      navigate('/home');
     } catch (error) {
       // Error is handled by the auth context
       console.error('Registration error:', error);

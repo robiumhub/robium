@@ -36,7 +36,7 @@ const Login: React.FC = () => {
   const handleSubmit = async (formData: Record<string, any>) => {
     try {
       await login(formData.email, formData.password);
-      navigate('/dashboard');
+      navigate('/home');
     } catch (error) {
       // Error is already handled by AuthContext and will be displayed
     }
