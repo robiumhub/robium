@@ -158,6 +158,124 @@ router.get('/templates', async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/projects/:id/settings - Get project configuration/settings
+router.get('/:id/settings', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = (await Database.query(
+      `SELECT id, name, config, metadata FROM projects WHERE id = $1 AND is_active = true`,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+
+    res.json({ success: true, data: { config: result.rows[0].config || {}, metadata: result.rows[0].metadata || {} } });
+  } catch (error) {
+    console.error('Error fetching project settings:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch project settings' });
+  }
+});
+
+// PUT /api/projects/:id/settings - Update project configuration/settings
+router.put('/:id/settings', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { config = {}, metadata = {} } = req.body || {};
+
+    const result = (await Database.query(
+      `UPDATE projects SET config = $1, metadata = $2, updated_at = NOW(), updated_by = $3 WHERE id = $4 AND is_active = true RETURNING id, name, config, metadata`,
+      [config, metadata, req.user?.userId ?? null, id]
+    )) as { rows: Array<Record<string, any>> };
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0], message: 'Project settings updated' });
+  } catch (error) {
+    console.error('Error updating project settings:', error);
+    res.status(500).json({ success: false, error: 'Failed to update project settings' });
+  }
+});
+
+// POST /api/projects/:id/clone - Clone an existing project
+router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    // Load source project
+    const source = (await Database.query(
+      `SELECT * FROM projects WHERE id = $1 AND is_active = true`,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    if (source.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Source project not found' });
+    }
+
+    const src = source.rows[0];
+    const cloneId = crypto.randomUUID();
+    const cloneName = `${src.name}-copy`;
+
+    await Database.transaction(async (client: any) => {
+      // Insert cloned project
+      await client.query(
+        `INSERT INTO projects (id, name, description, owner_id, tags, version, author, maintainer_email, license, type, is_active, is_template, config, metadata, workspace_path, source_path, config_path, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true,false,$11,$12,NULL,NULL,NULL,$13)` ,
+        [
+          cloneId,
+          cloneName,
+          src.description,
+          userId,
+          src.tags || [],
+          src.version || '1.0.0',
+          src.author || null,
+          src.maintainer_email || null,
+          src.license || 'Apache-2.0',
+          'custom',
+          src.config || {},
+          src.metadata || {},
+          userId,
+        ]
+      );
+
+      // Copy module dependencies
+      await client.query(
+        `INSERT INTO project_module_dependencies (project_id, module_id, dependency_type, version_constraint, order_index)
+         SELECT $1, module_id, dependency_type, version_constraint, order_index FROM project_module_dependencies WHERE project_id = $2`,
+        [cloneId, id]
+      );
+
+      // Copy project packages
+      await client.query(
+        `INSERT INTO project_packages (project_id, package_id, is_required, order_index)
+         SELECT $1, package_id, is_required, order_index FROM project_packages WHERE project_id = $2`,
+        [cloneId, id]
+      );
+
+      // Copy project files
+      await client.query(
+        `INSERT INTO project_files (project_id, file_path, file_type, content, content_hash, is_generated)
+         SELECT $1, file_path, file_type, content, content_hash, is_generated FROM project_files WHERE project_id = $2`,
+        [cloneId, id]
+      );
+    });
+
+    const cloned = (await Database.query(`SELECT * FROM projects WHERE id = $1`, [cloneId])) as {
+      rows: Array<Record<string, any>>;
+    };
+
+    res.status(201).json({ success: true, data: cloned.rows[0], message: 'Project cloned' });
+  } catch (error) {
+    console.error('Error cloning project:', error);
+    res.status(500).json({ success: false, error: 'Failed to clone project' });
+  }
+});
+
 // GET /api/projects/:id - Get specific project with modules and packages
 router.get('/:id', async (req: AuthRequest, res) => {
   try {

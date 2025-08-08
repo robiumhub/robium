@@ -79,12 +79,15 @@ const Home: React.FC = () => {
       const projects = projectsResult || [];
       setRecentProjects(projects.slice(0, 5)); // Show last 5 projects
 
-      // Mock stats for now - in real app, these would come from API
+      // Load real stats
+      const overview = await ApiService.get<{ projects: number; modules: number; templates: number; datasets: number }>(
+        '/dashboard/stats'
+      );
       setStats({
-        projects: projects.length,
-        modules: 12,
-        templates: 15,
-        datasets: 8,
+        projects: overview.projects,
+        modules: overview.modules,
+        templates: overview.templates,
+        datasets: overview.datasets,
       });
 
       setError(null);
