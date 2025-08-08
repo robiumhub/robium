@@ -33,7 +33,8 @@ export interface ApiResponse<T = any> {
 }
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -171,7 +172,9 @@ export class ApiService {
         if (status === 401) {
           throw new Error('Token expired or invalid');
         }
-        throw new Error(data?.message || data?.error || 'Failed to get user data');
+        throw new Error(
+          data?.message || data?.error || 'Failed to get user data'
+        );
       } else if (error.request) {
         // Network error - don't throw, just return null or throw a specific error
         throw new Error('Network unavailable');

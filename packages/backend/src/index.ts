@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import path from 'path';
 
 import { WebSocketServer } from './websocket/WebSocketServer';
 import { Database } from './utils/database';
@@ -29,6 +30,7 @@ import adminRoutes from './routes/admin';
 import modulesRoutes from './routes/modules';
 import projectsRoutes from './routes/projects';
 import dockerfilesRoutes from './routes/dockerfiles';
+import rosPackagesRoutes from './routes/ros-packages';
 // import apiRoutes from './routes/api';
 
 const app = express();
@@ -104,9 +106,35 @@ app.use('/admin', adminRoutes);
 app.use('/modules', modulesRoutes);
 app.use('/projects', projectsRoutes);
 app.use('/dockerfiles', dockerfilesRoutes);
+app.use('/ros-packages', rosPackagesRoutes);
 // app.use('/api', apiRoutes);
 
-// 404 handler
+// Serve static files from the frontend build directory (for production)
+if (process.env.NODE_ENV === 'production') {
+  const frontendBuildPath = path.join(__dirname, '../../frontend/build');
+  app.use(express.static(frontendBuildPath));
+
+  // Serve index.html for all non-API routes (SPA routing)
+  app.get('*', (req, res) => {
+    // Skip API routes
+    if (
+      req.path.startsWith('/auth') ||
+      req.path.startsWith('/admin') ||
+      req.path.startsWith('/modules') ||
+      req.path.startsWith('/projects') ||
+      req.path.startsWith('/dockerfiles') ||
+      req.path.startsWith('/ros-packages') ||
+      req.path.startsWith('/health') ||
+      req.path.startsWith('/ws')
+    ) {
+      return notFoundHandler(req, res);
+    }
+
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+}
+
+// 404 handler for API routes
 app.use('*', notFoundHandler);
 
 // Global error handler (must be last)

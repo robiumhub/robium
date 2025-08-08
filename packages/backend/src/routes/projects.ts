@@ -1,444 +1,494 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth';
-import { requirePermission } from '../middleware/rbac';
-import { Permission } from '../utils/permissions';
-import { pool } from '../utils/database';
-import { logger } from '../utils/logger';
-import { ConflictError, NotFoundError, ValidationError } from '../utils/errors';
+import { Database } from '../utils/database';
 import { AuthRequest } from '../types';
+import { authenticateToken } from '../middleware/auth';
+import crypto from 'crypto';
 
 const router = express.Router();
 
-// Get all projects for the authenticated user
-router.get('/', authenticateToken, requirePermission(Permission.PROJECT_READ), async (req: AuthRequest, res) => {
+// GET /api/projects - Get all projects
+router.get('/', async (req: AuthRequest, res) => {
   try {
-    const { userId } = req.user!;
-    
-    const query = `
-      SELECT p.id, p.name, p.description, p.owner_id, p.created_at, p.updated_at,
-             u.username as owner_username
+    const { type, search, is_template } = req.query;
+
+    let query = `
+      SELECT p.*, 
+             COUNT(DISTINCT pmd.module_id) as module_count,
+             COUNT(DISTINCT pp.package_id) as package_count
       FROM projects p
-      JOIN users u ON p.owner_id = u.id
-      WHERE p.owner_id = $1
-      ORDER BY p.created_at DESC
+      LEFT JOIN project_module_dependencies pmd ON p.id = pmd.project_id
+      LEFT JOIN project_packages pp ON p.id = pp.project_id
+      WHERE p.is_active = true
     `;
-    
-    const result = await pool.query(query, [userId]);
-    
-    logger.info('Projects fetched successfully', {
-      userId,
-      projectCount: result.rows.length,
-      requestId: (req as any).requestId
-    });
-    
+    const params: string[] = [];
+    let paramIndex = 1;
+
+    // Add type filter
+    if (type && typeof type === 'string') {
+      query += ` AND p.type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+
+    // Add template filter
+    if (is_template !== undefined) {
+      query += ` AND p.is_template = $${paramIndex}`;
+      params.push(is_template === 'true' ? 'true' : 'false');
+      paramIndex++;
+    }
+
+    // Add search filter
+    if (search && typeof search === 'string') {
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    query += ' GROUP BY p.id ORDER BY p.created_at DESC';
+
+    const result = (await Database.query(query, params)) as {
+      rows: Array<Record<string, any>>;
+    };
+
     res.json({
       success: true,
       data: result.rows,
-      count: result.rows.length
+      count: result.rows.length,
     });
   } catch (error) {
-    logger.error('Failed to fetch projects', {
-      userId: req.user?.userId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      requestId: (req as any).requestId
-    });
-    
+    console.error('Error fetching projects:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch projects',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Failed to fetch projects',
     });
   }
 });
 
-// Get a specific project by ID
-router.get('/:projectId', authenticateToken, requirePermission(Permission.PROJECT_READ), async (req: AuthRequest, res) => {
+// GET /api/projects/:id - Get specific project with modules and packages
+router.get('/:id', async (req: AuthRequest, res) => {
   try {
-    const { projectId } = req.params;
-    const { userId } = req.user!;
-    
-    const query = `
-      SELECT p.id, p.name, p.description, p.owner_id, p.created_at, p.updated_at,
-             u.username as owner_username
+    const { id } = req.params;
+
+    // Get project details
+    const projectResult = (await Database.query(
+      'SELECT * FROM projects WHERE id = $1 AND is_active = true',
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found',
+      });
+    }
+
+    const project = projectResult.rows[0];
+
+    // Get modules for this project
+    const modulesResult = (await Database.query(
+      `
+      SELECT m.*, pmd.dependency_type, pmd.order_index
+      FROM project_module_dependencies pmd
+      JOIN modules m ON pmd.module_id = m.id
+      WHERE pmd.project_id = $1
+      ORDER BY pmd.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    // Get packages for this project
+    const packagesResult = (await Database.query(
+      `
+      SELECT rp.*, pp.is_required, pp.order_index
+      FROM project_packages pp
+      JOIN ros_packages rp ON pp.package_id = rp.id
+      WHERE pp.project_id = $1
+      ORDER BY pp.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    // Get files for this project
+    const filesResult = (await Database.query(
+      `
+      SELECT * FROM project_files
+      WHERE project_id = $1
+      ORDER BY file_type, file_path
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
+      success: true,
+      data: {
+        ...project,
+        modules: modulesResult.rows,
+        packages: packagesResult.rows,
+        files: filesResult.rows,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project',
+    });
+  }
+});
+
+// GET /api/projects/categories - Get all categories
+router.get('/categories', async (req: AuthRequest, res) => {
+  try {
+    const result = (await Database.query(
+      'SELECT DISTINCT category FROM projects WHERE is_active = true AND category IS NOT NULL ORDER BY category'
+    )) as { rows: Array<{ category: string }> };
+
+    res.json({
+      success: true,
+      data: result.rows.map((row) => row.category),
+    });
+  } catch (error) {
+    console.error('Error fetching project categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project categories',
+    });
+  }
+});
+
+// GET /api/projects/types - Get all types
+router.get('/types', async (req: AuthRequest, res) => {
+  try {
+    const result = (await Database.query(
+      'SELECT DISTINCT type FROM projects WHERE is_active = true ORDER BY type'
+    )) as { rows: Array<{ type: string }> };
+
+    res.json({
+      success: true,
+      data: result.rows.map((row) => row.type),
+    });
+  } catch (error) {
+    console.error('Error fetching project types:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project types',
+    });
+  }
+});
+
+// GET /api/projects/templates - Get template projects
+router.get('/templates', async (req: AuthRequest, res) => {
+  try {
+    const { category, search } = req.query;
+
+    let query = `
+      SELECT p.*, 
+             COUNT(DISTINCT pmd.module_id) as module_count,
+             COUNT(DISTINCT pp.package_id) as package_count
       FROM projects p
-      JOIN users u ON p.owner_id = u.id
-      WHERE p.id = $1 AND p.owner_id = $2
+      LEFT JOIN project_module_dependencies pmd ON p.id = pmd.project_id
+      LEFT JOIN project_packages pp ON p.id = pp.project_id
+      WHERE p.is_active = true AND p.is_template = true
     `;
-    
-    const result = await pool.query(query, [projectId, userId]);
-    
-    if (result.rows.length === 0) {
-      throw new NotFoundError('Project not found');
+    const params: string[] = [];
+    let paramIndex = 1;
+
+    // Add category filter
+    if (category && typeof category === 'string') {
+      query += ` AND p.category = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
     }
-    
-    logger.info('Project fetched successfully', {
-      projectId,
-      userId,
-      requestId: (req as any).requestId
-    });
-    
+
+    // Add search filter
+    if (search && typeof search === 'string') {
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    query += ' GROUP BY p.id ORDER BY p.name';
+
+    const result = (await Database.query(query, params)) as {
+      rows: Array<Record<string, any>>;
+    };
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: result.rows,
+      count: result.rows.length,
     });
   } catch (error) {
-    logger.error('Failed to fetch project', {
-      projectId: req.params.projectId,
-      userId: req.user?.userId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      requestId: (req as any).requestId
+    console.error('Error fetching template projects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch template projects',
     });
-    
-    if (error instanceof NotFoundError) {
-      res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch project',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
   }
 });
 
-// Create a new project
-router.post('/', authenticateToken, requirePermission(Permission.PROJECT_CREATE), async (req: AuthRequest, res) => {
+// GET /api/projects/search - Search projects
+router.get('/search', async (req: AuthRequest, res) => {
   try {
-    const { 
-      name, 
-      description, 
-      category,
-      tags,
-      isPublic,
-      algorithms,
-      environment,
-      settings
+    const { q, type, limit = '10' } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required',
+      });
+    }
+
+    let query = `
+      SELECT p.*, 
+             COUNT(DISTINCT pmd.module_id) as module_count,
+             COUNT(DISTINCT pp.package_id) as package_count
+      FROM projects p
+      LEFT JOIN project_module_dependencies pmd ON p.id = pmd.project_id
+      LEFT JOIN project_packages pp ON p.id = pp.project_id
+      WHERE p.is_active = true 
+      AND (p.name ILIKE $1 OR p.description ILIKE $1 OR p.metadata::text ILIKE $1)
+    `;
+    const params: string[] = [`%${q}%`];
+    let paramIndex = 2;
+
+    // Add type filter
+    if (type && typeof type === 'string') {
+      query += ` AND p.type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+
+    query += ` GROUP BY p.id ORDER BY p.name LIMIT $${paramIndex}`;
+    params.push(parseInt(limit as string).toString());
+
+    const result = (await Database.query(query, params)) as {
+      rows: Array<Record<string, any>>;
+    };
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+      query: q,
+    });
+  } catch (error) {
+    console.error('Error searching projects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search projects',
+    });
+  }
+});
+
+// GET /api/projects/:id/modules - Get modules for a specific project
+router.get('/:id/modules', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = (await Database.query(
+      `
+      SELECT m.*, pmd.dependency_type, pmd.order_index
+      FROM project_module_dependencies pmd
+      JOIN modules m ON pmd.module_id = m.id
+      WHERE pmd.project_id = $1
+      ORDER BY pmd.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching project modules:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project modules',
+    });
+  }
+});
+
+// GET /api/projects/:id/packages - Get packages for a specific project
+router.get('/:id/packages', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = (await Database.query(
+      `
+      SELECT rp.*, pp.is_required, pp.order_index
+      FROM project_packages pp
+      JOIN ros_packages rp ON pp.package_id = rp.id
+      WHERE pp.project_id = $1
+      ORDER BY pp.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching project packages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project packages',
+    });
+  }
+});
+
+// GET /api/projects/:id/files - Get files for a specific project
+router.get('/:id/files', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = (await Database.query(
+      `
+      SELECT * FROM project_files
+      WHERE project_id = $1
+      ORDER BY file_type, file_path
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching project files:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project files',
+    });
+  }
+});
+
+// POST /api/projects - Create a new project
+router.post('/', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.userId;
+    const {
+      name,
+      description,
+      tags = [],
+      algorithms = [],
+      environment = {},
+      settings = {},
     } = req.body;
-    const { userId } = req.user!;
-    
+
     // Validate required fields
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      throw new ValidationError('Project name is required');
-    }
-    
-    if (name.trim().length > 255) {
-      throw new ValidationError('Project name must be less than 255 characters');
-    }
-    
-    if (description && typeof description !== 'string') {
-      throw new ValidationError('Project description must be a string');
-    }
-    
-    // Check if project name already exists for this user
-    const existingQuery = 'SELECT id FROM projects WHERE name = $1 AND owner_id = $2';
-    const existingResult = await pool.query(existingQuery, [name.trim(), userId]);
-    
-    if (existingResult.rows.length > 0) {
-      throw new ConflictError('A project with this name already exists');
-    }
-    
-    // Start a transaction
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      // Create the project
-      const insertProjectQuery = `
-        INSERT INTO projects (name, description, owner_id)
-        VALUES ($1, $2, $3)
-        RETURNING id, name, description, owner_id, created_at, updated_at
-      `;
-      
-      const projectResult = await client.query(insertProjectQuery, [
-        name.trim(),
-        description ? description.trim() : null,
-        userId
-      ]);
-      
-      const newProject = projectResult.rows[0];
-      
-      // Create project configuration
-      const insertConfigQuery = `
-        INSERT INTO project_configurations (
-          project_id, type, version, base_image, workdir,
-          system_dependencies, python_dependencies, node_dependencies,
-          environment_variables, ports, volumes, command,
-          category, tags, is_public, algorithms,
-          max_memory, cpu_limit, enable_gpu,
-          auto_save, enable_debugging, enable_logging, backup_frequency
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-          $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
-        )
-        RETURNING id
-      `;
-      
-      // Determine project type from base image
-      const projectType = environment?.baseImage?.includes('python') ? 'python' :
-                         environment?.baseImage?.includes('node') ? 'nodejs' : 'python';
-      
-      await client.query(insertConfigQuery, [
-        newProject.id,
-        projectType,
-        '1.0.0',
-        environment?.baseImage || 'python:3.11-slim',
-        '/app',
-        JSON.stringify(environment?.systemDependencies || []),
-        JSON.stringify(environment?.pythonDependencies || []),
-        JSON.stringify(environment?.nodeDependencies || []),
-        JSON.stringify(environment?.environmentVariables || {}),
-        JSON.stringify(environment?.ports || []),
-        JSON.stringify(environment?.volumes || []),
-        environment?.command || null,
-        category || null,
-        JSON.stringify(tags || []),
-        isPublic || false,
-        JSON.stringify(algorithms || []),
-        settings?.maxMemory || 2048,
-        settings?.cpuLimit || 2,
-        settings?.enableGPU || false,
-        settings?.autoSave !== false,
-        settings?.enableDebugging || false,
-        settings?.enableLogging !== false,
-        settings?.backupFrequency || 'weekly'
-      ]);
-      
-      // Register project configuration with DockerfileGenerationService
-      const { dockerfileGenerationService } = require('../services/DockerfileGenerationService');
-      const projectConfig = {
-        id: newProject.id,
-        name: newProject.name,
-        version: '1.0.0',
-        description: newProject.description,
-        type: projectType,
-        baseImage: environment?.baseImage || 'python:3.11-slim',
-        workdir: '/app',
-        systemDependencies: environment?.systemDependencies || [],
-        pythonDependencies: environment?.pythonDependencies || [],
-        nodeDependencies: environment?.nodeDependencies || [],
-        environmentVariables: environment?.environmentVariables || {},
-        ports: environment?.ports?.map(p => p.toString()) || [],
-        volumes: environment?.volumes || [],
-        command: environment?.command
-      };
-      
-      dockerfileGenerationService.registerProjectConfig(projectConfig);
-      
-      // Log user activity
-      const logQuery = `
-        INSERT INTO user_activity_logs (user_id, project_id, action, details, ip_address, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `;
-      
-      await client.query(logQuery, [
-        userId,
-        newProject.id,
-        'project_created',
-        JSON.stringify({ name: newProject.name, category, algorithms: algorithms?.length || 0 }),
-        req.ip,
-        req.get('User-Agent')
-      ]);
-      
-      await client.query('COMMIT');
-      
-      logger.info('Project created successfully', {
-        projectId: newProject.id,
-        projectName: newProject.name,
-        userId,
-        requestId: (req as any).requestId
+    if (!name || !description) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and description are required',
       });
-      
-      res.status(201).json({
-        success: true,
-        message: 'Project created successfully',
-        data: newProject
-      });
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
     }
-  } catch (error) {
-    logger.error('Failed to create project', {
-      userId: req.user?.userId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      requestId: (req as any).requestId
+
+    // Generate a unique ID for the project
+    const projectId = crypto.randomUUID();
+
+    // Create the project with basic fields first
+    const result = (await Database.query(
+      `
+      INSERT INTO projects (
+        id, name, description, owner_id
+      ) VALUES (
+        $1, $2, $3, $4
+      ) RETURNING *
+    `,
+      [
+        projectId,
+        name,
+        description,
+        userId, // owner_id
+      ]
+    )) as { rows: Array<Record<string, any>> };
+
+    const newProject = result.rows[0];
+
+    res.status(201).json({
+      success: true,
+      data: newProject,
+      message: 'Project created successfully',
     });
-    
-    if (error instanceof ValidationError) {
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    } else if (error instanceof ConflictError) {
-      res.status(409).json({
-        success: false,
-        message: error.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create project',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create project',
+    });
   }
 });
 
-// Update a project
-router.put('/:projectId', authenticateToken, requirePermission(Permission.PROJECT_UPDATE), async (req: AuthRequest, res) => {
+// DELETE /api/projects/:id - Delete a project
+router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { projectId } = req.params;
-    const { name, description } = req.body;
-    const { userId } = req.user!;
-    
-    // Validate required fields
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      throw new ValidationError('Project name is required');
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    // Check if project exists and user has permission
+    const projectResult = (await Database.query(
+      'SELECT * FROM projects WHERE id = $1 AND is_active = true',
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found',
+      });
     }
-    
-    if (name.trim().length > 255) {
-      throw new ValidationError('Project name must be less than 255 characters');
+
+    const project = projectResult.rows[0];
+
+    // Check if user is admin or the project owner
+    // Allow deletion if user is admin, project owner, or if project has no owner (created_by is null)
+    if (
+      req.user?.role !== 'admin' &&
+      project.created_by !== null &&
+      project.created_by !== userId
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to delete this project',
+      });
     }
-    
-    if (description && typeof description !== 'string') {
-      throw new ValidationError('Project description must be a string');
-    }
-    
-    // Check if project exists and user owns it
-    const existingQuery = 'SELECT id FROM projects WHERE id = $1 AND owner_id = $2';
-    const existingResult = await pool.query(existingQuery, [projectId, userId]);
-    
-    if (existingResult.rows.length === 0) {
-      throw new NotFoundError('Project not found');
-    }
-    
-    // Check if new name conflicts with another project
-    const conflictQuery = 'SELECT id FROM projects WHERE name = $1 AND owner_id = $2 AND id != $3';
-    const conflictResult = await pool.query(conflictQuery, [name.trim(), userId, projectId]);
-    
-    if (conflictResult.rows.length > 0) {
-      throw new ConflictError('A project with this name already exists');
-    }
-    
-    // Update the project
-    const updateQuery = `
-      UPDATE projects 
-      SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3 AND owner_id = $4
-      RETURNING id, name, description, owner_id, created_at, updated_at
-    `;
-    
-    const result = await pool.query(updateQuery, [
-      name.trim(),
-      description ? description.trim() : null,
-      projectId,
-      userId
+
+    // Soft delete the project by setting is_active to false
+    await Database.query(
+      'UPDATE projects SET is_active = false, updated_at = NOW(), updated_by = $1 WHERE id = $2',
+      [userId, id]
+    );
+
+    // Also delete related records (optional - you might want to keep them for audit)
+    await Database.query(
+      'DELETE FROM project_module_dependencies WHERE project_id = $1',
+      [id]
+    );
+    await Database.query('DELETE FROM project_packages WHERE project_id = $1', [
+      id,
     ]);
-    
-    const updatedProject = result.rows[0];
-    
-    logger.info('Project updated successfully', {
-      projectId: updatedProject.id,
-      projectName: updatedProject.name,
-      userId,
-      requestId: (req as any).requestId
-    });
-    
+    await Database.query('DELETE FROM project_files WHERE project_id = $1', [
+      id,
+    ]);
+
     res.json({
       success: true,
-      message: 'Project updated successfully',
-      data: updatedProject
+      message: 'Project deleted successfully',
     });
   } catch (error) {
-    logger.error('Failed to update project', {
-      projectId: req.params.projectId,
-      userId: req.user?.userId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      requestId: (req as any).requestId
+    console.error('Error deleting project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete project',
     });
-    
-    if (error instanceof ValidationError) {
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    } else if (error instanceof ConflictError) {
-      res.status(409).json({
-        success: false,
-        message: error.message
-      });
-    } else if (error instanceof NotFoundError) {
-      res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update project',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
   }
 });
 
-// Delete a project
-router.delete('/:projectId', authenticateToken, requirePermission(Permission.PROJECT_DELETE), async (req: AuthRequest, res) => {
-  try {
-    const { projectId } = req.params;
-    const { userId } = req.user!;
-    
-    // Check if project exists and user owns it
-    const existingQuery = 'SELECT id, name FROM projects WHERE id = $1 AND owner_id = $2';
-    const existingResult = await pool.query(existingQuery, [projectId, userId]);
-    
-    if (existingResult.rows.length === 0) {
-      throw new NotFoundError('Project not found');
-    }
-    
-    const projectName = existingResult.rows[0].name;
-    
-    // Delete the project
-    const deleteQuery = 'DELETE FROM projects WHERE id = $1 AND owner_id = $2';
-    await pool.query(deleteQuery, [projectId, userId]);
-    
-    logger.info('Project deleted successfully', {
-      projectId,
-      projectName,
-      userId,
-      requestId: (req as any).requestId
-    });
-    
-    res.json({
-      success: true,
-      message: 'Project deleted successfully'
-    });
-  } catch (error) {
-    logger.error('Failed to delete project', {
-      projectId: req.params.projectId,
-      userId: req.user?.userId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      requestId: (req as any).requestId
-    });
-    
-    if (error instanceof NotFoundError) {
-      res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to delete project',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
-});
-
-export default router; 
+export default router;

@@ -1,8 +1,15 @@
+---
+description: Frontend development rules for React components, hooks, API services, testing, and accessibility
+globs: packages/frontend/**/*, packages/frontend/package.json
+alwaysApply: true
+---
+
 # Robium Frontend Development Rules
 
 ## React Component Patterns
 
 ### Functional Component Structure
+
 ```typescript
 // ✅ DO: Use functional components with proper TypeScript interfaces
 interface ComponentProps {
@@ -12,26 +19,26 @@ interface ComponentProps {
   className?: string;
 }
 
-export const Component: React.FC<ComponentProps> = ({ 
-  title, 
-  onSubmit, 
+export const Component: React.FC<ComponentProps> = ({
+  title,
+  onSubmit,
   loading = false,
-  className 
+  className
 }) => {
   const [formData, setFormData] = useState<FormData>({});
   const [error, setError] = useState<string | null>(null);
-  
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    
+
     try {
       await onSubmit(formData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }
   }, [formData, onSubmit]);
-  
+
   return (
     <div className={className}>
       <h2>{title}</h2>
@@ -52,23 +59,24 @@ class Component extends React.Component {
 ```
 
 ### Custom Hooks
+
 ```typescript
 // ✅ DO: Create reusable custom hooks for API calls
 export const useUser = (userId: string) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
         setLoading(true);
         const response = await fetch(`/api/users/${userId}`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch user');
         }
-        
+
         const data = await response.json();
         setUser(data.data);
       } catch (err) {
@@ -77,23 +85,23 @@ export const useUser = (userId: string) => {
         setLoading(false);
       }
     };
-    
+
     if (userId) {
       fetchUser();
     }
   }, [userId]);
-  
+
   return { user, loading, error, refetch: () => fetchUser() };
 };
 
 // Usage in components
 const UserProfile: React.FC<{ userId: string }> = ({ userId }) => {
   const { user, loading, error } = useUser(userId);
-  
+
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
   if (!user) return <div>User not found</div>;
-  
+
   return <div>Welcome, {user.username}!</div>;
 };
 ```
@@ -101,18 +109,20 @@ const UserProfile: React.FC<{ userId: string }> = ({ userId }) => {
 ## API Integration Patterns
 
 ### Service Layer
+
 ```typescript
 // ✅ DO: Create a service layer for API calls
 export class ApiService {
-  private static baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-  
+  private static baseURL =
+    process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
   private static async request<T>(
-    endpoint: string, 
+    endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     const token = localStorage.getItem('authToken');
-    
+
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -121,20 +131,20 @@ export class ApiService {
       },
       ...options,
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `HTTP ${response.status}`);
     }
-    
+
     return response.json();
   }
-  
+
   static async getUser(id: string): Promise<User> {
     const response = await this.request<User>(`/api/users/${id}`);
     return response.data!;
   }
-  
+
   static async createUser(userData: CreateUserInput): Promise<User> {
     const response = await this.request<User>('/api/users', {
       method: 'POST',
@@ -147,14 +157,17 @@ export class ApiService {
 // ❌ DON'T: Make direct fetch calls in components
 const Component = () => {
   const [user, setUser] = useState();
-  
+
   useEffect(() => {
-    fetch('/api/users/123').then(res => res.json()).then(setUser); // No error handling
+    fetch('/api/users/123')
+      .then((res) => res.json())
+      .then(setUser); // No error handling
   }, []);
 };
 ```
 
 ### Error Handling
+
 ```typescript
 // ✅ DO: Create a centralized error handling system
 export class ErrorHandler {
@@ -162,14 +175,14 @@ export class ErrorHandler {
     if (error instanceof Error) {
       return error.message;
     }
-    
+
     if (typeof error === 'string') {
       return error;
     }
-    
+
     return 'An unexpected error occurred';
   }
-  
+
   static async handleApiError(error: unknown): Promise<string> {
     if (error instanceof Response) {
       try {
@@ -179,7 +192,7 @@ export class ErrorHandler {
         return `HTTP ${error.status}`;
       }
     }
-    
+
     return this.handle(error);
   }
 }
@@ -197,6 +210,7 @@ try {
 ## State Management
 
 ### Local State with useState
+
 ```typescript
 // ✅ DO: Use useState for component-local state
 const LoginForm: React.FC = () => {
@@ -205,7 +219,7 @@ const LoginForm: React.FC = () => {
     password: '',
   });
   const [loading, setLoading] = useState(false);
-  
+
   const handleInputChange = (field: keyof typeof credentials) => (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -214,7 +228,7 @@ const LoginForm: React.FC = () => {
       [field]: e.target.value,
     }));
   };
-  
+
   return (
     <form>
       <input
@@ -235,6 +249,7 @@ const LoginForm: React.FC = () => {
 ```
 
 ### Context for Global State
+
 ```typescript
 // ✅ DO: Use React Context for global state that needs to be shared
 interface AuthContextType {
@@ -249,7 +264,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
@@ -260,12 +275,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   }, []);
-  
+
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('authToken');
   }, []);
-  
+
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
@@ -278,7 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   }, [logout]);
-  
+
   return (
     <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
@@ -298,6 +313,7 @@ export const useAuth = () => {
 ## TypeScript Patterns
 
 ### Component Props
+
 ```typescript
 // ✅ DO: Define clear interfaces for component props
 interface UserCardProps {
@@ -309,12 +325,12 @@ interface UserCardProps {
 }
 
 // ✅ DO: Use optional props with default values
-export const UserCard: React.FC<UserCardProps> = ({ 
-  user, 
-  onEdit, 
-  onDelete, 
+export const UserCard: React.FC<UserCardProps> = ({
+  user,
+  onEdit,
+  onDelete,
   showActions = true,
-  className = '' 
+  className = ''
 }) => {
   // Component implementation
 };
@@ -324,6 +340,7 @@ const UserCard = ({ user, onEdit }: any) => { // Bad typing
 ```
 
 ### Event Handlers
+
 ```typescript
 // ✅ DO: Type event handlers properly
 interface FormProps {
@@ -336,11 +353,11 @@ const Form: React.FC<FormProps> = ({ onSubmit, onChange }) => {
     e.preventDefault();
     // Handle form submission
   };
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.name, e.target.value);
   };
-  
+
   return (
     <form onSubmit={handleSubmit}>
       <input name="email" onChange={handleInputChange} />
@@ -352,6 +369,7 @@ const Form: React.FC<FormProps> = ({ onSubmit, onChange }) => {
 ## Styling Patterns
 
 ### CSS Modules (if used)
+
 ```typescript
 // ✅ DO: Use CSS modules for component-scoped styles
 import styles from './Component.module.css';
@@ -369,6 +387,7 @@ export const Component: React.FC = () => {
 ```
 
 ### Conditional Classes
+
 ```typescript
 // ✅ DO: Create a utility for conditional classes
 export const classNames = (...classes: (string | undefined | null | false)[]): string => {
@@ -396,6 +415,7 @@ const Button: React.FC<ButtonProps> = ({ variant, disabled, children }) => {
 ## Performance Optimization
 
 ### Memoization
+
 ```typescript
 // ✅ DO: Use React.memo for expensive components
 export const ExpensiveComponent = React.memo<ExpensiveComponentProps>(({ data, onUpdate }) => {
@@ -405,18 +425,18 @@ export const ExpensiveComponent = React.memo<ExpensiveComponentProps>(({ data, o
       computed: expensiveComputation(item)
     }));
   }, [data]);
-  
+
   const handleUpdate = useCallback((id: string, updates: Partial<Item>) => {
     onUpdate(id, updates);
   }, [onUpdate]);
-  
+
   return (
     <div>
       {processedData.map(item => (
-        <ItemComponent 
-          key={item.id} 
-          item={item} 
-          onUpdate={handleUpdate} 
+        <ItemComponent
+          key={item.id}
+          item={item}
+          onUpdate={handleUpdate}
         />
       ))}
     </div>
@@ -425,6 +445,7 @@ export const ExpensiveComponent = React.memo<ExpensiveComponentProps>(({ data, o
 ```
 
 ### Code Splitting
+
 ```typescript
 // ✅ DO: Use lazy loading for route components
 import { lazy, Suspense } from 'react';
@@ -449,6 +470,7 @@ export const App: React.FC = () => {
 ## Testing Patterns
 
 ### Component Testing
+
 ```typescript
 // ✅ DO: Write comprehensive component tests
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -466,31 +488,32 @@ const mockUser: User = {
 describe('UserCard', () => {
   it('renders user information correctly', () => {
     render(<UserCard user={mockUser} />);
-    
+
     expect(screen.getByText('testuser')).toBeInTheDocument();
     expect(screen.getByText('test@example.com')).toBeInTheDocument();
   });
-  
+
   it('calls onEdit when edit button is clicked', async () => {
     const onEdit = jest.fn();
     render(<UserCard user={mockUser} onEdit={onEdit} />);
-    
+
     fireEvent.click(screen.getByRole('button', { name: /edit/i }));
-    
+
     await waitFor(() => {
       expect(onEdit).toHaveBeenCalledWith(mockUser);
     });
   });
-  
+
   it('does not show actions when showActions is false', () => {
     render(<UserCard user={mockUser} showActions={false} />);
-    
+
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
 ```
 
 ### Custom Hook Testing
+
 ```typescript
 // ✅ DO: Test custom hooks with renderHook
 import { renderHook, waitFor } from '@testing-library/react';
@@ -503,21 +526,21 @@ describe('useUser', () => {
   beforeEach(() => {
     (fetch as jest.Mock).mockClear();
   });
-  
+
   it('fetches user data successfully', async () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ data: mockUser }),
     });
-    
+
     const { result } = renderHook(() => useUser('1'));
-    
+
     expect(result.current.loading).toBe(true);
-    
+
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    
+
     expect(result.current.user).toEqual(mockUser);
     expect(result.current.error).toBeNull();
   });
@@ -527,6 +550,7 @@ describe('useUser', () => {
 ## File Organization
 
 ### Directory Structure
+
 ```
 packages/frontend/src/
 ├── index.tsx                 # React entry point
@@ -566,6 +590,7 @@ packages/frontend/src/
 ## Environment Configuration
 
 ### Environment Variables
+
 ```typescript
 // ✅ DO: Use environment variables for configuration
 const config = {
@@ -585,11 +610,12 @@ const API_URL = 'http://localhost:8000'; // Bad - not configurable
 ## Accessibility
 
 ### ARIA Labels and Semantic HTML
+
 ```typescript
 // ✅ DO: Use semantic HTML and proper ARIA labels
 export const SearchForm: React.FC = () => {
   const [query, setQuery] = useState('');
-  
+
   return (
     <form role="search" aria-label="Search users">
       <label htmlFor="search-input" className="sr-only">
@@ -615,7 +641,3 @@ export const SearchForm: React.FC = () => {
 ```
 
 Follow these patterns consistently throughout the frontend codebase. Reference the [React documentation](https://react.dev/) and [TypeScript documentation](https://www.typescriptlang.org/docs/) for additional guidance.
-description:
-globs:
-alwaysApply: false
----

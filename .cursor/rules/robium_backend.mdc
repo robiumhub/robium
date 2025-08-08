@@ -1,8 +1,15 @@
+---
+description: Backend development rules for Express, database access, migrations, authentication, and testing
+globs: packages/backend/**/*, packages/backend/package.json
+alwaysApply: true
+---
+
 # Robium Backend Development Rules
 
 ## Express.js Server Patterns
 
 ### Route Handler Structure
+
 ```typescript
 // ✅ DO: Use async/await with proper error handling
 app.get('/api/users/:id', async (req: AuthRequest, res: Response) => {
@@ -12,44 +19,51 @@ app.get('/api/users/:id', async (req: AuthRequest, res: Response) => {
       'SELECT id, email, username, role FROM users WHERE id = $1',
       [id]
     );
-    
+
     if (user.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: 'User not found',
       });
     }
-    
+
     res.json({
       success: true,
-      data: user.rows[0]
+      data: user.rows[0],
     });
   } catch (error) {
     console.error('Error fetching user:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Internal server error',
     });
   }
 });
 
 // ❌ DON'T: Missing error handling or type safety
 app.get('/api/users/:id', (req, res) => {
-  const user = Database.query('SELECT * FROM users WHERE id = ' + req.params.id);
+  const user = Database.query(
+    'SELECT * FROM users WHERE id = ' + req.params.id
+  );
   res.json(user); // No error handling, SQL injection risk
 });
 ```
 
 ### Middleware Patterns
+
 ```typescript
 // ✅ DO: Create reusable middleware with proper typing
-export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });
     }
-    
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
     req.user = decoded;
     next();
@@ -67,6 +81,7 @@ app.get('/api/protected', authMiddleware, async (req: AuthRequest, res) => {
 ## Database Operation Patterns
 
 ### Query Patterns
+
 ```typescript
 // ✅ DO: Use parameterized queries with proper error handling
 export class UserModel {
@@ -82,11 +97,11 @@ export class UserModel {
       throw new Error('Failed to fetch user');
     }
   }
-  
+
   static async create(userData: CreateUserInput): Promise<User> {
     const { email, username, password, role = UserRole.USER } = userData;
     const passwordHash = await bcrypt.hash(password, 12);
-    
+
     try {
       const result = await Database.query(
         `INSERT INTO users (email, username, password_hash, role) 
@@ -96,7 +111,8 @@ export class UserModel {
       );
       return result.rows[0];
     } catch (error) {
-      if (error.code === '23505') { // Unique constraint violation
+      if (error.code === '23505') {
+        // Unique constraint violation
         throw new Error('Email or username already exists');
       }
       console.error('Error creating user:', error);
@@ -106,27 +122,33 @@ export class UserModel {
 }
 
 // ❌ DON'T: String concatenation or missing error handling
-const user = await Database.query(`SELECT * FROM users WHERE email = '${email}'`);
+const user = await Database.query(
+  `SELECT * FROM users WHERE email = '${email}'`
+);
 ```
 
 ### Transaction Patterns
+
 ```typescript
 // ✅ DO: Use transactions for multi-step operations
 export class ProjectService {
-  static async createProjectWithMember(projectData: CreateProjectInput, ownerId: string) {
+  static async createProjectWithMember(
+    projectData: CreateProjectInput,
+    ownerId: string
+  ) {
     return await Database.transaction(async (client) => {
       // Create project
       const project = await client.query(
         'INSERT INTO projects (name, description, owner_id) VALUES ($1, $2, $3) RETURNING *',
         [projectData.name, projectData.description, ownerId]
       );
-      
+
       // Add owner as project member
       await client.query(
         'INSERT INTO project_members (project_id, user_id, role) VALUES ($1, $2, $3)',
         [project.rows[0].id, ownerId, 'owner']
       );
-      
+
       return project.rows[0];
     });
   }
@@ -136,6 +158,7 @@ export class ProjectService {
 ## Migration Patterns
 
 ### Migration File Structure
+
 ```sql
 -- ✅ DO: Always include both UP and DOWN sections
 -- UP
@@ -155,6 +178,7 @@ DROP TABLE IF EXISTS example_table;
 ```
 
 ### Migration Commands
+
 ```bash
 # ✅ DO: Use the established migration commands
 npm run migrate:up        # Run pending migrations
@@ -166,6 +190,7 @@ npm run migrate:reset     # Reset all migrations (destructive)
 ## TypeScript Patterns
 
 ### Type Definitions
+
 ```typescript
 // ✅ DO: Define interfaces in src/types/index.ts
 export interface User {
@@ -193,6 +218,7 @@ const user: any = await getUser(); // Bad
 ```
 
 ### API Response Types
+
 ```typescript
 // ✅ DO: Use consistent API response structure
 export interface ApiResponse<T = any> {
@@ -206,13 +232,14 @@ export interface ApiResponse<T = any> {
 res.json({
   success: true,
   data: user,
-  message: 'User retrieved successfully'
+  message: 'User retrieved successfully',
 } as ApiResponse<User>);
 ```
 
 ## Authentication & Security
 
 ### Password Hashing
+
 ```typescript
 // ✅ DO: Use bcrypt with appropriate rounds
 import bcrypt from 'bcryptjs';
@@ -221,17 +248,21 @@ const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, 12); // 12 rounds for security
 };
 
-const verifyPassword = async (password: string, hash: string): Promise<boolean> => {
+const verifyPassword = async (
+  password: string,
+  hash: string
+): Promise<boolean> => {
   return await bcrypt.compare(password, hash);
 };
 ```
 
 ### JWT Handling
+
 ```typescript
 // ✅ DO: Use environment variables for secrets
 const generateToken = (payload: JWTPayload): string => {
   return jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h'
+    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
   });
 };
 
@@ -243,6 +274,7 @@ const verifyToken = (token: string): JWTPayload => {
 ## Environment Configuration
 
 ### Environment Variables
+
 ```typescript
 // ✅ DO: Use environment variables for configuration
 const config = {
@@ -252,12 +284,12 @@ const config = {
     port: parseInt(process.env.DB_PORT || '5432'),
     database: process.env.DB_NAME || 'robiumdb',
     user: process.env.DB_USER || 'user',
-    password: process.env.DB_PASSWORD || 'password'
+    password: process.env.DB_PASSWORD || 'password',
   },
   jwt: {
     secret: process.env.JWT_SECRET!,
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h'
-  }
+    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+  },
 };
 
 // ❌ DON'T: Hardcode sensitive values
@@ -267,35 +299,36 @@ const secret = 'hardcoded-secret'; // Never do this
 ## Testing Patterns
 
 ### Jest Test Structure
+
 ```typescript
 // ✅ DO: Use proper test structure with setup/teardown
 describe('UserModel', () => {
   beforeEach(async () => {
     await Database.query('BEGIN');
   });
-  
+
   afterEach(async () => {
     await Database.query('ROLLBACK');
   });
-  
+
   describe('findById', () => {
     it('should return user when found', async () => {
       // Create test user
       const user = await UserModel.create({
         email: 'test@example.com',
         username: 'testuser',
-        password: 'password123'
+        password: 'password123',
       });
-      
+
       // Test retrieval
       const found = await UserModel.findById(user.id);
       expect(found).toMatchObject({
         id: user.id,
         email: 'test@example.com',
-        username: 'testuser'
+        username: 'testuser',
       });
     });
-    
+
     it('should return null when user not found', async () => {
       const found = await UserModel.findById('non-existent-id');
       expect(found).toBeNull();
@@ -307,6 +340,7 @@ describe('UserModel', () => {
 ## File Organization
 
 ### Directory Structure
+
 ```
 packages/backend/src/
 ├── index.ts              # Express server entry point
@@ -341,6 +375,7 @@ packages/backend/src/
 ## Error Handling
 
 ### Global Error Handler
+
 ```typescript
 // ✅ DO: Implement comprehensive error handling
 app.use((err: ApiError, req: Request, res: Response, next: NextFunction) => {
@@ -349,23 +384,27 @@ app.use((err: ApiError, req: Request, res: Response, next: NextFunction) => {
     stack: err.stack,
     url: req.url,
     method: req.method,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  
+
   res.status(err.status || 500).json({
     success: false,
     error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
 ```
 
 ### Custom Error Classes
+
 ```typescript
 // ✅ DO: Create custom error types
 export class ValidationError extends Error {
   status = 400;
-  constructor(message: string, public errors?: ValidationError[]) {
+  constructor(
+    message: string,
+    public errors?: ValidationError[]
+  ) {
     super(message);
     this.name = 'ValidationError';
   }
@@ -383,6 +422,7 @@ export class NotFoundError extends Error {
 ## WebSocket Integration
 
 ### WebSocket Server Setup
+
 ```typescript
 // ✅ DO: Integrate WebSocket with Express server
 import { WebSocketServer } from 'ws';
@@ -393,7 +433,7 @@ const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
   console.log('New WebSocket connection');
-  
+
   ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message.toString());
@@ -403,7 +443,7 @@ wss.on('connection', (ws, req) => {
       ws.send(JSON.stringify({ error: 'Invalid message format' }));
     }
   });
-  
+
   ws.on('close', () => {
     console.log('WebSocket connection closed');
   });
@@ -413,17 +453,18 @@ wss.on('connection', (ws, req) => {
 ## Development Workflow
 
 ### Server Startup
+
 ```typescript
 // ✅ DO: Initialize database and run migrations on startup
 async function startServer() {
   try {
     // Connect to database
     await Database.connect();
-    
+
     // Run pending migrations
     const migrationManager = new MigrationManager();
     await migrationManager.runPendingMigrations();
-    
+
     // Start server
     server.listen(PORT, () => {
       console.log(`🚀 Robium Backend Server running on port ${PORT}`);
@@ -438,7 +479,3 @@ async function startServer() {
 ```
 
 Follow these patterns consistently throughout the backend codebase. Reference [database.ts](mdc:packages/backend/src/utils/database.ts) and [migrations.ts](mdc:packages/backend/src/utils/migrations.ts) for implementation examples.
-description:
-globs:
-alwaysApply: false
----

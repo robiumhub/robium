@@ -1,8 +1,15 @@
+---
+description: Monorepo standards for structure, scripts, Docker, TypeScript, CI, and Taskmaster integration
+globs: packages/**/*, package.json, docker-compose.yml, .github/workflows/*.yml, .taskmaster/**/*, .cursor/**/*, README.md
+alwaysApply: true
+---
+
 # Robium Monorepo Development Rules
 
 ## Workspace Structure
 
 ### npm Workspaces Configuration
+
 ```json
 // ✅ DO: Define workspaces in root package.json
 {
@@ -19,6 +26,7 @@
 ```
 
 ### Package Directory Structure
+
 ```
 robium/
 ├── packages/                    # npm workspaces
@@ -36,6 +44,7 @@ robium/
 ## Dependency Management
 
 ### Shared Dependencies
+
 ```json
 // ✅ DO: Install shared dev dependencies at root level
 // Root package.json
@@ -78,6 +87,7 @@ robium/
 ```
 
 ### Cross-Package Dependencies
+
 ```json
 // ✅ DO: Reference workspace packages by name
 // packages/frontend/package.json
@@ -98,6 +108,7 @@ robium/
 ## Docker Development Environment
 
 ### Multi-Service Architecture
+
 ```yaml
 # ✅ DO: Use docker-compose for development environment
 # docker-compose.yml
@@ -141,6 +152,7 @@ services:
 ```
 
 ### Dockerfile Patterns
+
 ```dockerfile
 # ✅ DO: Use monorepo-aware Dockerfile
 # packages/frontend/Dockerfile
@@ -165,6 +177,7 @@ CMD ["npm", "start"]
 ```
 
 ### Volume Mount Strategy
+
 ```yaml
 # ✅ DO: Mount source directories only, preserving node_modules
 volumes:
@@ -179,6 +192,7 @@ volumes:
 ## Script Management
 
 ### Root-Level Scripts
+
 ```json
 // ✅ DO: Create convenient root-level scripts
 {
@@ -202,6 +216,7 @@ volumes:
 ```
 
 ### Package-Specific Scripts
+
 ```json
 // ✅ DO: Keep package-specific scripts in each package
 // packages/frontend/package.json
@@ -230,6 +245,7 @@ volumes:
 ## TypeScript Configuration
 
 ### Root TypeScript Config
+
 ```json
 // ✅ DO: Create a root tsconfig.json for shared settings
 // tsconfig.json
@@ -260,6 +276,7 @@ volumes:
 ```
 
 ### Package-Specific TypeScript Configs
+
 ```json
 // ✅ DO: Extend root config in each package
 // packages/frontend/tsconfig.json
@@ -296,41 +313,39 @@ volumes:
 ## Code Quality and Linting
 
 ### ESLint Configuration
+
 ```javascript
 // ✅ DO: Use shared ESLint config at root
 // .eslintrc.js
 module.exports = {
   root: true,
   parser: '@typescript-eslint/parser',
-  extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended',
-    'prettier'
-  ],
+  extends: ['eslint:recommended', '@typescript-eslint/recommended', 'prettier'],
   plugins: ['@typescript-eslint'],
   env: {
     node: true,
-    es2020: true
+    es2020: true,
   },
   overrides: [
     {
       files: ['packages/frontend/**/*'],
       env: {
-        browser: true
+        browser: true,
       },
       extends: ['plugin:react/recommended'],
       plugins: ['react'],
       settings: {
         react: {
-          version: 'detect'
-        }
-      }
-    }
-  ]
+          version: 'detect',
+        },
+      },
+    },
+  ],
 };
 ```
 
 ### Prettier Configuration
+
 ```json
 // ✅ DO: Use consistent formatting across all packages
 // .prettierrc
@@ -344,18 +359,14 @@ module.exports = {
 ```
 
 ### Git Hooks
+
 ```json
 // ✅ DO: Use lint-staged for pre-commit hooks
 // package.json
 {
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
+    "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"],
+    "*.{json,md,yml,yaml}": ["prettier --write"]
   }
 }
 ```
@@ -363,6 +374,7 @@ module.exports = {
 ## Environment Configuration
 
 ### Environment File Structure
+
 ```
 robium/
 ├── .env.example                # Template for root environment
@@ -375,6 +387,7 @@ robium/
 ```
 
 ### Environment Variable Patterns
+
 ```bash
 # ✅ DO: Use consistent prefixes for environment variables
 # packages/frontend/.env
@@ -395,6 +408,7 @@ JWT_SECRET=your-super-secret-jwt-key
 ## Testing Strategy
 
 ### Package-Level Testing
+
 ```json
 // ✅ DO: Configure testing in each package
 // packages/frontend/package.json
@@ -416,6 +430,7 @@ JWT_SECRET=your-super-secret-jwt-key
 ```
 
 ### Root-Level Test Scripts
+
 ```json
 // ✅ DO: Aggregate tests at root level
 {
@@ -431,6 +446,7 @@ JWT_SECRET=your-super-secret-jwt-key
 ## CI/CD Configuration
 
 ### GitHub Actions Workflow
+
 ```yaml
 # ✅ DO: Use efficient CI/CD for monorepo
 # .github/workflows/ci.yml
@@ -445,25 +461,25 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Lint
         run: npm run lint
-      
+
       - name: Test
         run: npm run test
-      
+
       - name: Build
         run: npm run build
 ```
@@ -471,6 +487,7 @@ jobs:
 ## Development Workflow
 
 ### Starting Development
+
 ```bash
 # ✅ DO: Use these commands for development
 npm install                    # Install all workspace dependencies
@@ -484,6 +501,7 @@ docker compose up frontend   # Start only frontend service
 ```
 
 ### Adding Dependencies
+
 ```bash
 # ✅ DO: Add dependencies to specific packages
 npm install express --workspace=packages/backend
@@ -495,6 +513,7 @@ npm install express  # Wrong - this goes to root
 ```
 
 ### Package Management Commands
+
 ```bash
 # ✅ DO: Use workspace-specific commands
 npm run build --workspace=packages/frontend
@@ -509,6 +528,7 @@ npm install
 ## Shared Code Patterns
 
 ### Shared Types Package
+
 ```typescript
 // ✅ DO: Create shared types for cross-package usage
 // packages/shared/src/types/api.ts
@@ -535,6 +555,7 @@ export * from './utils/validation';
 ```
 
 ### Using Shared Code
+
 ```typescript
 // ✅ DO: Import shared types in packages
 // packages/frontend/src/services/api.ts
@@ -547,6 +568,7 @@ import { User, CreateUserInput } from '@robium/shared';
 ## Task Master Integration
 
 ### Project Structure for Task Master
+
 ```
 .taskmaster/
 ├── tasks/
@@ -560,6 +582,7 @@ import { User, CreateUserInput } from '@robium/shared';
 ```
 
 ### Task Master Commands
+
 ```bash
 # ✅ DO: Use Task Master for project management
 task-master init                # Initialize Task Master
@@ -571,7 +594,3 @@ task-master set-status --id=2.3 --status=done
 ```
 
 Follow these patterns to maintain consistency across the monorepo structure. Reference [package.json](mdc:package.json) and [docker-compose.yml](mdc:docker-compose.yml) for current configuration examples.
-description:
-globs:
-alwaysApply: false
----

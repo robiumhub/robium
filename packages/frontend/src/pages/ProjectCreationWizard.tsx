@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import AIProjectGenerationService, {
   AIProjectSuggestion,
 } from '../services/AIProjectGenerationService';
+import { ApiService } from '../services/api';
 import {
   Box,
   Typography,
@@ -57,9 +58,7 @@ import { useNavigate } from 'react-router-dom';
 interface ProjectData {
   name: string;
   description: string;
-  category: string;
   tags: string[];
-  isPublic: boolean;
   algorithms: string[];
   environment: EnvironmentConfig;
   settings: ProjectSettings;
@@ -107,9 +106,7 @@ const ProjectCreationWizard: React.FC = () => {
   const [projectData, setProjectData] = useState<ProjectData>({
     name: '',
     description: '',
-    category: '',
     tags: [],
-    isPublic: false,
     algorithms: [],
     environment: {
       baseImage: 'python:3.9-slim',
@@ -167,9 +164,6 @@ const ProjectCreationWizard: React.FC = () => {
         message: 'Project description must be no more than 500 characters',
       },
     ],
-    category: [
-      { type: 'required' as const, message: 'Project category is required' },
-    ],
     algorithms: [
       {
         type: 'required' as const,
@@ -185,20 +179,6 @@ const ProjectCreationWizard: React.FC = () => {
     debounceDelay: 500,
     validateOnChange: true,
   });
-
-  // Available options
-  const categories = [
-    'Navigation',
-    'Manipulation',
-    'Perception',
-    'Logistics',
-    'Healthcare',
-    'Agriculture',
-    'Construction',
-    'Education',
-    'Entertainment',
-    'Other',
-  ];
 
   const baseImages = [
     { value: 'python:3.9-slim', label: 'Python 3.9 (Slim)' },
@@ -310,8 +290,7 @@ const ProjectCreationWizard: React.FC = () => {
         case 0:
           return (
             projectData.name.trim().length > 0 &&
-            projectData.description.trim().length > 0 &&
-            projectData.category.length > 0
+            projectData.description.trim().length > 0
           );
         case 1:
           return projectData.algorithms.length > 0;
@@ -383,30 +362,14 @@ const ProjectCreationWizard: React.FC = () => {
       const projectPayload = {
         name: projectData.name,
         description: projectData.description,
-        category: projectData.category,
         tags: projectData.tags,
-        isPublic: projectData.isPublic,
         algorithms: projectData.algorithms,
         environment: projectData.environment,
         settings: projectData.settings,
       };
 
-      // Call the actual API
-      const response = await fetch('/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(projectPayload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create project');
-      }
-
-      const result = await response.json();
+      // Call the API using ApiService
+      const result = await ApiService.post('/projects', projectPayload);
       console.log('Project created successfully:', result);
 
       // Navigate to the new project
@@ -420,7 +383,7 @@ const ProjectCreationWizard: React.FC = () => {
 
   // Handle tag input
   const handleTagInput = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && event.currentTarget.value.trim()) {
+    if (event.key === 'Enter' && event.currentTarget?.value?.trim()) {
       const newTag = event.currentTarget.value.trim();
       if (!projectData.tags.includes(newTag)) {
         setProjectData((prev) => ({
@@ -428,7 +391,9 @@ const ProjectCreationWizard: React.FC = () => {
           tags: [...prev.tags, newTag],
         }));
       }
-      event.currentTarget.value = '';
+      if (event.currentTarget) {
+        event.currentTarget.value = '';
+      }
     }
   };
 
@@ -453,9 +418,7 @@ const ProjectCreationWizard: React.FC = () => {
       setProjectData({
         name: suggestion.name,
         description: suggestion.description,
-        category: suggestion.category,
         tags: suggestion.tags,
-        isPublic: false,
         algorithms: suggestion.algorithms,
         environment: {
           baseImage: suggestion.environment.baseImage,
@@ -617,49 +580,13 @@ const ProjectCreationWizard: React.FC = () => {
                           helperText="Describe what your project does"
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
-                        <FormControl fullWidth required>
-                          <InputLabel>Category</InputLabel>
-                          <Select
-                            value={projectData.category}
-                            label="Category"
-                            onChange={(e) =>
-                              setProjectData((prev) => ({
-                                ...prev,
-                                category: e.target.value,
-                              }))
-                            }
-                          >
-                            {categories.map((category) => (
-                              <MenuItem key={category} value={category}>
-                                {category}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={projectData.isPublic}
-                              onChange={(e) =>
-                                setProjectData((prev) => ({
-                                  ...prev,
-                                  isPublic: e.target.checked,
-                                }))
-                              }
-                            />
-                          }
-                          label="Make project public"
-                        />
-                      </Grid>
+
                       <Grid item xs={12}>
                         <TextField
                           fullWidth
                           label="Tags"
                           placeholder="Press Enter to add tags"
-                          onKeyPress={handleTagInput}
+                          onKeyDown={handleTagInput}
                           helperText="Add tags to help categorize your project"
                         />
                         <Box
@@ -1025,22 +952,7 @@ const ProjectCreationWizard: React.FC = () => {
                                     secondary={projectData.name}
                                   />
                                 </ListItem>
-                                <ListItem>
-                                  <ListItemText
-                                    primary="Category"
-                                    secondary={projectData.category}
-                                  />
-                                </ListItem>
-                                <ListItem>
-                                  <ListItemText
-                                    primary="Visibility"
-                                    secondary={
-                                      projectData.isPublic
-                                        ? 'Public'
-                                        : 'Private'
-                                    }
-                                  />
-                                </ListItem>
+
                                 <ListItem>
                                   <ListItemText
                                     primary="Tags"

@@ -1,245 +1,300 @@
-import { Router, Response, NextFunction, Request } from 'express';
-import { ApiResponse } from '../types';
-import { sanitizeInput } from '../middleware/validation';
-import * as fs from 'fs';
-import * as path from 'path';
+import express from 'express';
+import { Database } from '../utils/database';
+import { AuthRequest } from '../types';
 
-const router = Router();
+const router = express.Router();
 
-// Apply input sanitization middleware (modules are publicly accessible)
-router.use(sanitizeInput);
-
-// Get all modules with pagination
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/modules - Get all modules
+router.get('/', async (req: AuthRequest, res) => {
   try {
-    const modulesPath = path.join(__dirname, '../../../shared/modules');
-    const modules: any[] = [];
+    const { category, type, search } = req.query;
 
-    // Read all module metadata files
-    if (fs.existsSync(modulesPath)) {
-      const files = fs.readdirSync(modulesPath);
-      
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          try {
-            const filePath = path.join(modulesPath, file);
-            const moduleData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            modules.push(moduleData);
-          } catch (error) {
-            console.error(`Error reading module file ${file}:`, error);
-          }
-        }
-      }
+    let query = `
+      SELECT m.*, 
+             COUNT(DISTINCT mp.package_id) as package_count,
+             COUNT(DISTINCT md.dependency_module_id) as dependency_count
+      FROM modules m
+      LEFT JOIN module_packages mp ON m.id = mp.module_id
+      LEFT JOIN module_dependencies md ON m.id = md.module_id
+      WHERE m.is_active = true
+    `;
+    const params: string[] = [];
+    let paramIndex = 1;
+
+    // Add category filter
+    if (category && typeof category === 'string') {
+      query += ` AND m.category = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
     }
 
-    // Sort modules by name for consistent ordering
-    modules.sort((a, b) => a.name.localeCompare(b.name));
+    // Add type filter
+    if (type && typeof type === 'string') {
+      query += ` AND m.type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
 
-    // Handle pagination
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedModules = modules.slice(startIndex, endIndex);
+    // Add search filter
+    if (search && typeof search === 'string') {
+      query += ` AND (m.name ILIKE $${paramIndex} OR m.description ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
 
-    const response: ApiResponse = {
-      success: true,
-      data: {
-        modules: paginatedModules,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(modules.length / limit),
-          totalModules: modules.length,
-          modulesPerPage: limit,
-          hasNextPage: endIndex < modules.length,
-          hasPrevPage: page > 1
-        }
-      },
-      message: 'Modules retrieved successfully',
+    query += ' GROUP BY m.id ORDER BY m.name';
+
+    const result = (await Database.query(query, params)) as {
+      rows: Array<Record<string, any>>;
     };
 
-    res.json(response);
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
   } catch (error) {
-    next(error);
+    console.error('Error fetching modules:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch modules',
+    });
   }
 });
 
-// Get module by name
-router.get('/:name', async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/modules/categories - Get all categories
+router.get('/categories', async (req: AuthRequest, res) => {
   try {
-    const { name } = req.params;
-    const modulePath = path.join(__dirname, '../../../shared/modules', `${name}.json`);
+    const result = (await Database.query(
+      'SELECT DISTINCT category FROM modules WHERE is_active = true AND category IS NOT NULL ORDER BY category'
+    )) as { rows: Array<{ category: string }> };
 
-    if (!fs.existsSync(modulePath)) {
+    res.json({
+      success: true,
+      data: result.rows.map((row) => row.category),
+    });
+  } catch (error) {
+    console.error('Error fetching module categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch module categories',
+    });
+  }
+});
+
+// GET /api/modules/types - Get all types
+router.get('/types', async (req: AuthRequest, res) => {
+  try {
+    const result = (await Database.query(
+      'SELECT DISTINCT type FROM modules WHERE is_active = true ORDER BY type'
+    )) as { rows: Array<{ type: string }> };
+
+    res.json({
+      success: true,
+      data: result.rows.map((row) => row.type),
+    });
+  } catch (error) {
+    console.error('Error fetching module types:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch module types',
+    });
+  }
+});
+
+// GET /api/modules/search - Search modules
+router.get('/search', async (req: AuthRequest, res) => {
+  try {
+    const { q, category, type, limit = '10' } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required',
+      });
+    }
+
+    let query = `
+      SELECT m.*, 
+             COUNT(DISTINCT mp.package_id) as package_count,
+             COUNT(DISTINCT md.dependency_module_id) as dependency_count
+      FROM modules m
+      LEFT JOIN module_packages mp ON m.id = mp.module_id
+      LEFT JOIN module_dependencies md ON m.id = md.module_id
+      WHERE m.is_active = true 
+      AND (m.name ILIKE $1 OR m.description ILIKE $1 OR m.tags::text ILIKE $1)
+    `;
+    const params: string[] = [`%${q}%`];
+    let paramIndex = 2;
+
+    // Add category filter
+    if (category && typeof category === 'string') {
+      query += ` AND m.category = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
+    }
+
+    // Add type filter
+    if (type && typeof type === 'string') {
+      query += ` AND m.type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+
+    query += ` GROUP BY m.id ORDER BY m.name LIMIT $${paramIndex}`;
+    params.push(parseInt(limit as string).toString());
+
+    const result = (await Database.query(query, params)) as {
+      rows: Array<Record<string, any>>;
+    };
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+      query: q,
+    });
+  } catch (error) {
+    console.error('Error searching modules:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search modules',
+    });
+  }
+});
+
+// GET /api/modules/:id/packages - Get packages for a specific module
+router.get('/:id/packages', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = (await Database.query(
+      `
+      SELECT rp.*, mp.is_required, mp.order_index
+      FROM module_packages mp
+      JOIN ros_packages rp ON mp.package_id = rp.id
+      WHERE mp.module_id = $1
+      ORDER BY mp.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching module packages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch module packages',
+    });
+  }
+});
+
+// GET /api/modules/:id/dependencies - Get dependencies for a specific module
+router.get('/:id/dependencies', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = (await Database.query(
+      `
+      SELECT m.*, md.dependency_type
+      FROM module_dependencies md
+      JOIN modules m ON md.dependency_module_id = m.id
+      WHERE md.module_id = $1
+      ORDER BY m.name
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching module dependencies:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch module dependencies',
+    });
+  }
+});
+
+// GET /api/modules/:id - Get specific module with packages and dependencies (must be last)
+router.get('/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get module details
+    const moduleResult = (await Database.query(
+      'SELECT * FROM modules WHERE id = $1 AND is_active = true',
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    if (moduleResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Module not found',
       });
     }
 
-    const moduleData = JSON.parse(fs.readFileSync(modulePath, 'utf8'));
+    const module = moduleResult.rows[0];
 
-    const response: ApiResponse = {
+    // Get packages for this module
+    const packagesResult = (await Database.query(
+      `
+      SELECT rp.*, mp.is_required, mp.order_index
+      FROM module_packages mp
+      JOIN ros_packages rp ON mp.package_id = rp.id
+      WHERE mp.module_id = $1
+      ORDER BY mp.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    // Get dependencies for this module
+    const dependenciesResult = (await Database.query(
+      `
+      SELECT m.*, md.dependency_type
+      FROM module_dependencies md
+      JOIN modules m ON md.dependency_module_id = m.id
+      WHERE md.module_id = $1
+      ORDER BY m.name
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    // Get modules that depend on this module
+    const dependentsResult = (await Database.query(
+      `
+      SELECT m.*, md.dependency_type
+      FROM module_dependencies md
+      JOIN modules m ON md.module_id = m.id
+      WHERE md.dependency_module_id = $1
+      ORDER BY m.name
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
       success: true,
-      data: moduleData,
-      message: 'Module retrieved successfully',
-    };
-
-    res.json(response);
+      data: {
+        ...module,
+        packages: packagesResult.rows,
+        dependencies: dependenciesResult.rows,
+        dependents: dependentsResult.rows,
+      },
+    });
   } catch (error) {
-    next(error);
+    console.error('Error fetching module:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch module',
+    });
   }
 });
 
-// Get modules by category
-router.get('/category/:category', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { category } = req.params;
-    const modulesPath = path.join(__dirname, '../../../shared/modules');
-    const modules: any[] = [];
-
-    if (fs.existsSync(modulesPath)) {
-      const files = fs.readdirSync(modulesPath);
-      
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          try {
-            const filePath = path.join(modulesPath, file);
-            const moduleData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            
-            if (moduleData.category === category) {
-              modules.push(moduleData);
-            }
-          } catch (error) {
-            console.error(`Error reading module file ${file}:`, error);
-          }
-        }
-      }
-    }
-
-    const response: ApiResponse = {
-      success: true,
-      data: modules,
-      message: `Modules in category '${category}' retrieved successfully`,
-    };
-
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get modules by tags
-router.get('/tags/:tags', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { tags } = req.params;
-    const tagList = tags.split(',').map(tag => tag.trim());
-    const modulesPath = path.join(__dirname, '../../../shared/modules');
-    const modules: any[] = [];
-
-    if (fs.existsSync(modulesPath)) {
-      const files = fs.readdirSync(modulesPath);
-      
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          try {
-            const filePath = path.join(modulesPath, file);
-            const moduleData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            
-            if (moduleData.tags && moduleData.tags.some((tag: string) => tagList.includes(tag))) {
-              modules.push(moduleData);
-            }
-          } catch (error) {
-            console.error(`Error reading module file ${file}:`, error);
-          }
-        }
-      }
-    }
-
-    const response: ApiResponse = {
-      success: true,
-      data: modules,
-      message: `Modules with tags '${tags}' retrieved successfully`,
-    };
-
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get available categories
-router.get('/categories/list', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const modulesPath = path.join(__dirname, '../../../shared/modules');
-    const categories = new Set<string>();
-
-    if (fs.existsSync(modulesPath)) {
-      const files = fs.readdirSync(modulesPath);
-      
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          try {
-            const filePath = path.join(modulesPath, file);
-            const moduleData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            
-            if (moduleData.category) {
-              categories.add(moduleData.category);
-            }
-          } catch (error) {
-            console.error(`Error reading module file ${file}:`, error);
-          }
-        }
-      }
-    }
-
-    const response: ApiResponse = {
-      success: true,
-      data: Array.from(categories),
-      message: 'Available categories retrieved successfully',
-    };
-
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get available tags
-router.get('/tags/list', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const modulesPath = path.join(__dirname, '../../../shared/modules');
-    const tags = new Set<string>();
-
-    if (fs.existsSync(modulesPath)) {
-      const files = fs.readdirSync(modulesPath);
-      
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          try {
-            const filePath = path.join(modulesPath, file);
-            const moduleData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            
-            if (moduleData.tags) {
-              moduleData.tags.forEach((tag: string) => tags.add(tag));
-            }
-          } catch (error) {
-            console.error(`Error reading module file ${file}:`, error);
-          }
-        }
-      }
-    }
-
-    const response: ApiResponse = {
-      success: true,
-      data: Array.from(tags),
-      message: 'Available tags retrieved successfully',
-    };
-
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
-
-export default router; 
+export default router;

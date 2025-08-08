@@ -13,7 +13,6 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
   IconButton,
   Tooltip,
   ToggleButton,
@@ -26,8 +25,12 @@ import {
   Skeleton,
   Fab,
   Badge,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
+import { Grid } from '@mui/material';
 import {
   Add as AddIcon,
   Folder as FolderIcon,
@@ -60,20 +63,52 @@ interface Project {
   id: string;
   name: string;
   description: string;
-  status: 'active' | 'completed' | 'planning' | 'archived';
-  category: string;
-  moduleCount: number;
-  lastUpdated: string;
-  createdAt: string;
-  owner: string;
+  version: string;
+  author: string;
+  maintainer_email: string;
+  license: string;
+  type: 'custom' | 'template' | 'example';
+  is_active: boolean;
+  is_template: boolean;
   tags: string[];
-  isPublic: boolean;
+  config: Record<string, any>;
+  metadata: Record<string, any>;
+  workspace_path: string;
+  source_path: string;
+  config_path: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  updated_by: string;
+  module_count: number;
+  package_count: number;
+  modules?: Module[];
+  packages?: Package[];
+}
+
+interface Module {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  type: string;
+  dependency_type: string;
+  order_index: number;
+}
+
+interface Package {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  type: string;
+  is_required: boolean;
+  order_index: number;
 }
 
 interface ProjectFilters {
   search: string;
-  status: string;
-  category: string;
+  type: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
 }
@@ -87,8 +122,7 @@ const Projects: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<ProjectFilters>({
     search: '',
-    status: '',
-    category: '',
+    type: '',
     sortBy: 'lastUpdated',
     sortOrder: 'desc',
   });
@@ -100,6 +134,9 @@ const Projects: React.FC = () => {
   const [dockerfileContent, setDockerfileContent] = useState<string>('');
   const [dockerfileLoading, setDockerfileLoading] = useState(false);
   const [dockerfileError, setDockerfileError] = useState<string | null>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedProjectForMenu, setSelectedProjectForMenu] =
+    useState<Project | null>(null);
 
   // Projects will be loaded from the API
 
@@ -124,14 +161,27 @@ const Projects: React.FC = () => {
             id: project.id,
             name: project.name,
             description: project.description || '',
-            status: 'active' as const, // Default status since backend doesn't have this field yet
-            category: 'General', // Default category since backend doesn't have this field yet
-            moduleCount: 0, // Default since backend doesn't have this field yet
-            lastUpdated: project.updated_at,
-            createdAt: project.created_at,
-            owner: project.owner_username || 'Unknown',
-            tags: [], // Default since backend doesn't have this field yet
-            isPublic: false, // Default since backend doesn't have this field yet
+            version: project.version || '1.0.0',
+            author: project.author || 'Unknown',
+            maintainer_email: project.maintainer_email || '',
+            license: project.license || 'MIT',
+            type: project.type || 'custom',
+            is_active: project.is_active || true,
+            is_template: project.is_template || false,
+            tags: project.tags || [],
+            config: project.config || {},
+            metadata: project.metadata || {},
+            workspace_path: project.workspace_path || '',
+            source_path: project.source_path || '',
+            config_path: project.config_path || '',
+            created_at: project.created_at,
+            updated_at: project.updated_at,
+            created_by: project.created_by || 'Unknown',
+            updated_by: project.updated_by || 'Unknown',
+            module_count: project.module_count || 0,
+            package_count: project.package_count || 0,
+            modules: project.modules || [],
+            packages: project.packages || [],
           })
         );
 
@@ -164,16 +214,16 @@ const Projects: React.FC = () => {
         project.description
           .toLowerCase()
           .includes(filters.search.toLowerCase()) ||
-        project.tags.some((tag) =>
-          tag.toLowerCase().includes(filters.search.toLowerCase())
+        project.modules?.some((module) =>
+          module.name.toLowerCase().includes(filters.search.toLowerCase())
+        ) ||
+        project.packages?.some((pkg) =>
+          pkg.name.toLowerCase().includes(filters.search.toLowerCase())
         );
 
-      const matchesStatus =
-        !filters.status || project.status === filters.status;
-      const matchesCategory =
-        !filters.category || project.category === filters.category;
+      const matchesType = !filters.type || project.type === filters.type;
 
-      return matchesSearch && matchesStatus && matchesCategory;
+      return matchesSearch && matchesType;
     });
 
     // Sort projects
@@ -185,25 +235,21 @@ const Projects: React.FC = () => {
           aValue = a.name.toLowerCase();
           bValue = b.name.toLowerCase();
           break;
-        case 'status':
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        case 'category':
-          aValue = a.category;
-          bValue = b.category;
-          break;
         case 'moduleCount':
-          aValue = a.moduleCount;
-          bValue = b.moduleCount;
+          aValue = a.module_count;
+          bValue = b.module_count;
+          break;
+        case 'packageCount':
+          aValue = a.package_count;
+          bValue = b.package_count;
           break;
         case 'createdAt':
-          aValue = new Date(a.createdAt);
-          bValue = new Date(b.createdAt);
+          aValue = new Date(a.created_at);
+          bValue = new Date(b.created_at);
           break;
         default:
-          aValue = new Date(a.lastUpdated);
-          bValue = new Date(b.lastUpdated);
+          aValue = new Date(a.updated_at);
+          bValue = new Date(b.updated_at);
       }
 
       if (filters.sortOrder === 'asc') {
@@ -216,34 +262,10 @@ const Projects: React.FC = () => {
     return filtered;
   }, [projects, filters]);
 
-  // Get unique categories and statuses for filters
-  const categories = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(projects.map((p) => p.category))
-    );
-    return uniqueCategories.sort();
+  const types = useMemo(() => {
+    const uniqueTypes = Array.from(new Set(projects.map((p) => p.type)));
+    return uniqueTypes.sort();
   }, [projects]);
-
-  const statuses = useMemo(() => {
-    const uniqueStatuses = Array.from(new Set(projects.map((p) => p.status)));
-    return uniqueStatuses.sort();
-  }, [projects]);
-
-  // Status color mapping
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'completed':
-        return 'default';
-      case 'planning':
-        return 'warning';
-      case 'archived':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
 
   // Handle project actions
   const handleEditProject = (project: Project) => {
@@ -274,13 +296,15 @@ const Projects: React.FC = () => {
     if (!projectToDelete) return;
 
     try {
-      // TODO: Replace with actual API call
-      // await ApiService.delete(`/projects/${projectToDelete.id}`);
+      // Call the API to delete the project
+      await ApiService.delete(`/projects/${projectToDelete.id}`);
 
+      // Remove the project from the local state
       setProjects((prev) => prev.filter((p) => p.id !== projectToDelete.id));
       setDeleteDialogOpen(false);
       setProjectToDelete(null);
     } catch (err) {
+      console.error('Failed to delete project:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete project');
     }
   };
@@ -311,6 +335,43 @@ const Projects: React.FC = () => {
     } finally {
       setDockerfileLoading(false);
     }
+  };
+
+  // Menu handlers
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    project: Project
+  ) => {
+    setMenuAnchorEl(event.currentTarget);
+    setSelectedProjectForMenu(project);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setSelectedProjectForMenu(null);
+  };
+
+  const handleMenuAction = (action: string) => {
+    if (!selectedProjectForMenu) return;
+
+    switch (action) {
+      case 'delete':
+        handleDeleteProject(selectedProjectForMenu);
+        break;
+      case 'clone':
+        handleCloneProject(selectedProjectForMenu);
+        break;
+      case 'export':
+        handleExportProject(selectedProjectForMenu);
+        break;
+      case 'share':
+        handleShareProject(selectedProjectForMenu);
+        break;
+      case 'dockerfile':
+        handleViewDockerfile(selectedProjectForMenu);
+        break;
+    }
+    handleMenuClose();
   };
 
   // Loading skeleton
@@ -421,39 +482,21 @@ const Projects: React.FC = () => {
           <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Status</InputLabel>
+                <InputLabel>Type</InputLabel>
                 <Select
-                  value={filters.status}
-                  label="Status"
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, status: e.target.value }))
-                  }
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {statuses.map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={filters.category}
-                  label="Category"
+                  value={filters.type}
+                  label="Type"
                   onChange={(e) =>
                     setFilters((prev) => ({
                       ...prev,
-                      category: e.target.value,
+                      type: e.target.value,
                     }))
                   }
                 >
                   <MenuItem value="">All</MenuItem>
-                  {categories.map((category) => (
-                    <MenuItem key={category} value={category}>
-                      {category}
+                  {types.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -470,9 +513,8 @@ const Projects: React.FC = () => {
                 >
                   <MenuItem value="lastUpdated">Last Updated</MenuItem>
                   <MenuItem value="name">Name</MenuItem>
-                  <MenuItem value="status">Status</MenuItem>
-                  <MenuItem value="category">Category</MenuItem>
                   <MenuItem value="moduleCount">Modules</MenuItem>
+                  <MenuItem value="packageCount">Packages</MenuItem>
                   <MenuItem value="createdAt">Created</MenuItem>
                 </Select>
               </FormControl>
@@ -526,7 +568,7 @@ const Projects: React.FC = () => {
             No projects found
           </Typography>
           <Typography variant="body2">
-            {filters.search || filters.status || filters.category
+            {filters.search || filters.type
               ? 'Try adjusting your search or filters'
               : 'Create your first project to get started'}
           </Typography>
@@ -559,21 +601,6 @@ const Projects: React.FC = () => {
                       <Typography variant="h6" component="h2" gutterBottom>
                         {project.name}
                       </Typography>
-                      <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                        <Chip
-                          label={project.status}
-                          color={getStatusColor(project.status) as any}
-                          size="small"
-                        />
-                        <Chip
-                          label={project.category}
-                          variant="outlined"
-                          size="small"
-                        />
-                        {project.isPublic && (
-                          <Chip label="Public" color="info" size="small" />
-                        )}
-                      </Box>
                     </Box>
                   </Box>
 
@@ -585,18 +612,59 @@ const Projects: React.FC = () => {
                     {project.description}
                   </Typography>
 
+                  {/* Display tags if any */}
+                  {project.tags && project.tags.length > 0 && (
+                    <Box sx={{ mb: 2 }}>
+                      {project.tags.slice(0, 5).map((tag, index) => (
+                        <Chip
+                          key={index}
+                          label={tag}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          sx={{ mr: 0.5, mb: 0.5 }}
+                        />
+                      ))}
+                      {project.tags.length > 5 && (
+                        <Chip
+                          label={`+${project.tags.length - 5}`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+                  )}
+
                   <Box sx={{ mb: 2 }}>
-                    {project.tags.slice(0, 3).map((tag) => (
+                    {project.modules?.slice(0, 3).map((module) => (
                       <Chip
-                        key={tag}
-                        label={tag}
+                        key={module.id}
+                        label={module.name}
                         size="small"
                         sx={{ mr: 0.5, mb: 0.5 }}
                       />
                     ))}
-                    {project.tags.length > 3 && (
+                    {(project.modules?.length || 0) > 3 && (
                       <Chip
-                        label={`+${project.tags.length - 3}`}
+                        label={`+${(project.modules?.length || 0) - 3}`}
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    {project.packages?.slice(0, 3).map((pkg) => (
+                      <Chip
+                        key={pkg.id}
+                        label={pkg.name}
+                        size="small"
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                      />
+                    ))}
+                    {(project.packages?.length || 0) > 3 && (
+                      <Chip
+                        label={`+${(project.packages?.length || 0) - 3}`}
                         size="small"
                         variant="outlined"
                       />
@@ -611,12 +679,12 @@ const Projects: React.FC = () => {
                     }}
                   >
                     <Typography variant="caption" color="text.secondary">
-                      {project.moduleCount} module
-                      {project.moduleCount !== 1 ? 's' : ''}
+                      {project.module_count} module
+                      {project.module_count !== 1 ? 's' : ''}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       Updated:{' '}
-                      {new Date(project.lastUpdated).toLocaleDateString()}
+                      {new Date(project.updated_at).toLocaleDateString()}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -651,8 +719,20 @@ const Projects: React.FC = () => {
                   </Box>
 
                   <Box>
+                    <Tooltip title="Delete project">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteProject(project)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="More actions">
-                      <IconButton size="small">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleMenuOpen(e, project)}
+                      >
                         <MoreIcon />
                       </IconButton>
                     </Tooltip>
@@ -749,6 +829,55 @@ const Projects: React.FC = () => {
 
       {/* Outlet for nested routes */}
       <Outlet />
+
+      {/* More Actions Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={() => handleMenuAction('clone')}>
+          <ListItemIcon>
+            <CloneIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Clone Project</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleMenuAction('export')}>
+          <ListItemIcon>
+            <ExportIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Export Project</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleMenuAction('share')}>
+          <ListItemIcon>
+            <ShareIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Share Project</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleMenuAction('dockerfile')}>
+          <ListItemIcon>
+            <CodeIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Dockerfile</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => handleMenuAction('delete')}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText>Delete Project</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
