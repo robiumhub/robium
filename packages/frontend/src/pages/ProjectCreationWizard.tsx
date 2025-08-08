@@ -233,8 +233,8 @@ const ProjectCreationWizard: React.FC = () => {
         valid: false,
       },
       {
-        label: 'Algorithm Selection',
-        description: 'Choose ROS algorithms and tools',
+        label: 'Module Selection',
+        description: 'Choose modules for your project',
         icon: <CodeIcon />,
         completed: false,
         valid: false,
