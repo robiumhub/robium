@@ -33,8 +33,8 @@ export interface ApiResponse<T = any> {
 }
 
 // API Configuration
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+// Prefer proxy-friendly relative base in development
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
