@@ -167,7 +167,7 @@ const ProjectCreationWizard: React.FC = () => {
     algorithms: [
       {
         type: 'required' as const,
-        message: 'At least one algorithm must be selected',
+        message: 'At least one module must be selected',
       },
     ],
     'environment.baseImage': [
@@ -191,7 +191,9 @@ const ProjectCreationWizard: React.FC = () => {
   ];
 
   // Modules fetched from backend
-  const [modules, setModules] = useState<Array<{ id: string; name: string; category?: string; description?: string }>>([]);
+  const [modules, setModules] = useState<
+    Array<{ id: string; name: string; category?: string; description?: string }>
+  >([]);
   const [modulesLoading, setModulesLoading] = useState(false);
   const [modulesError, setModulesError] = useState<string | null>(null);
 
@@ -210,7 +212,9 @@ const ProjectCreationWizard: React.FC = () => {
         }));
         setModules(normalized);
       } catch (err) {
-        setModulesError(err instanceof Error ? err.message : 'Failed to load modules');
+        setModulesError(
+          err instanceof Error ? err.message : 'Failed to load modules'
+        );
       } finally {
         setModulesLoading(false);
       }
@@ -359,9 +363,7 @@ const ProjectCreationWizard: React.FC = () => {
   };
 
   // Handle tag input
-  const handleTagInput = (
-    event: React.KeyboardEvent
-  ) => {
+  const handleTagInput = (event: React.KeyboardEvent) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
 
@@ -595,33 +597,35 @@ const ProjectCreationWizard: React.FC = () => {
                     </Grid>
                   )}
 
-                  {/* Step 2: Algorithm Selection */}
-                   {index === 1 && (
+                  {/* Step 2: Module Selection */}
+                  {index === 1 && (
                     <Box>
-                       <Typography variant="h6" gutterBottom>
-                         Select Modules
-                       </Typography>
+                      <Typography variant="h6" gutterBottom>
+                        Select Modules
+                      </Typography>
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ mb: 3 }}
                       >
-                         Choose the modules you'll need for your project
+                        Choose the modules you'll need for your project
                       </Typography>
-                       {modulesError && <Alert severity="error" sx={{ mb: 2 }}>{modulesError}</Alert>}
-                       <Grid container spacing={2}>
-                         {(modulesLoading ? [] : modules).map((mod) => (
-                          <Grid item xs={12} sm={6} md={4} key={algorithm.id}>
+                      {modulesError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                          {modulesError}
+                        </Alert>
+                      )}
+                      <Grid container spacing={2}>
+                        {(modulesLoading ? [] : modules).map((mod) => (
+                          <Grid item xs={12} sm={6} md={4} key={mod.id}>
                             <Card
                               sx={{
                                 cursor: 'pointer',
-                                 border: projectData.algorithms.includes(
-                                   mod.id
-                                )
+                                border: projectData.algorithms.includes(mod.id)
                                   ? 2
                                   : 1,
-                                 borderColor: projectData.algorithms.includes(
-                                   mod.id
+                                borderColor: projectData.algorithms.includes(
+                                  mod.id
                                 )
                                   ? 'primary.main'
                                   : 'divider',
@@ -629,7 +633,7 @@ const ProjectCreationWizard: React.FC = () => {
                                   borderColor: 'primary.main',
                                 },
                               }}
-                               onClick={() => toggleAlgorithm(mod.id)}
+                              onClick={() => toggleAlgorithm(mod.id)}
                             >
                               <CardContent>
                                 <Box
@@ -640,20 +644,18 @@ const ProjectCreationWizard: React.FC = () => {
                                   }}
                                 >
                                   <Checkbox
-                                     checked={projectData.algorithms.includes(
-                                       mod.id
+                                    checked={projectData.algorithms.includes(
+                                      mod.id
                                     )}
-                                     onChange={() =>
-                                       toggleAlgorithm(mod.id)
-                                    }
+                                    onChange={() => toggleAlgorithm(mod.id)}
                                     size="small"
                                   />
                                   <Typography variant="h6" component="h3">
-                                     {mod.name}
+                                    {mod.name}
                                   </Typography>
                                 </Box>
                                 <Chip
-                                   label={mod.category}
+                                  label={mod.category}
                                   size="small"
                                   variant="outlined"
                                   sx={{ mb: 1 }}
@@ -662,7 +664,7 @@ const ProjectCreationWizard: React.FC = () => {
                                   variant="body2"
                                   color="text.secondary"
                                 >
-                                   {mod.description}
+                                  {mod.description}
                                 </Typography>
                               </CardContent>
                             </Card>
@@ -954,21 +956,19 @@ const ProjectCreationWizard: React.FC = () => {
                           <Card>
                             <CardContent>
                               <Typography variant="h6" gutterBottom>
-                                Selected Algorithms
+                                Selected Modules
                               </Typography>
                               <List dense>
-                                {projectData.algorithms.map((algorithmId) => {
-                                  const algorithm = availableAlgorithms.find(
-                                    (a) => a.id === algorithmId
-                                  );
+                                {projectData.algorithms.map((moduleId) => {
+                                  const mod = modules.find((m) => m.id === moduleId);
                                   return (
-                                    <ListItem key={algorithmId}>
+                                    <ListItem key={moduleId}>
                                       <ListItemIcon>
                                         <CheckIcon color="primary" />
                                       </ListItemIcon>
                                       <ListItemText
-                                        primary={algorithm?.name}
-                                        secondary={algorithm?.category}
+                                        primary={mod?.name || moduleId}
+                                        secondary={mod?.category}
                                       />
                                     </ListItem>
                                   );
