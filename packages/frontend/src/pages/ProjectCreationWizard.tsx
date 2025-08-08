@@ -190,56 +190,33 @@ const ProjectCreationWizard: React.FC = () => {
     { value: 'ubuntu:22.04', label: 'Ubuntu 22.04' },
   ];
 
-  const availableAlgorithms = [
-    {
-      id: 'nav2',
-      name: 'Navigation2',
-      category: 'Navigation',
-      description: 'ROS2 navigation stack',
-    },
-    {
-      id: 'moveit',
-      name: 'MoveIt',
-      category: 'Manipulation',
-      description: 'Motion planning framework',
-    },
-    {
-      id: 'opencv',
-      name: 'OpenCV',
-      category: 'Perception',
-      description: 'Computer vision library',
-    },
-    {
-      id: 'pcl',
-      name: 'PCL',
-      category: 'Perception',
-      description: 'Point cloud library',
-    },
-    {
-      id: 'tf2',
-      name: 'TF2',
-      category: 'Navigation',
-      description: 'Transform library',
-    },
-    {
-      id: 'rviz',
-      name: 'RViz',
-      category: 'Visualization',
-      description: '3D visualization tool',
-    },
-    {
-      id: 'gazebo',
-      name: 'Gazebo',
-      category: 'Simulation',
-      description: 'Physics simulation',
-    },
-    {
-      id: 'rosbag',
-      name: 'ROS Bag',
-      category: 'Data',
-      description: 'Data recording and playback',
-    },
-  ];
+  // Modules fetched from backend
+  const [modules, setModules] = useState<Array<{ id: string; name: string; category?: string; description?: string }>>([]);
+  const [modulesLoading, setModulesLoading] = useState(false);
+  const [modulesError, setModulesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        setModulesLoading(true);
+        setModulesError(null);
+        const data = await ApiService.get<any[]>('/modules');
+        // Ensure shape
+        const normalized = (Array.isArray(data) ? data : []).map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          category: m.category,
+          description: m.description,
+        }));
+        setModules(normalized);
+      } catch (err) {
+        setModulesError(err instanceof Error ? err.message : 'Failed to load modules');
+      } finally {
+        setModulesLoading(false);
+      }
+    };
+    fetchModules();
+  }, []);
 
   // Wizard steps - memoized to prevent re-creation on every render
   const steps: WizardStep[] = useMemo(
@@ -619,32 +596,32 @@ const ProjectCreationWizard: React.FC = () => {
                   )}
 
                   {/* Step 2: Algorithm Selection */}
-                  {index === 1 && (
+                   {index === 1 && (
                     <Box>
-                      <Typography variant="h6" gutterBottom>
-                        Select ROS Algorithms and Tools
-                      </Typography>
+                       <Typography variant="h6" gutterBottom>
+                         Select Modules
+                       </Typography>
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ mb: 3 }}
                       >
-                        Choose the algorithms and tools you'll need for your
-                        project
+                         Choose the modules you'll need for your project
                       </Typography>
-                      <Grid container spacing={2}>
-                        {availableAlgorithms.map((algorithm) => (
+                       {modulesError && <Alert severity="error" sx={{ mb: 2 }}>{modulesError}</Alert>}
+                       <Grid container spacing={2}>
+                         {(modulesLoading ? [] : modules).map((mod) => (
                           <Grid item xs={12} sm={6} md={4} key={algorithm.id}>
                             <Card
                               sx={{
                                 cursor: 'pointer',
-                                border: projectData.algorithms.includes(
-                                  algorithm.id
+                                 border: projectData.algorithms.includes(
+                                   mod.id
                                 )
                                   ? 2
                                   : 1,
-                                borderColor: projectData.algorithms.includes(
-                                  algorithm.id
+                                 borderColor: projectData.algorithms.includes(
+                                   mod.id
                                 )
                                   ? 'primary.main'
                                   : 'divider',
@@ -652,7 +629,7 @@ const ProjectCreationWizard: React.FC = () => {
                                   borderColor: 'primary.main',
                                 },
                               }}
-                              onClick={() => toggleAlgorithm(algorithm.id)}
+                               onClick={() => toggleAlgorithm(mod.id)}
                             >
                               <CardContent>
                                 <Box
@@ -663,20 +640,20 @@ const ProjectCreationWizard: React.FC = () => {
                                   }}
                                 >
                                   <Checkbox
-                                    checked={projectData.algorithms.includes(
-                                      algorithm.id
+                                     checked={projectData.algorithms.includes(
+                                       mod.id
                                     )}
-                                    onChange={() =>
-                                      toggleAlgorithm(algorithm.id)
+                                     onChange={() =>
+                                       toggleAlgorithm(mod.id)
                                     }
                                     size="small"
                                   />
                                   <Typography variant="h6" component="h3">
-                                    {algorithm.name}
+                                     {mod.name}
                                   </Typography>
                                 </Box>
                                 <Chip
-                                  label={algorithm.category}
+                                   label={mod.category}
                                   size="small"
                                   variant="outlined"
                                   sx={{ mb: 1 }}
@@ -685,7 +662,7 @@ const ProjectCreationWizard: React.FC = () => {
                                   variant="body2"
                                   color="text.secondary"
                                 >
-                                  {algorithm.description}
+                                   {mod.description}
                                 </Typography>
                               </CardContent>
                             </Card>
