@@ -65,79 +65,7 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/projects/:id - Get specific project with modules and packages
-router.get('/:id', async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-
-    // Get project details
-    const projectResult = (await Database.query(
-      `SELECT p.*, COALESCE(p.tags, '{}'::text[]) AS tags 
-       FROM projects p 
-       WHERE p.id = $1 AND p.is_active = true`,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    if (projectResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found',
-      });
-    }
-
-    const project = projectResult.rows[0];
-
-    // Get modules for this project
-    const modulesResult = (await Database.query(
-      `
-      SELECT m.*, pmd.dependency_type, pmd.order_index
-      FROM project_module_dependencies pmd
-      JOIN modules m ON pmd.module_id = m.id
-      WHERE pmd.project_id = $1
-      ORDER BY pmd.order_index
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    // Get packages for this project
-    const packagesResult = (await Database.query(
-      `
-      SELECT rp.*, pp.is_required, pp.order_index
-      FROM project_packages pp
-      JOIN ros_packages rp ON pp.package_id = rp.id
-      WHERE pp.project_id = $1
-      ORDER BY pp.order_index
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    // Get files for this project
-    const filesResult = (await Database.query(
-      `
-      SELECT * FROM project_files
-      WHERE project_id = $1
-      ORDER BY file_type, file_path
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    res.json({
-      success: true,
-      data: {
-        ...project,
-        modules: modulesResult.rows,
-        packages: packagesResult.rows,
-        files: filesResult.rows,
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching project:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch project',
-    });
-  }
-});
+// NOTE: Specific routes must be defined before parameterized ':id' route
 
 // GET /api/projects/categories - Get all categories
 router.get('/categories', async (req: AuthRequest, res) => {
@@ -226,6 +154,80 @@ router.get('/templates', async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch template projects',
+    });
+  }
+});
+
+// GET /api/projects/:id - Get specific project with modules and packages
+router.get('/:id', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get project details
+    const projectResult = (await Database.query(
+      `SELECT p.*, COALESCE(p.tags, '{}'::text[]) AS tags 
+       FROM projects p 
+       WHERE p.id = $1 AND p.is_active = true`,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found',
+      });
+    }
+
+    const project = projectResult.rows[0];
+
+    // Get modules for this project
+    const modulesResult = (await Database.query(
+      `
+      SELECT m.*, pmd.dependency_type, pmd.order_index
+      FROM project_module_dependencies pmd
+      JOIN modules m ON pmd.module_id = m.id
+      WHERE pmd.project_id = $1
+      ORDER BY pmd.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    // Get packages for this project
+    const packagesResult = (await Database.query(
+      `
+      SELECT rp.*, pp.is_required, pp.order_index
+      FROM project_packages pp
+      JOIN ros_packages rp ON pp.package_id = rp.id
+      WHERE pp.project_id = $1
+      ORDER BY pp.order_index
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    // Get files for this project
+    const filesResult = (await Database.query(
+      `
+      SELECT * FROM project_files
+      WHERE project_id = $1
+      ORDER BY file_type, file_path
+    `,
+      [id]
+    )) as { rows: Array<Record<string, any>> };
+
+    res.json({
+      success: true,
+      data: {
+        ...project,
+        modules: modulesResult.rows,
+        packages: packagesResult.rows,
+        files: filesResult.rows,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch project',
     });
   }
 });
