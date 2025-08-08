@@ -26,6 +26,7 @@ import {
 import {
   ContentCopy as CloneIcon,
   Visibility as ViewIcon,
+  Delete as DeleteIcon,
   Code as CodeIcon,
   SmartToy as RobotIcon,
   Navigation as NavigationIcon,
@@ -50,9 +51,8 @@ const Templates: React.FC = () => {
   const [templates, setTemplates] = useState<TemplateProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateProject | null>(
-    null
-  );
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<TemplateProject | null>(null);
   const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [cloning, setCloning] = useState(false);
@@ -183,7 +183,9 @@ const Templates: React.FC = () => {
             >
               <CardContent sx={{ flexGrow: 1 }}>
                 <Box display="flex" alignItems="center" mb={2}>
-                  <Avatar sx={{ mr: 1, bgcolor: 'primary.main' }}>{template.name.charAt(0)}</Avatar>
+                  <Avatar sx={{ mr: 1, bgcolor: 'primary.main' }}>
+                    {template.name.charAt(0)}
+                  </Avatar>
                   <Typography variant="h6" component="h2">
                     {template.name}
                   </Typography>
@@ -210,14 +212,26 @@ const Templates: React.FC = () => {
                 </Box>
 
                 <Typography variant="caption" color="text.secondary">
-                  {new Date(template.created_at).toLocaleDateString()} • {template.module_count} modules
+                  {new Date(template.created_at).toLocaleDateString()} •{' '}
+                  {template.module_count} modules
                 </Typography>
               </CardContent>
 
               <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
-                <Tooltip title="View template details">
-                  <IconButton size="small">
-                    <ViewIcon />
+                <Tooltip title="Delete template">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={async () => {
+                      try {
+                        await ApiService.delete(`/projects/${template.id}`);
+                        setTemplates((prev) => prev.filter((t) => t.id !== template.id));
+                      } catch (e) {
+                        console.error('Failed to delete template', e);
+                      }
+                    }}
+                  >
+                    <DeleteIcon />
                   </IconButton>
                 </Tooltip>
                 <Button

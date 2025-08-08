@@ -419,6 +419,37 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     const newProject = result.rows[0];
 
+    // Persist selected modules into project_module_dependencies
+    if (Array.isArray(algorithms) && algorithms.length > 0) {
+      const values: string[] = [];
+      const placeholders: string[] = [];
+      let idx = 1;
+      for (const moduleId of algorithms) {
+        placeholders.push(`($${idx++}, $${idx++}, 'required', NULL, ${idx++ - 1})`);
+        // project_id, module_id, dependency_type 'required', version_constraint NULL, order_index
+        values.push(newProject.id, moduleId, String(placeholders.length - 1));
+      }
+
+      // Build a deterministic order_index sequence 0..n-1
+      // We'll rebuild placeholders accordingly
+      const rows: string[] = [];
+      let param = 1;
+      for (let orderIndex = 0; orderIndex < algorithms.length; orderIndex++) {
+        rows.push(`($${param++}, $${param++}, 'required', NULL, $${param++})`);
+      }
+
+      const insertParams: any[] = [];
+      for (let i = 0; i < algorithms.length; i++) {
+        insertParams.push(newProject.id, algorithms[i], i);
+      }
+
+      await Database.query(
+        `INSERT INTO project_module_dependencies (project_id, module_id, dependency_type, version_constraint, order_index)
+         VALUES ${rows.join(', ')}`,
+        insertParams
+      );
+    }
+
     res.status(201).json({
       success: true,
       data: newProject,
