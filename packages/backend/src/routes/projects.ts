@@ -72,7 +72,9 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
     // Get project details
     const projectResult = (await Database.query(
-      'SELECT p.*, COALESCE(p.tags, '{}'::text[]) AS tags FROM projects p WHERE p.id = $1 AND p.is_active = true',
+      `SELECT p.*, COALESCE(p.tags, '{}'::text[]) AS tags 
+       FROM projects p 
+       WHERE p.id = $1 AND p.is_active = true`,
       [id]
     )) as { rows: Array<Record<string, any>> };
 
