@@ -6,9 +6,42 @@ import AIProjectGenerationService, {
   AIProjectSuggestion,
 } from '../services/AIProjectGenerationService';
 import { ApiService } from '../services/api';
-import { Box, Typography, Stepper, Step, StepLabel, StepContent, Button, Paper, Card, CardContent, TextField, FormControl, InputLabel, Select, MenuItem, Chip, Checkbox, Alert, CircularProgress, List, ListItem, ListItemText, ListItemIcon } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  Button,
+  Paper,
+  Card,
+  CardContent,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  Checkbox,
+  Alert,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+} from '@mui/material';
 import { Grid } from '@mui/material';
-import { Check as CheckIcon, Save as SaveIcon, ArrowBack as ArrowBackIcon, ArrowForward as ArrowForwardIcon, Folder as FolderIcon, Code as CodeIcon, Preview as PreviewIcon, SmartToy as RobotIcon } from '@mui/icons-material';
+import {
+  Check as CheckIcon,
+  Save as SaveIcon,
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon,
+  Folder as FolderIcon,
+  Code as CodeIcon,
+  Preview as PreviewIcon,
+  SmartToy as RobotIcon,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Types
@@ -97,9 +130,6 @@ const ProjectCreationWizard: React.FC = () => {
         message: 'At least one module must be selected',
       },
     ],
-    'environment.baseImage': [
-      { type: 'required' as const, message: 'Base image is required' },
-    ],
   };
 
   const validation = useFormValidation(projectData, fieldValidations, {
@@ -166,13 +196,6 @@ const ProjectCreationWizard: React.FC = () => {
         valid: false,
       },
       {
-        label: 'Project Settings',
-        description: 'Advanced project settings',
-        icon: <SettingsIcon />,
-        completed: false,
-        valid: false,
-      },
-      {
         label: 'Review & Create',
         description: 'Review and create project',
         icon: <PreviewIcon />,
@@ -195,10 +218,12 @@ const ProjectCreationWizard: React.FC = () => {
         case 1:
           return projectData.algorithms.length > 0;
         case 2:
-          return projectData.robot.length > 0 && projectData.hardware.length > 0;
+          return (
+            projectData.robot.length > 0 && projectData.hardware.length > 0
+          );
         case 3:
           return true; // Review step
-        
+
         default:
           return false;
       }
@@ -207,8 +232,8 @@ const ProjectCreationWizard: React.FC = () => {
   );
 
   // Step validation state (separate from steps array to prevent mutations)
-  const [stepValidations, setStepValidations] = useState<boolean[]>(
-    new Array(6).fill(false)
+  const [stepValidations, setStepValidations] = useState<boolean[]>(() =>
+    new Array(steps.length).fill(false)
   );
 
   // Check if we're in AI mode
@@ -320,31 +345,13 @@ const ProjectCreationWizard: React.FC = () => {
         await AIProjectGenerationService.generateProjectSuggestion(input);
 
       // Apply AI suggestions to the form
-      setProjectData({
+      setProjectData((prev) => ({
+        ...prev,
         name: suggestion.name,
         description: suggestion.description,
         tags: suggestion.tags,
         algorithms: suggestion.algorithms,
-        environment: {
-          baseImage: suggestion.environment.baseImage,
-          pythonVersion: suggestion.environment.pythonVersion || '3.11',
-          nodeVersion: suggestion.environment.nodeVersion || '16',
-          systemDependencies: suggestion.environment.systemDependencies,
-          pythonDependencies: suggestion.environment.pythonDependencies,
-          nodeDependencies: suggestion.environment.nodeDependencies,
-          environmentVariables: suggestion.environment.environmentVariables,
-          ports: suggestion.environment.ports,
-          volumes: [],
-        },
-        settings: {
-          ...suggestion.settings,
-          backupFrequency: suggestion.settings.backupFrequency as
-            | 'daily'
-            | 'weekly'
-            | 'monthly'
-            | 'never',
-        },
-      });
+      }));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to generate AI suggestions'
@@ -364,47 +371,7 @@ const ProjectCreationWizard: React.FC = () => {
     }));
   };
 
-  // Add environment variable
-  const addEnvironmentVariable = () => {
-    const key = `VAR_${Object.keys(projectData.environment.environmentVariables).length + 1}`;
-    setProjectData((prev) => ({
-      ...prev,
-      environment: {
-        ...prev.environment,
-        environmentVariables: {
-          ...prev.environment.environmentVariables,
-          [key]: '',
-        },
-      },
-    }));
-  };
-
-  // Remove environment variable
-  const removeEnvironmentVariable = (key: string) => {
-    const newEnvVars = { ...projectData.environment.environmentVariables };
-    delete newEnvVars[key];
-    setProjectData((prev) => ({
-      ...prev,
-      environment: {
-        ...prev.environment,
-        environmentVariables: newEnvVars,
-      },
-    }));
-  };
-
-  // Update environment variable
-  const updateEnvironmentVariable = (key: string, value: string) => {
-    setProjectData((prev) => ({
-      ...prev,
-      environment: {
-        ...prev.environment,
-        environmentVariables: {
-          ...prev.environment.environmentVariables,
-          [key]: value,
-        },
-      },
-    }));
-  };
+  // Environment helpers removed
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
@@ -647,8 +614,8 @@ const ProjectCreationWizard: React.FC = () => {
 
                   {/* Step 4 removed (Project Settings) */}
 
-                  {/* Step 5: Review */}
-                  {index === 4 && (
+                  {/* Step 4: Review */}
+                  {index === 3 && (
                     <Box>
                       <Typography variant="h6" gutterBottom>
                         Review Project Configuration
@@ -688,7 +655,9 @@ const ProjectCreationWizard: React.FC = () => {
                               </Typography>
                               <List dense>
                                 {projectData.algorithms.map((moduleId) => {
-                                  const mod = modules.find((m) => m.id === moduleId);
+                                  const mod = modules.find(
+                                    (m) => m.id === moduleId
+                                  );
                                   return (
                                     <ListItem key={moduleId}>
                                       <ListItemIcon>
@@ -705,47 +674,7 @@ const ProjectCreationWizard: React.FC = () => {
                             </CardContent>
                           </Card>
                         </Grid>
-                        <Grid item xs={12}>
-                          <Card>
-                            <CardContent>
-                              <Typography variant="h6" gutterBottom>
-                                Environment Configuration
-                              </Typography>
-                              <Grid container spacing={2}>
-                                <Grid item xs={12} md={4}>
-                                  <Typography variant="subtitle2">
-                                    Base Image
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {projectData.environment.baseImage}
-                                  </Typography>
-                                </Grid>
-                                <Grid item xs={12} md={4}>
-                                  <Typography variant="subtitle2">
-                                    Python Version
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {projectData.environment.pythonVersion}
-                                  </Typography>
-                                </Grid>
-                                <Grid item xs={12} md={4}>
-                                  <Typography variant="subtitle2">
-                                    Environment Variables
-                                  </Typography>
-                                  <Typography variant="body2">
-                                    {
-                                      Object.keys(
-                                        projectData.environment
-                                          .environmentVariables
-                                      ).length
-                                    }{' '}
-                                    variables
-                                  </Typography>
-                                </Grid>
-                              </Grid>
-                            </CardContent>
-                          </Card>
-                        </Grid>
+                        {/* Environment review removed */}
                       </Grid>
                     </Box>
                   )}
