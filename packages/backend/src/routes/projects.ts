@@ -13,6 +13,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     let query = `
       SELECT p.*, 
+             COALESCE(p.tags, '{}'::text[]) AS tags,
              COUNT(DISTINCT pmd.module_id) as module_count,
              COUNT(DISTINCT pp.package_id) as package_count
       FROM projects p
@@ -71,7 +72,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
     // Get project details
     const projectResult = (await Database.query(
-      'SELECT * FROM projects WHERE id = $1 AND is_active = true',
+      'SELECT p.*, COALESCE(p.tags, '{}'::text[]) AS tags FROM projects p WHERE p.id = $1 AND p.is_active = true',
       [id]
     )) as { rows: Array<Record<string, any>> };
 
@@ -397,9 +398,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
     const result = (await Database.query(
       `
       INSERT INTO projects (
-        id, name, description, owner_id
+        id, name, description, owner_id, tags
       ) VALUES (
-        $1, $2, $3, $4
+        $1, $2, $3, $4, $5
       ) RETURNING *
     `,
       [
@@ -407,6 +408,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         name,
         description,
         userId, // owner_id
+        Array.isArray(tags) ? tags : [],
       ]
     )) as { rows: Array<Record<string, any>> };
 
