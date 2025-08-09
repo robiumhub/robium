@@ -9,10 +9,9 @@ A comprehensive platform for developing, managing, and deploying robot applicati
 - Node.js v18+
 - PostgreSQL
 - Docker (for containerization)
-- ROS 2 (Humble or later recommended)
-- vcstool: `pip install vcstool`
-- rosdep: `sudo apt install python3-rosdep && sudo rosdep init && rosdep update`
-- colcon: `pip install colcon-common-extensions`
+- **For ROS Development:**
+  - **Option 1 (Local):** ROS 2 (Humble or later), vcstool, rosdep, colcon
+  - **Option 2 (Containerized):** Docker and Docker Compose (recommended)
 
 ### Clone with Submodules
 
@@ -52,6 +51,7 @@ npm run kill-ports
 
 ### ROS Workspace Setup
 
+#### Option 1: Local Development
 ```bash
 # Set up ROS workspace
 cd ros
@@ -61,6 +61,19 @@ cd ros
 ./ros build
 
 # Source the workspace (optional)
+source install/setup.bash
+```
+
+#### Option 2: Containerized Development (Recommended)
+```bash
+# Build and enter container
+cd ros
+docker-compose up --build -d
+docker-compose exec ros-workspace bash
+
+# Inside container, workspace is already set up and built
+./ros help
+./ros build
 source install/setup.bash
 ```
 
