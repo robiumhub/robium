@@ -41,6 +41,7 @@ import {
   ViewList as ViewListIcon,
   ViewModule as ViewModuleIcon,
 } from '@mui/icons-material';
+import { RobotsService, Robot } from '../services/robotsService';
 
 interface ModuleMetadata {
   name: string;
@@ -65,16 +66,23 @@ interface ModuleFilters {
 const Modules: React.FC = () => {
   const [modules, setModules] = useState<ModuleMetadata[]>([]);
   const [filteredModules, setFilteredModules] = useState<ModuleMetadata[]>([]);
-  const [displayedModules, setDisplayedModules] = useState<ModuleMetadata[]>([]);
-  const [selectedModules, setSelectedModules] = useState<Set<string>>(new Set());
+  const [displayedModules, setDisplayedModules] = useState<ModuleMetadata[]>(
+    []
+  );
+  const [selectedModules, setSelectedModules] = useState<Set<string>>(
+    new Set()
+  );
   const [compareModules, setCompareModules] = useState<ModuleMetadata[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedModule, setSelectedModule] = useState<ModuleMetadata | null>(null);
+  const [selectedModule, setSelectedModule] = useState<ModuleMetadata | null>(
+    null
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [robots, setRobots] = useState<Robot[]>([]);
   const [filters, setFilters] = useState<ModuleFilters>({
     search: '',
     category: 'all',
@@ -85,20 +93,29 @@ const Modules: React.FC = () => {
   const modulesPerPage = 12;
 
   useEffect(() => {
-    // Fetch modules from API
-    const fetchModules = async () => {
+    // Fetch modules and robots from API
+    const fetchData = async () => {
       try {
+        setLoading(true);
+
+        // Fetch robots data
+        const robotsData = await RobotsService.getRobots();
+        setRobots(robotsData);
+
+        // Fetch modules data
         const response = await fetch('http://localhost:8000/modules', {
           headers: {
             'Content-Type': 'application/json',
           },
         });
-        
+
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
             // Handle both old and new API response formats
-            const modulesData = Array.isArray(result.data) ? result.data : result.data.modules;
+            const modulesData = Array.isArray(result.data)
+              ? result.data
+              : result.data.modules;
             setModules(modulesData);
             setFilteredModules(modulesData);
           } else {
@@ -108,13 +125,13 @@ const Modules: React.FC = () => {
           console.error('Failed to fetch modules:', response.statusText);
         }
       } catch (error) {
-        console.error('Error fetching modules:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchModules();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -122,30 +139,37 @@ const Modules: React.FC = () => {
 
     // Apply search filter
     if (filters.search) {
-      filtered = filtered.filter(module =>
-        module.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        module.description.toLowerCase().includes(filters.search.toLowerCase()) ||
-        module.tags?.some(tag => tag.toLowerCase().includes(filters.search.toLowerCase()))
+      filtered = filtered.filter(
+        (module) =>
+          module.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+          module.description
+            .toLowerCase()
+            .includes(filters.search.toLowerCase()) ||
+          module.tags?.some((tag) =>
+            tag.toLowerCase().includes(filters.search.toLowerCase())
+          )
       );
     }
 
     // Apply category filter
     if (filters.category !== 'all') {
-      filtered = filtered.filter(module => module.category === filters.category);
+      filtered = filtered.filter(
+        (module) => module.category === filters.category
+      );
     }
 
     // Apply robots filter (intersection)
     if (filters.robots.length > 0) {
-      filtered = filtered.filter(module => {
+      filtered = filtered.filter((module) => {
         const robots = module.supported_robots || [];
-        return filters.robots.every(r => robots.includes(r));
+        return filters.robots.every((r) => robots.includes(r));
       });
     }
 
     // Apply sorting
     filtered.sort((a, b) => {
       let aValue: any, bValue: any;
-      
+
       switch (filters.sortBy) {
         case 'name':
           aValue = a.name.toLowerCase();
@@ -180,7 +204,10 @@ const Modules: React.FC = () => {
 
   const totalPages = Math.ceil(filteredModules.length / modulesPerPage);
 
-  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+  const handlePageChange = (
+    event: React.ChangeEvent<unknown>,
+    value: number
+  ) => {
     setCurrentPage(value);
   };
 
@@ -203,16 +230,23 @@ const Modules: React.FC = () => {
       communication: '#f44336',
       simulation: '#00bcd4',
       safety: '#e91e63',
-      ai: '#673ab7'
+      ai: '#673ab7',
     };
     return colors[category] || '#757575';
   };
 
-  const categories = Array.from(new Set(modules.map(m => m.category)));
+  const categories = Array.from(new Set(modules.map((m) => m.category)));
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '400px',
+        }}
+      >
         <Typography>Loading modules...</Typography>
       </Box>
     );
@@ -229,11 +263,21 @@ const Modules: React.FC = () => {
 
       {/* Enhanced Search and Filter Controls */}
       <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            mb: 2,
+          }}
+        >
           <TextField
             placeholder="Search modules..."
             value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, search: e.target.value }))
+            }
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -248,10 +292,12 @@ const Modules: React.FC = () => {
             <Select
               value={filters.category}
               label="Category"
-              onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, category: e.target.value }))
+              }
             >
               <MenuItem value="all">All Categories</MenuItem>
-              {categories.map(category => (
+              {categories.map((category) => (
                 <MenuItem key={category} value={category}>
                   {category.charAt(0).toUpperCase() + category.slice(1)}
                 </MenuItem>
@@ -264,13 +310,23 @@ const Modules: React.FC = () => {
               multiple
               value={filters.robots}
               label="Supported Robots"
-              onChange={(e) => setFilters(prev => ({ ...prev, robots: e.target.value as string[] }))}
-              renderValue={(selected) => (selected as string[]).map(r => r.replace(/_/g, ' ')).join(', ')}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  robots: e.target.value as string[],
+                }))
+              }
+              renderValue={(selected) =>
+                (selected as string[])
+                  .map((r) => RobotsService.getRobotDisplayName(r))
+                  .join(', ')
+              }
             >
-              <MenuItem value="turtlebot3">TurtleBot 3</MenuItem>
-              <MenuItem value="turtlebot4">TurtleBot 4</MenuItem>
-              <MenuItem value="raspberrypi">Raspberry Pi</MenuItem>
-              <MenuItem value="nvidia-orin">NVIDIA Orin</MenuItem>
+              {robots.map((robot) => (
+                <MenuItem key={robot.code} value={robot.code}>
+                  {robot.name} ({robot.module_count} modules)
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl sx={{ minWidth: 150 }}>
@@ -278,7 +334,9 @@ const Modules: React.FC = () => {
             <Select
               value={filters.sortBy}
               label="Sort By"
-              onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
+              }
             >
               <MenuItem value="name">Name</MenuItem>
               <MenuItem value="category">Category</MenuItem>
@@ -289,7 +347,9 @@ const Modules: React.FC = () => {
           <ToggleButtonGroup
             value={filters.sortOrder}
             exclusive
-            onChange={(_, value) => value && setFilters(prev => ({ ...prev, sortOrder: value }))}
+            onChange={(_, value) =>
+              value && setFilters((prev) => ({ ...prev, sortOrder: value }))
+            }
             size="small"
           >
             <ToggleButton value="asc">↑</ToggleButton>
@@ -320,16 +380,25 @@ const Modules: React.FC = () => {
         {/* Selection Controls */}
         {selectedModules.size > 0 && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               <Typography>
-                {selectedModules.size} module{selectedModules.size !== 1 ? 's' : ''} selected
+                {selectedModules.size} module
+                {selectedModules.size !== 1 ? 's' : ''} selected
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
                   size="small"
                   startIcon={<CompareIcon />}
                   onClick={() => {
-                    const selectedModuleList = modules.filter(m => selectedModules.has(m.name));
+                    const selectedModuleList = modules.filter((m) =>
+                      selectedModules.has(m.name)
+                    );
                     setCompareModules(selectedModuleList);
                     setCompareDialogOpen(true);
                   }}
@@ -355,32 +424,60 @@ const Modules: React.FC = () => {
       </Box>
 
       {/* Modules Grid/List */}
-      <Box sx={{ 
-        display: viewMode === 'grid' ? 'grid' : 'block',
-        gridTemplateColumns: viewMode === 'grid' ? { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' } : '1fr',
-        gap: 3 
-      }}>
+      <Box
+        sx={{
+          display: viewMode === 'grid' ? 'grid' : 'block',
+          gridTemplateColumns:
+            viewMode === 'grid'
+              ? {
+                  xs: '1fr',
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)',
+                  lg: 'repeat(4, 1fr)',
+                }
+              : '1fr',
+          gap: 3,
+        }}
+      >
         {displayedModules.map((module) => (
           <Box key={module.name}>
-            <Card 
-              sx={{ 
+            <Card
+              sx={{
                 height: viewMode === 'grid' ? '100%' : 'auto',
-                display: 'flex', 
+                display: 'flex',
                 flexDirection: 'column',
                 cursor: 'pointer',
                 border: selectedModules.has(module.name) ? 2 : 1,
-                borderColor: selectedModules.has(module.name) ? 'primary.main' : 'divider',
+                borderColor: selectedModules.has(module.name)
+                  ? 'primary.main'
+                  : 'divider',
                 '&:hover': {
                   boxShadow: 4,
-                  transform: selectedModules.has(module.name) ? 'none' : 'translateY(-2px)',
-                  transition: 'all 0.2s ease-in-out'
-                }
+                  transform: selectedModules.has(module.name)
+                    ? 'none'
+                    : 'translateY(-2px)',
+                  transition: 'all 0.2s ease-in-out',
+                },
               }}
               onClick={() => handleModuleClick(module)}
             >
               <CardContent sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    mb: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      flex: 1,
+                    }}
+                  >
                     <Checkbox
                       checked={selectedModules.has(module.name)}
                       onChange={(e) => {
@@ -396,7 +493,9 @@ const Modules: React.FC = () => {
                       size="small"
                     />
                     <Typography variant="h6" component="h2" gutterBottom>
-                      {module.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {module.name
+                        .replace(/_/g, ' ')
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
                     </Typography>
                   </Box>
                   <Tooltip title="Module Details">
@@ -405,32 +504,55 @@ const Modules: React.FC = () => {
                     </IconButton>
                   </Tooltip>
                 </Box>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 2 }}
+                >
                   {module.description}
                 </Typography>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
-                  <CategoryIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                <Box
+                  sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}
+                >
+                  <CategoryIcon
+                    sx={{ fontSize: 16, color: 'text.secondary' }}
+                  />
                   <Chip
                     label={module.category}
                     size="small"
                     sx={{
                       backgroundColor: getCategoryColor(module.category),
                       color: 'white',
-                      fontSize: '0.75rem'
+                      fontSize: '0.75rem',
                     }}
                   />
                 </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 0.5,
+                    mb: 1,
+                  }}
+                >
                   {(module.supported_robots || []).map((r) => (
-                    <Chip key={r} label={r.replace(/_/g, ' ')} size="small" variant="outlined" />
+                    <Chip
+                      key={r}
+                      label={r.replace(/_/g, ' ')}
+                      size="small"
+                      variant="outlined"
+                    />
                   ))}
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <PackageIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+                  <PackageIcon
+                    sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }}
+                  />
                   <Typography variant="caption" color="text.secondary">
                     {module.packages.length} packages
                   </Typography>
@@ -438,7 +560,9 @@ const Modules: React.FC = () => {
 
                 {module.dependencies && module.dependencies.length > 0 && (
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <DependencyIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+                    <DependencyIcon
+                      sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }}
+                    />
                     <Typography variant="caption" color="text.secondary">
                       {module.dependencies.length} dependencies
                     </Typography>
@@ -465,7 +589,11 @@ const Modules: React.FC = () => {
                   )}
                 </Box>
 
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 2, display: 'block' }}
+                >
                   Version: {module.version}
                 </Typography>
               </CardContent>
@@ -487,7 +615,11 @@ const Modules: React.FC = () => {
               showFirstButton
               showLastButton
             />
-            <Typography variant="body2" color="text.secondary" textAlign="center">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              textAlign="center"
+            >
               Page {currentPage} of {totalPages}
             </Typography>
           </Stack>
@@ -495,12 +627,19 @@ const Modules: React.FC = () => {
       )}
 
       {/* Module Details Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
         {selectedModule && (
           <>
             <DialogTitle>
               <Typography variant="h5">
-                {selectedModule.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                {selectedModule.name
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, (l) => l.toUpperCase())}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Version {selectedModule.version}
@@ -513,21 +652,25 @@ const Modules: React.FC = () => {
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                  <CategoryIcon sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }} />
+                  <CategoryIcon
+                    sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }}
+                  />
                   Category
                 </Typography>
                 <Chip
                   label={selectedModule.category}
                   sx={{
                     backgroundColor: getCategoryColor(selectedModule.category),
-                    color: 'white'
+                    color: 'white',
                   }}
                 />
               </Box>
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                  <PackageIcon sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }} />
+                  <PackageIcon
+                    sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }}
+                  />
                   ROS Packages ({selectedModule.packages.length})
                 </Typography>
                 <List dense>
@@ -539,26 +682,31 @@ const Modules: React.FC = () => {
                 </List>
               </Box>
 
-              {selectedModule.dependencies && selectedModule.dependencies.length > 0 && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="h6" gutterBottom>
-                    <DependencyIcon sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }} />
-                    Dependencies ({selectedModule.dependencies.length})
-                  </Typography>
-                  <List dense>
-                    {selectedModule.dependencies.map((dep) => (
-                      <ListItem key={dep}>
-                        <ListItemText primary={dep} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              )}
+              {selectedModule.dependencies &&
+                selectedModule.dependencies.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>
+                      <DependencyIcon
+                        sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }}
+                      />
+                      Dependencies ({selectedModule.dependencies.length})
+                    </Typography>
+                    <List dense>
+                      {selectedModule.dependencies.map((dep) => (
+                        <ListItem key={dep}>
+                          <ListItemText primary={dep} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
 
               {selectedModule.tags && selectedModule.tags.length > 0 && (
                 <Box>
                   <Typography variant="h6" gutterBottom>
-                    <TagIcon sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }} />
+                    <TagIcon
+                      sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }}
+                    />
                     Tags
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -580,7 +728,12 @@ const Modules: React.FC = () => {
       </Dialog>
 
       {/* Module Comparison Dialog */}
-      <Dialog open={compareDialogOpen} onClose={() => setCompareDialogOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog
+        open={compareDialogOpen}
+        onClose={() => setCompareDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
         <DialogTitle>
           <Typography variant="h5">Module Comparison</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -595,68 +748,123 @@ const Modules: React.FC = () => {
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
-                        {module.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {module.name
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, (l) => l.toUpperCase())}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 2 }}
+                      >
                         {module.description}
                       </Typography>
-                      
+
                       <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom>Category</Typography>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Category
+                        </Typography>
                         <Chip
                           label={module.category}
                           size="small"
                           sx={{
                             backgroundColor: getCategoryColor(module.category),
-                            color: 'white'
+                            color: 'white',
                           }}
                         />
                       </Box>
 
                       {module.complexity && (
                         <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>Complexity</Typography>
-                          <Chip label={module.complexity} size="small" variant="outlined" />
+                          <Typography variant="subtitle2" gutterBottom>
+                            Complexity
+                          </Typography>
+                          <Chip
+                            label={module.complexity}
+                            size="small"
+                            variant="outlined"
+                          />
                         </Box>
                       )}
 
                       {module.status && (
                         <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>Status</Typography>
+                          <Typography variant="subtitle2" gutterBottom>
+                            Status
+                          </Typography>
                           <Chip
                             label={module.status}
                             size="small"
                             variant="outlined"
-                            color={module.status === 'stable' ? 'success' : module.status === 'deprecated' ? 'error' : 'warning'}
+                            color={
+                              module.status === 'stable'
+                                ? 'success'
+                                : module.status === 'deprecated'
+                                ? 'error'
+                                : 'warning'
+                            }
                           />
                         </Box>
                       )}
 
                       <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom>Packages ({module.packages.length})</Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Packages ({module.packages.length})
+                        </Typography>
+                        <Box
+                          sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+                        >
                           {module.packages.slice(0, 3).map((pkg) => (
-                            <Chip key={pkg} label={pkg} size="small" variant="outlined" />
+                            <Chip
+                              key={pkg}
+                              label={pkg}
+                              size="small"
+                              variant="outlined"
+                            />
                           ))}
                           {module.packages.length > 3 && (
-                            <Chip label={`+${module.packages.length - 3} more`} size="small" variant="outlined" />
+                            <Chip
+                              label={`+${module.packages.length - 3} more`}
+                              size="small"
+                              variant="outlined"
+                            />
                           )}
                         </Box>
                       </Box>
 
-                      {module.dependencies && module.dependencies.length > 0 && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>Dependencies ({module.dependencies.length})</Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {module.dependencies.slice(0, 3).map((dep) => (
-                              <Chip key={dep} label={dep} size="small" variant="outlined" />
-                            ))}
-                            {module.dependencies.length > 3 && (
-                              <Chip label={`+${module.dependencies.length - 3} more`} size="small" variant="outlined" />
-                            )}
+                      {module.dependencies &&
+                        module.dependencies.length > 0 && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom>
+                              Dependencies ({module.dependencies.length})
+                            </Typography>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 0.5,
+                              }}
+                            >
+                              {module.dependencies.slice(0, 3).map((dep) => (
+                                <Chip
+                                  key={dep}
+                                  label={dep}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ))}
+                              {module.dependencies.length > 3 && (
+                                <Chip
+                                  label={`+${
+                                    module.dependencies.length - 3
+                                  } more`}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              )}
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
+                        )}
 
                       <Typography variant="caption" color="text.secondary">
                         Version: {module.version}
@@ -679,4 +887,4 @@ const Modules: React.FC = () => {
   );
 };
 
-export default Modules; 
+export default Modules;

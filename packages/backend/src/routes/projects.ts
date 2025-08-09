@@ -169,37 +169,59 @@ router.get('/:id/settings', async (req: AuthRequest, res) => {
     )) as { rows: Array<Record<string, any>> };
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Project not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: 'Project not found' });
     }
 
-    res.json({ success: true, data: { config: result.rows[0].config || {}, metadata: result.rows[0].metadata || {} } });
+    res.json({
+      success: true,
+      data: {
+        config: result.rows[0].config || {},
+        metadata: result.rows[0].metadata || {},
+      },
+    });
   } catch (error) {
     console.error('Error fetching project settings:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch project settings' });
+    res
+      .status(500)
+      .json({ success: false, error: 'Failed to fetch project settings' });
   }
 });
 
 // PUT /api/projects/:id/settings - Update project configuration/settings
-router.put('/:id/settings', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { config = {}, metadata = {} } = req.body || {};
+router.put(
+  '/:id/settings',
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { config = {}, metadata = {} } = req.body || {};
 
-    const result = (await Database.query(
-      `UPDATE projects SET config = $1, metadata = $2, updated_at = NOW(), updated_by = $3 WHERE id = $4 AND is_active = true RETURNING id, name, config, metadata`,
-      [config, metadata, req.user?.userId ?? null, id]
-    )) as { rows: Array<Record<string, any>> };
+      const result = (await Database.query(
+        `UPDATE projects SET config = $1, metadata = $2, updated_at = NOW(), updated_by = $3 WHERE id = $4 AND is_active = true RETURNING id, name, config, metadata`,
+        [config, metadata, req.user?.userId ?? null, id]
+      )) as { rows: Array<Record<string, any>> };
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Project not found' });
+      if (result.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, error: 'Project not found' });
+      }
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Project settings updated',
+      });
+    } catch (error) {
+      console.error('Error updating project settings:', error);
+      res
+        .status(500)
+        .json({ success: false, error: 'Failed to update project settings' });
     }
-
-    res.json({ success: true, data: result.rows[0], message: 'Project settings updated' });
-  } catch (error) {
-    console.error('Error updating project settings:', error);
-    res.status(500).json({ success: false, error: 'Failed to update project settings' });
   }
-});
+);
 
 // POST /api/projects/:id/clone - Clone an existing project
 router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
@@ -214,7 +236,9 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
     )) as { rows: Array<Record<string, any>> };
 
     if (source.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Source project not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: 'Source project not found' });
     }
 
     const src = source.rows[0];
@@ -225,7 +249,7 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
       // Insert cloned project
       await client.query(
         `INSERT INTO projects (id, name, description, owner_id, tags, version, author, maintainer_email, license, type, is_active, is_template, config, metadata, workspace_path, source_path, config_path, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true,false,$11,$12,NULL,NULL,NULL,$13)` ,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true,false,$11,$12,NULL,NULL,NULL,$13)`,
         [
           cloneId,
           cloneName,
@@ -265,11 +289,16 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
       );
     });
 
-    const cloned = (await Database.query(`SELECT * FROM projects WHERE id = $1`, [cloneId])) as {
+    const cloned = (await Database.query(
+      `SELECT * FROM projects WHERE id = $1`,
+      [cloneId]
+    )) as {
       rows: Array<Record<string, any>>;
     };
 
-    res.status(201).json({ success: true, data: cloned.rows[0], message: 'Project cloned' });
+    res
+      .status(201)
+      .json({ success: true, data: cloned.rows[0], message: 'Project cloned' });
   } catch (error) {
     console.error('Error cloning project:', error);
     res.status(500).json({ success: false, error: 'Failed to clone project' });

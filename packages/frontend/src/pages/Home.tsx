@@ -80,9 +80,12 @@ const Home: React.FC = () => {
       setRecentProjects(projects.slice(0, 5)); // Show last 5 projects
 
       // Load real stats
-      const overview = await ApiService.get<{ projects: number; modules: number; templates: number; datasets: number }>(
-        '/dashboard/stats'
-      );
+      const overview = await ApiService.get<{
+        projects: number;
+        modules: number;
+        templates: number;
+        datasets: number;
+      }>('/dashboard/stats');
       setStats({
         projects: overview.projects,
         modules: overview.modules,

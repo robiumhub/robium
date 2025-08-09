@@ -9,22 +9,32 @@ router.get('/', async (req: AuthRequest, res) => {
   try {
     const result = (await Database.query(
       `
-      WITH robots AS (
-        SELECT UNNEST(ARRAY['turtlebot3','turtlebot4','raspberrypi','nvidia-orin']) AS code
-      )
-      SELECT r.code,
-             CASE r.code
-               WHEN 'turtlebot3' THEN 'TurtleBot 3'
-               WHEN 'turtlebot4' THEN 'TurtleBot 4'
-               WHEN 'raspberrypi' THEN 'Raspberry Pi'
-               WHEN 'nvidia-orin' THEN 'NVIDIA Orin'
-               ELSE r.code
-             END AS name,
-             COUNT(m.id) AS module_count
-      FROM robots r
-      LEFT JOIN modules m ON m.is_active = true AND (m.supported_robots IS NOT NULL AND r.code = ANY(m.supported_robots))
-      GROUP BY r.code
-      ORDER BY name
+      SELECT 
+        robot_type as code,
+        CASE robot_type
+          WHEN 'turtlebot3' THEN 'TurtleBot 3'
+          WHEN 'pioneer3at' THEN 'Pioneer 3-AT'
+          WHEN 'kobuki' THEN 'Kobuki Base'
+          WHEN 'create3' THEN 'iRobot Create 3'
+          WHEN 'jackal' THEN 'Clearpath Jackal'
+          WHEN 'husky' THEN 'Clearpath Husky'
+          WHEN 'clearpath_robots' THEN 'Clearpath Robots'
+          WHEN 'pr2' THEN 'Willow Garage PR2'
+          WHEN 'fetch' THEN 'Fetch Robotics'
+          WHEN 'baxter' THEN 'Rethink Robotics Baxter'
+          ELSE INITCAP(REPLACE(robot_type, '_', ' '))
+        END AS name,
+        COUNT(m.id) AS module_count
+      FROM (
+        SELECT DISTINCT unnest(supported_robots) AS robot_type
+        FROM modules 
+        WHERE is_active = true 
+        AND supported_robots IS NOT NULL 
+        AND array_length(supported_robots, 1) > 0
+      ) AS robot_types
+      LEFT JOIN modules m ON robot_type = ANY(m.supported_robots) AND m.is_active = true
+      GROUP BY robot_type
+      ORDER BY module_count DESC, name ASC
       `
     )) as { rows: Array<{ code: string; name: string; module_count: number }> };
 

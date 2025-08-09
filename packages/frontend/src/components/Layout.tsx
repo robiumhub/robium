@@ -11,6 +11,12 @@ import {
   Toolbar,
   Typography,
   Divider,
+  AppBar,
+  IconButton,
+  Menu,
+  MenuItem,
+  Avatar,
+  Chip,
 } from '@mui/material';
 import {
   Settings as SettingsIcon,
@@ -22,6 +28,9 @@ import {
   Home as HomeIcon,
   Code as CodeIcon,
   SmartToy as RobotIcon,
+  AccountCircle as AccountIcon,
+  Logout as LogoutIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -36,7 +45,8 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user } = useAuth();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { activeMenuItem, setActiveMenuItem } = useNavigation();
 
@@ -50,6 +60,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setMobileOpen(false);
   };
 
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    handleUserMenuClose();
+    navigate('/login');
+  };
+
+  const handleProfile = () => {
+    handleUserMenuClose();
+    navigate('/profile');
+  };
+
   const menuItems = [
     { text: 'Home', icon: <HomeIcon />, path: '/' },
     { text: 'Projects', icon: <FolderIcon />, path: '/projects' },
@@ -61,7 +90,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   // Add admin menu item if user has admin role
-  if (user?.role === 'ADMIN') {
+  if (user?.role === 'admin') {
     menuItems.push({ text: 'Admin', icon: <AdminIcon />, path: '/admin' });
   }
 
@@ -100,6 +129,92 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       <CssBaseline />
+
+      {/* Top App Bar */}
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { sm: `${drawerWidth}px` },
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: 'white',
+          color: 'text.primary',
+          boxShadow: 1,
+        }}
+      >
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{ color: 'primary.main' }}
+            >
+              Robium Platform
+            </Typography>
+          </Box>
+
+          {/* User Menu */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {user && (
+              <>
+                <Chip
+                  label={user.role === 'admin' ? 'Admin' : 'User'}
+                  size="small"
+                  color={user.role === 'admin' ? 'error' : 'default'}
+                  variant="outlined"
+                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {user.username}
+                  </Typography>
+                  <IconButton
+                    onClick={handleUserMenuOpen}
+                    sx={{ color: 'primary.main' }}
+                    aria-label="user menu"
+                  >
+                    <Avatar
+                      sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
+                    >
+                      <AccountIcon />
+                    </Avatar>
+                  </IconButton>
+                </Box>
+              </>
+            )}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* User Menu Dropdown */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleUserMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={handleProfile}>
+          <ListItemIcon>
+            <PersonIcon fontSize="small" />
+          </ListItemIcon>
+          Profile
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          Logout
+        </MenuItem>
+      </Menu>
+
       <Box
         component="nav"
         id="main-navigation"
@@ -151,6 +266,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
           background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Same gradient as home page
+          pt: '64px', // Add top padding to account for the AppBar
         }}
       >
         {/* Breadcrumb Section - Unified for all pages */}

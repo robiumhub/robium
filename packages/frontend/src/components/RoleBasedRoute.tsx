@@ -4,8 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
 interface RoleBasedRouteProps {
-  children: ReactNode;
-  allowedRoles: ('USER' | 'ADMIN')[];
+  children: React.ReactNode;
+  allowedRoles: ('user' | 'admin')[];
   fallbackPath?: string;
 }
 

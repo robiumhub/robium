@@ -5,7 +5,7 @@ export interface User {
   id: string;
   email: string;
   username: string;
-  role: 'USER' | 'ADMIN';
+  role: 'user' | 'admin';
 }
 
 export interface LoginRequest {
@@ -33,8 +33,8 @@ export interface ApiResponse<T = any> {
 }
 
 // API Configuration
-// Prefer proxy-friendly relative base in development
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+// Use proxy in development, direct URL in production
+const API_BASE_URL = process.env.NODE_ENV === 'development' ? '/api' : (process.env.REACT_APP_API_URL || '/api');
 
 // Create axios instance
 const api: AxiosInstance = axios.create({

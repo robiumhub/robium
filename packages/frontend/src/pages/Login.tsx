@@ -2,11 +2,17 @@ import React from 'react';
 import { Box, Paper, Typography, Link, Alert } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useEffect } from 'react';
 import AccessibleForm from '../components/AccessibleForm';
 
 const Login: React.FC = () => {
-  const { login, error } = useAuth();
+  const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
+
+  // Clear any persisted auth error when visiting the login page
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
 
   const loginFields = [
     {
@@ -25,9 +31,6 @@ const Login: React.FC = () => {
       label: 'Password',
       type: 'password' as const,
       required: true,
-      validation: {
-        minLength: 6,
-      },
       placeholder: 'Enter your password',
       helperText: 'Enter your password',
     },

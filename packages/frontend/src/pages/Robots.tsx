@@ -1,28 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Grid, Card, CardContent, Typography, Chip } from '@mui/material';
-import { ApiService } from '../services/api';
-
-interface RobotInfo {
-  code: string;
-  name: string;
-  module_count: number;
-}
+import { RobotsService, Robot } from '../services/robotsService';
 
 const Robots: React.FC = () => {
-  const [robots, setRobots] = useState<RobotInfo[]>([]);
+  const [robots, setRobots] = useState<Robot[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await ApiService.get<any[]>('/robots');
-        setRobots(Array.isArray(data) ? data : []);
+        setLoading(true);
+        const robotsData = await RobotsService.getRobots();
+        setRobots(robotsData);
       } catch (e) {
-        setRobots([
-          { code: 'turtlebot3', name: 'TurtleBot 3', module_count: 0 },
-          { code: 'turtlebot4', name: 'TurtleBot 4', module_count: 0 },
-          { code: 'raspberrypi', name: 'Raspberry Pi', module_count: 0 },
-          { code: 'nvidia-orin', name: 'NVIDIA Orin', module_count: 0 },
-        ]);
+        console.error('Failed to load robots:', e);
+        setRobots([]);
+      } finally {
+        setLoading(false);
       }
     };
     load();
@@ -36,22 +30,28 @@ const Robots: React.FC = () => {
       <Typography variant="body2" color="text.secondary" gutterBottom>
         Currently supported robots and their available modules
       </Typography>
-      <Grid container spacing={3}>
-        {robots.map((r) => (
-          <Grid key={r.code} item xs={12} sm={6} md={4} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6">{r.name}</Typography>
-                <Chip
-                  label={`${r.module_count} modules`}
-                  size="small"
-                  sx={{ mt: 1 }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      {loading ? (
+        <Typography>Loading robots...</Typography>
+      ) : robots.length === 0 ? (
+        <Typography color="text.secondary">No robots found.</Typography>
+      ) : (
+        <Grid container spacing={3}>
+          {robots.map((r) => (
+            <Grid key={r.code} item xs={12} sm={6} md={4} lg={3}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{r.name}</Typography>
+                  <Chip
+                    label={`${r.module_count} modules`}
+                    size="small"
+                    sx={{ mt: 1 }}
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Box>
   );
 };

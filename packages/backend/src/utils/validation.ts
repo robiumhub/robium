@@ -23,8 +23,7 @@ export const userValidationSchemas = {
       'any.required': 'Username is required',
     }),
 
-    password: Joi.string().min(6).max(128).required().messages({
-      'string.min': 'Password must be at least 6 characters long',
+    password: Joi.string().max(128).required().messages({
       'string.max': 'Password cannot exceed 128 characters',
       'any.required': 'Password is required',
     }),
@@ -70,8 +69,7 @@ export const userValidationSchemas = {
       'any.required': 'Current password is required',
     }),
 
-    newPassword: Joi.string().min(6).max(128).required().messages({
-      'string.min': 'New password must be at least 6 characters long',
+    newPassword: Joi.string().max(128).required().messages({
       'string.max': 'New password cannot exceed 128 characters',
       'any.required': 'New password is required',
     }),
@@ -162,17 +160,14 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 // Helper function to check password strength
-export const checkPasswordStrength = (
-  password: string
-): {
+export const checkPasswordStrength = (): {
   isStrong: boolean;
   issues: string[];
 } => {
   const issues: string[] = [];
 
-  if (password.length < 6) {
-    issues.push('Password must be at least 6 characters long');
-  }
+  // Password strength checks can be added here if needed in the future
+  // For now, any non-empty password is considered valid
 
   return {
     isStrong: issues.length === 0,

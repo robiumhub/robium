@@ -24,6 +24,7 @@
     "test:dockerfile-generation": "ts-node src/scripts/test-dockerfile-generation.ts",
     "test:docker-compose-generation": "ts-node src/scripts/test-docker-compose-generation.ts",
     "test:workspace-configuration": "ts-node src/scripts/test-workspace-configuration.ts",
+    "admin:promote": "ts-node src/scripts/promote-user.ts",
     "migrate": "ts-node src/scripts/migrate.ts",
     "migrate:up": "ts-node src/scripts/migrate.ts up",
     "migrate:down": "ts-node src/scripts/migrate.ts down",

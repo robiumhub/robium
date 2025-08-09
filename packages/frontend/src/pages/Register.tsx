@@ -62,9 +62,6 @@ const Register: React.FC = () => {
     if (!password) {
       setPasswordError('Password is required');
       isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      isValid = false;
     }
 
     // Validate confirm password
@@ -184,9 +181,7 @@ const Register: React.FC = () => {
               setPassword(e.target.value)
             }
             error={!!passwordError}
-            helperText={
-              passwordError || 'Password must be at least 6 characters'
-            }
+            helperText={passwordError || 'Enter your password'}
             disabled={isSubmitting}
           />
           <TextField

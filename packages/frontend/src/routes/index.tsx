@@ -267,7 +267,7 @@ export const routes: RouteConfig[] = [
   {
     path: '/admin',
     element: (
-      <RoleBasedRoute allowedRoles={['ADMIN']}>
+      <RoleBasedRoute allowedRoles={['admin']}>
         <Layout>
           <React.Suspense fallback={<div>Loading...</div>}>
             <AdminDashboard />
@@ -279,7 +279,7 @@ export const routes: RouteConfig[] = [
       title: 'Admin Dashboard',
       description: 'Administrative controls and system management',
       requiresAuth: true,
-      allowedRoles: ['ADMIN'],
+      allowedRoles: ['admin'],
       breadcrumb: 'Admin',
       icon: 'admin_panel_settings',
     },

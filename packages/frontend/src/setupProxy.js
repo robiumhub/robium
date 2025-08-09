@@ -73,4 +73,22 @@ module.exports = function (app) {
       },
     })
   );
+
+  app.use(
+    '/api/dashboard',
+    createProxyMiddleware({
+      target: 'http://localhost:8000',
+      changeOrigin: true,
+      pathRewrite: {
+        '^/api/dashboard': '/dashboard', // Remove /api prefix when forwarding to backend
+      },
+      onError: (err, req, res) => {
+        console.error('Proxy error:', err);
+        res.status(500).json({
+          error: 'Proxy error',
+          message: 'Backend server is not responding',
+        });
+      },
+    })
+  );
 };

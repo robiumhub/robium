@@ -265,9 +265,19 @@ const Projects: React.FC = () => {
     navigate(`/projects/${project.id}/edit`);
   };
 
-  const handleCloneProject = (project: Project) => {
-    // TODO: Implement clone functionality
-    console.log('Clone project:', project.id);
+  const handleCloneProject = async (project: Project) => {
+    try {
+      setError(null);
+      // Call backend clone endpoint
+      const cloned = await ApiService.post<Project>(
+        `/projects/${project.id}/clone`
+      );
+      // Optimistically add to list
+      setProjects((prev) => [cloned as Project, ...prev]);
+    } catch (err) {
+      console.error('Failed to clone project:', err);
+      setError(err instanceof Error ? err.message : 'Failed to clone project');
+    }
   };
 
   const handleExportProject = (project: Project) => {

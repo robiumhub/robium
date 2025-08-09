@@ -88,20 +88,18 @@ const Templates: React.FC = () => {
 
     try {
       setCloning(true);
-      // In real app: await ApiService.post('/projects/clone', { templateId: selectedTemplate.id, name: newProjectName });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Use project clone API; backend names clone automatically
+      const cloned = await ApiService.post<any>(
+        `/projects/${selectedTemplate.id}/clone`
+      );
 
       setCloneDialogOpen(false);
       setSelectedTemplate(null);
       setNewProjectName('');
-
-      // Navigate to the new project
-      // In real app, you'd get the new project ID from the API response
-      navigate('/projects');
+      navigate(`/projects`);
     } catch (err) {
-      setError('Failed to clone template');
+      setError(err instanceof Error ? err.message : 'Failed to clone template');
       console.error('Error cloning template:', err);
     } finally {
       setCloning(false);
