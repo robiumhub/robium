@@ -52,6 +52,7 @@ npm run kill-ports
 ### ROS Workspace Setup
 
 #### Option 1: Local Development
+
 ```bash
 # Set up ROS workspace
 cd ros
@@ -65,11 +66,12 @@ source install/setup.bash
 ```
 
 #### Option 2: Containerized Development (Recommended)
+
 ```bash
 # Build and enter container
 cd ros
-docker-compose up --build -d
-docker-compose exec ros-workspace bash
+docker compose up --build -d
+docker compose exec ros-workspace bash
 
 # Inside container, workspace is already set up and built
 ./ros help
