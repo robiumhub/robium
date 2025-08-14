@@ -3,6 +3,13 @@ import { logger } from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
 import { promises as fsPromises } from 'fs';
+import {
+  ModuleLoader,
+  ROSProjectConfig,
+  ModuleSpec,
+  RobotSpec,
+} from '@robium/shared';
+import Handlebars from 'handlebars';
 
 export interface ProjectConfiguration {
   id: string;
@@ -70,6 +77,40 @@ export interface DockerfileValidation {
   errors: string[];
   warnings: string[];
   suggestions: string[];
+}
+
+// ROS-specific interfaces
+export interface ROSDockerfileOptions extends DockerfileOptions {
+  buildProfile?: 'development' | 'production';
+  includeCompose?: boolean;
+  includeBake?: boolean;
+  outputDir?: string;
+}
+
+export interface ROSDockerfileResult extends DockerfileResult {
+  composeContent?: string;
+  bakeContent?: string;
+  composePath?: string;
+  bakePath?: string;
+}
+
+export interface ROSGenerationContext {
+  distro: string;
+  robot: RobotSpec;
+  modules: ModuleSpec[];
+  customizations: {
+    udevRules: string[];
+    env: Record<string, string>;
+    expose: number[];
+    files: Array<{
+      path: string;
+      contents: string;
+    }>;
+    bashrcAliases: string[];
+  };
+  buildProfile: 'development' | 'production';
+  workdir: string;
+  user: string;
 }
 
 export class DockerfileGenerationService {
@@ -270,7 +311,10 @@ CMD ["bash"]
 
     templateEngine.registerTemplate('python-dockerfile', pythonTemplate);
     templateEngine.registerTemplate('nodejs-dockerfile', nodejsTemplate);
-    templateEngine.registerTemplate('multistage-dockerfile', multiStageTemplate);
+    templateEngine.registerTemplate(
+      'multistage-dockerfile',
+      multiStageTemplate
+    );
 
     logger.info('Initialized default Dockerfile templates');
   }
@@ -311,18 +355,23 @@ CMD ["bash"]
       }
 
       // Determine template to use
-      const templateName = options.template || this.getDefaultTemplate(config.type);
-      
+      const templateName =
+        options.template || this.getDefaultTemplate(config.type);
+
       // Prepare context for template processing
       const context = this.prepareTemplateContext(config);
 
       // Process template
-      const templateResult = templateEngine.processTemplate(templateName, context, {
-        validateOnly: options.validateOnly
-      });
+      const templateResult = templateEngine.processTemplate(
+        templateName,
+        context,
+        {
+          validateOnly: options.validateOnly,
+        }
+      );
 
       if (templateResult.errors.length > 0) {
-        errors.push(...templateResult.errors.map(e => e.message));
+        errors.push(...templateResult.errors.map((e) => e.message));
       }
 
       if (templateResult.warnings.length > 0) {
@@ -330,14 +379,19 @@ CMD ["bash"]
       }
 
       // Validate generated Dockerfile
-      const validation = this.validateDockerfile(templateResult.content, config);
+      const validation = this.validateDockerfile(
+        templateResult.content,
+        config
+      );
       errors.push(...validation.errors);
       warnings.push(...validation.warnings);
       optimizationSuggestions.push(...validation.suggestions);
 
       // Security scan if requested
       if (options.securityScan) {
-        const securityScan = this.securityScanDockerfile(templateResult.content);
+        const securityScan = this.securityScanDockerfile(
+          templateResult.content
+        );
         securityIssues.push(...securityScan);
       }
 
@@ -353,7 +407,8 @@ CMD ["bash"]
       }
 
       // Determine output path
-      const outputPath = options.outputPath || this.generateOutputPath(projectId, config);
+      const outputPath =
+        options.outputPath || this.generateOutputPath(projectId, config);
 
       // Write file if not validate-only
       if (!options.validateOnly) {
@@ -374,13 +429,15 @@ CMD ["bash"]
       // Store result
       this.generatedFiles.set(projectId, result);
 
-      logger.info(`Dockerfile generated for project ${config.name} in ${result.buildTime}ms`);
+      logger.info(
+        `Dockerfile generated for project ${config.name} in ${result.buildTime}ms`
+      );
       return result;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       errors.push(errorMessage);
-      
+
       return {
         content: '',
         path: '',
@@ -456,7 +513,10 @@ CMD ["bash"]
   /**
    * Validate generated Dockerfile
    */
-  private validateDockerfile(content: string, config: ProjectConfiguration): DockerfileValidation {
+  private validateDockerfile(
+    content: string,
+    config: ProjectConfiguration
+  ): DockerfileValidation {
     const errors: string[] = [];
     const warnings: string[] = [];
     const suggestions: string[] = [];
@@ -471,13 +531,21 @@ CMD ["bash"]
     }
 
     // Check for security issues
-    if (content.includes('RUN apt-get update') && !content.includes('rm -rf /var/lib/apt/lists/')) {
+    if (
+      content.includes('RUN apt-get update') &&
+      !content.includes('rm -rf /var/lib/apt/lists/')
+    ) {
       warnings.push('Consider cleaning up apt cache to reduce image size');
     }
 
     // Check for optimization opportunities
-    if (content.includes('COPY . .') && content.includes('COPY package*.json')) {
-      suggestions.push('Consider copying package files before copying all files for better layer caching');
+    if (
+      content.includes('COPY . .') &&
+      content.includes('COPY package*.json')
+    ) {
+      suggestions.push(
+        'Consider copying package files before copying all files for better layer caching'
+      );
     }
 
     if (content.includes('USER root') || !content.includes('USER')) {
@@ -486,11 +554,15 @@ CMD ["bash"]
 
     // Check for project-specific validations
     if (config.type === 'python' && !content.includes('pip install')) {
-      warnings.push('Python project should include pip install for dependencies');
+      warnings.push(
+        'Python project should include pip install for dependencies'
+      );
     }
 
     if (config.type === 'nodejs' && !content.includes('npm install')) {
-      warnings.push('Node.js project should include npm install for dependencies');
+      warnings.push(
+        'Node.js project should include npm install for dependencies'
+      );
     }
 
     return {
@@ -572,15 +644,23 @@ CMD ["bash"]
   /**
    * Generate output path for Dockerfile
    */
-  private generateOutputPath(projectId: string, config: ProjectConfiguration): string {
-    const filename = `Dockerfile.${config.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+  private generateOutputPath(
+    projectId: string,
+    config: ProjectConfiguration
+  ): string {
+    const filename = `Dockerfile.${config.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')}`;
     return path.join(this.defaultOutputDir, projectId, filename);
   }
 
   /**
    * Write Dockerfile to disk
    */
-  private async writeDockerfile(filePath: string, content: string): Promise<void> {
+  private async writeDockerfile(
+    filePath: string,
+    content: string
+  ): Promise<void> {
     try {
       // Ensure directory exists
       const dir = path.dirname(filePath);
@@ -590,7 +670,11 @@ CMD ["bash"]
       await fsPromises.writeFile(filePath, content, 'utf8');
       logger.info(`Dockerfile written to: ${filePath}`);
     } catch (error) {
-      logger.error(`Failed to write Dockerfile to ${filePath}:`, undefined, error as Error);
+      logger.error(
+        `Failed to write Dockerfile to ${filePath}:`,
+        undefined,
+        error as Error
+      );
       throw error;
     }
   }
@@ -656,6 +740,358 @@ CMD ["bash"]
     };
   }
 
+  // ROS-specific methods
+  private moduleLoader: ModuleLoader = new ModuleLoader();
+
+  /**
+   * Initialize ROS module loader
+   */
+  async initializeROSModules(): Promise<void> {
+    try {
+      await this.moduleLoader.loadModules();
+      logger.info('ROS module loader initialized successfully');
+    } catch (error) {
+      logger.error(
+        'Failed to initialize ROS module loader:',
+        undefined,
+        error as Error
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Generate ROS Dockerfiles with multi-stage support
+   */
+  async generateROSDockerfiles(
+    config: ROSProjectConfig,
+    options: ROSDockerfileOptions = {}
+  ): Promise<ROSDockerfileResult> {
+    const startTime = Date.now();
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const optimizationSuggestions: string[] = [];
+    const securityIssues: string[] = [];
+
+    try {
+      // Ensure module loader is initialized
+      await this.initializeROSModules();
+
+      // Get robot and modules
+      const robot = this.moduleLoader.getRobot(config.robot);
+      if (!robot) {
+        throw new Error(`Robot not found: ${config.robot}`);
+      }
+
+      const modules = config.modules
+        .map((id) => this.moduleLoader.getModule(id))
+        .filter(Boolean) as ModuleSpec[];
+
+      // Resolve dependencies
+      const resolvedModuleIds = this.moduleLoader.resolveDependencies(
+        config.modules
+      );
+      const resolvedModules = resolvedModuleIds
+        .map((id) => this.moduleLoader.getModule(id))
+        .filter(Boolean) as ModuleSpec[];
+
+      // Prepare generation context
+      const context: ROSGenerationContext = {
+        distro: config.distro,
+        robot,
+        modules: resolvedModules,
+        customizations: config.customizations,
+        buildProfile: config.buildProfile || 'development',
+        workdir: '/ros_workspace',
+        user: 'rosuser',
+      };
+
+      // Generate multi-stage Dockerfile
+      const dockerfileContent = await this.generateMultiStageDockerfile(
+        context
+      );
+
+      // Generate docker-compose.yml if requested
+      let composeContent: string | undefined;
+      let composePath: string | undefined;
+      if (options.includeCompose) {
+        composeContent = await this.generateDockerCompose(context);
+        composePath = path.join(
+          options.outputDir || this.defaultOutputDir,
+          'docker-compose.yml'
+        );
+      }
+
+      // Generate docker-bake.hcl if requested
+      let bakeContent: string | undefined;
+      let bakePath: string | undefined;
+      if (options.includeBake) {
+        bakeContent = await this.generateDockerBake(context);
+        bakePath = path.join(
+          options.outputDir || this.defaultOutputDir,
+          'docker-bake.hcl'
+        );
+      }
+
+      // Write files if not validate-only
+      if (!options.validateOnly) {
+        const outputDir = options.outputDir || this.defaultOutputDir;
+        await fsPromises.mkdir(outputDir, { recursive: true });
+
+        // Write Dockerfile
+        const dockerfilePath = path.join(outputDir, 'Dockerfile');
+        await fsPromises.writeFile(dockerfilePath, dockerfileContent, 'utf8');
+
+        // Write docker-compose.yml
+        if (composeContent && composePath) {
+          await fsPromises.writeFile(composePath, composeContent, 'utf8');
+        }
+
+        // Write docker-bake.hcl
+        if (bakeContent && bakePath) {
+          await fsPromises.writeFile(bakePath, bakeContent, 'utf8');
+        }
+      }
+
+      const result: ROSDockerfileResult = {
+        content: dockerfileContent,
+        path: path.join(
+          options.outputDir || this.defaultOutputDir,
+          'Dockerfile'
+        ),
+        errors,
+        warnings,
+        optimizationSuggestions,
+        securityIssues,
+        buildTime: Date.now() - startTime,
+        size: dockerfileContent.length,
+        composeContent,
+        bakeContent,
+        composePath,
+        bakePath,
+      };
+
+      logger.info(
+        `ROS Dockerfiles generated for ${robot.title} in ${result.buildTime}ms`
+      );
+      return result;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      errors.push(errorMessage);
+
+      return {
+        content: '',
+        path: '',
+        errors,
+        warnings,
+        optimizationSuggestions,
+        securityIssues,
+        buildTime: Date.now() - startTime,
+        size: 0,
+      };
+    }
+  }
+
+  /**
+   * Generate multi-stage Dockerfile for ROS
+   */
+  private async generateMultiStageDockerfile(
+    context: ROSGenerationContext
+  ): Promise<string> {
+    const { robot, modules, customizations, distro, workdir, user } = context;
+
+    // Load templates
+    const baseTemplate = await this.loadTemplate('base.hbs');
+    const robotTemplate = await this.loadTemplate('robot.hbs');
+    const moduleTemplate = await this.loadTemplate('module.hbs');
+    const customizationsTemplate = await this.loadTemplate(
+      'customizations.hbs'
+    );
+
+    // Generate base stage
+    const baseContext = {
+      distro,
+      baseImage: robot.baseImage,
+      workdir,
+      apt: robot.apt,
+      pip: robot.pip,
+    };
+    const baseStage = baseTemplate(baseContext);
+
+    // Generate robot stage
+    const robotContext = {
+      robotName: robot.title,
+      baseImage: 'base',
+      apt: robot.apt,
+      pip: robot.pip,
+      env: robot.env,
+      setupCommands: robot.setupCommands,
+    };
+    const robotStage = robotTemplate(robotContext);
+
+    // Generate module stages
+    const moduleStages = modules
+      .map((module) => {
+        const moduleContext = {
+          moduleName: module.title,
+          baseImage: 'robot',
+          apt: module.apt,
+          pip: module.pip,
+          env: module.env,
+          setupCommands: module.setupCommands,
+        };
+        return moduleTemplate(moduleContext);
+      })
+      .join('\n\n');
+
+    // Generate customizations stage
+    const customizationsContext = {
+      baseImage: modules.length > 0 ? 'module' : 'robot',
+      workdir,
+      udevRules: [...(robot.udevRules || []), ...customizations.udevRules],
+      files: [...(robot.files || []), ...customizations.files],
+      rosDistro: distro,
+      user,
+      bashrcAliases: [
+        ...(robot.bashrcAliases || []),
+        ...customizations.bashrcAliases,
+      ],
+      env: { ...robot.env, ...customizations.env },
+      expose: [...(robot.expose || []), ...customizations.expose],
+    };
+    const customizationsStage = customizationsTemplate(customizationsContext);
+
+    // Combine all stages
+    return `${baseStage}\n\n${robotStage}\n\n${moduleStages}\n\n${customizationsStage}`;
+  }
+
+  /**
+   * Generate docker-compose.yml for ROS
+   */
+  private async generateDockerCompose(
+    context: ROSGenerationContext
+  ): Promise<string> {
+    const { robot, customizations, workdir } = context;
+
+    const composeTemplate = `version: '3.8'
+
+services:
+  ros-workspace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: robium-ros-${robot.id}
+    volumes:
+      - .:${workdir}
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=\${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+{{#each env}}
+      - {{@key}}={{this}}
+{{/each}}
+    working_dir: ${workdir}
+    command: tail -f /dev/null
+    stdin_open: true
+    tty: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+{{#each expose}}
+    ports:
+      - "{{this}}:{{this}}"
+{{/each}}`;
+
+    const template = Handlebars.compile(composeTemplate);
+    return template({
+      env: { ...robot.env, ...customizations.env },
+      expose: [...(robot.expose || []), ...customizations.expose],
+    });
+  }
+
+  /**
+   * Generate docker-bake.hcl for ROS
+   */
+  private async generateDockerBake(
+    context: ROSGenerationContext
+  ): Promise<string> {
+    const { robot, modules, distro } = context;
+
+    const bakeTemplate = await this.loadTemplate('bake.hcl');
+
+    const stages = [
+      {
+        id: 'base',
+        dockerfile: 'Dockerfile',
+        args: { BASE: robot.baseImage },
+        tags: [`robium/ros-${robot.id}:${distro}-base`],
+      },
+      {
+        id: 'robot',
+        dockerfile: 'Dockerfile',
+        args: { BASE: 'base' },
+        tags: [`robium/ros-${robot.id}:${distro}-robot`],
+      },
+      ...modules.map((module) => ({
+        id: module.id,
+        dockerfile: 'Dockerfile',
+        args: { BASE: 'robot' },
+        tags: [`robium/ros-${robot.id}:${distro}-${module.id}`],
+      })),
+      {
+        id: 'final',
+        dockerfile: 'Dockerfile',
+        args: {
+          BASE: modules.length > 0 ? modules[modules.length - 1].id : 'robot',
+        },
+        tags: [`robium/ros-${robot.id}:${distro}-latest`],
+      },
+    ];
+
+    return bakeTemplate({
+      targets: stages.map((s) => s.id),
+      stages,
+    });
+  }
+
+  /**
+   * Load Handlebars template from file
+   */
+  private async loadTemplate(
+    templateName: string
+  ): Promise<Handlebars.TemplateDelegate> {
+    const templatePath = path.join(
+      __dirname,
+      '..',
+      'templates',
+      'dockerfile',
+      templateName
+    );
+    const templateContent = await fsPromises.readFile(templatePath, 'utf8');
+    return Handlebars.compile(templateContent);
+  }
+
+  /**
+   * Get available ROS distributions
+   */
+  getROSDistros(): string[] {
+    return ['humble', 'foxy', 'noetic', 'iron'];
+  }
+
+  /**
+   * Get available robots for a distribution
+   */
+  getRobotsByDistro(distro: string): RobotSpec[] {
+    return this.moduleLoader.getRobotsByDistro(distro);
+  }
+
+  /**
+   * Get compatible modules for a robot
+   */
+  getCompatibleModules(robotId: string): ModuleSpec[] {
+    return this.moduleLoader.getCompatibleModules(robotId);
+  }
+
   /**
    * Clean up old generated files
    */
@@ -681,4 +1117,4 @@ CMD ["bash"]
 }
 
 // Export singleton instance
-export const dockerfileGenerationService = new DockerfileGenerationService(); 
+export const dockerfileGenerationService = new DockerfileGenerationService();

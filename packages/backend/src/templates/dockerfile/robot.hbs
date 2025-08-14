@@ -1,0 +1,29 @@
+#
+{{robotName}}
+robot layer ARG BASE={{baseImage}}
+FROM ${BASE} # Install robot-specific packages RUN apt-get update && apt-get
+install -y \
+{{#each apt}}
+  {{this}}
+  \
+{{/each}}
+&& rm -rf /var/lib/apt/lists/* # Install robot-specific Python dependencies if
+any
+{{#if pip.length}}
+  RUN python3 -m pip install --upgrade pip && pip3 install \
+  {{#each pip}}
+    {{this}}
+    \
+  {{/each}}
+{{/if}}
+
+# Robot-specific environment variables
+{{#each env}}ENV
+  {{@key}}={{this}}
+{{/each}}
+
+# Robot-specific setup commands
+{{#each setupCommands}}
+  RUN
+  {{this}}
+{{/each}}

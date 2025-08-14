@@ -3,6 +3,8 @@ import { Database } from '../utils/database';
 import { AuthRequest } from '../types';
 import { authenticateToken } from '../middleware/auth';
 import crypto from 'crypto';
+import { dockerfileGenerationService } from '../services/DockerfileGenerationService';
+import { ROSProjectConfig } from '@robium/shared';
 
 const router = express.Router();
 
@@ -521,6 +523,179 @@ router.get('/:id/files', async (req: AuthRequest, res) => {
   }
 });
 
+// ROS-specific endpoints
+
+// GET /api/projects/ros/distros - Get available ROS distributions
+router.get('/ros/distros', async (req: AuthRequest, res) => {
+  try {
+    const distros = dockerfileGenerationService.getROSDistros();
+    res.json({
+      success: true,
+      data: distros,
+    });
+  } catch (error) {
+    console.error('Error fetching ROS distributions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ROS distributions',
+    });
+  }
+});
+
+// GET /api/projects/ros/robots - Get available robots for a distribution
+router.get('/ros/robots', async (req: AuthRequest, res) => {
+  try {
+    const { distro } = req.query;
+
+    if (!distro || typeof distro !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Distribution parameter is required',
+      });
+    }
+
+    const robots = dockerfileGenerationService.getRobotsByDistro(distro);
+    res.json({
+      success: true,
+      data: robots,
+    });
+  } catch (error) {
+    console.error('Error fetching ROS robots:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ROS robots',
+    });
+  }
+});
+
+// GET /api/projects/ros/modules - Get compatible modules for a robot
+router.get('/ros/modules', async (req: AuthRequest, res) => {
+  try {
+    const { robot } = req.query;
+
+    if (!robot || typeof robot !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Robot parameter is required',
+      });
+    }
+
+    const modules = dockerfileGenerationService.getCompatibleModules(robot);
+    res.json({
+      success: true,
+      data: modules,
+    });
+  } catch (error) {
+    console.error('Error fetching ROS modules:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ROS modules',
+    });
+  }
+});
+
+// POST /api/projects/ros/generate - Generate ROS Dockerfiles
+router.post(
+  '/ros/generate',
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const config: ROSProjectConfig = req.body;
+
+      // Validate required fields
+      if (!config.distro || !config.robot) {
+        return res.status(400).json({
+          success: false,
+          error: 'Distribution and robot are required',
+        });
+      }
+
+      const result = await dockerfileGenerationService.generateROSDockerfiles(
+        config,
+        {
+          includeCompose: true,
+          includeBake: true,
+          validateOnly: false,
+        }
+      );
+
+      if (result.errors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Failed to generate ROS Dockerfiles',
+          errors: result.errors,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          dockerfile: result.content,
+          compose: result.composeContent,
+          bake: result.bakeContent,
+          paths: {
+            dockerfile: result.path,
+            compose: result.composePath,
+            bake: result.bakePath,
+          },
+        },
+        message: 'ROS Dockerfiles generated successfully',
+      });
+    } catch (error) {
+      console.error('Error generating ROS Dockerfiles:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate ROS Dockerfiles',
+      });
+    }
+  }
+);
+
+// POST /api/projects/ros/preview - Preview ROS Dockerfiles without saving
+router.post(
+  '/ros/preview',
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      const config: ROSProjectConfig = req.body;
+
+      // Validate required fields
+      if (!config.distro || !config.robot) {
+        return res.status(400).json({
+          success: false,
+          error: 'Distribution and robot are required',
+        });
+      }
+
+      const result = await dockerfileGenerationService.generateROSDockerfiles(
+        config,
+        {
+          includeCompose: true,
+          includeBake: true,
+          validateOnly: true,
+        }
+      );
+
+      res.json({
+        success: true,
+        data: {
+          dockerfile: result.content,
+          compose: result.composeContent,
+          bake: result.bakeContent,
+          warnings: result.warnings,
+          optimizationSuggestions: result.optimizationSuggestions,
+        },
+      });
+    } catch (error) {
+      console.error('Error previewing ROS Dockerfiles:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to preview ROS Dockerfiles',
+      });
+    }
+  }
+);
+
 // POST /api/projects - Create a new project
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -531,6 +706,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       tags = [],
       algorithms = [],
       is_template = false,
+      rosConfig = null,
     } = req.body;
 
     // Validate required fields
@@ -597,6 +773,80 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
          VALUES ${rows.join(', ')}`,
         insertParams
       );
+    }
+
+    // Handle ROS configuration if provided
+    if (rosConfig && typeof rosConfig === 'object') {
+      try {
+        // Generate ROS Dockerfiles
+        const rosResult =
+          await dockerfileGenerationService.generateROSDockerfiles(rosConfig, {
+            includeCompose: true,
+            includeBake: true,
+            validateOnly: false,
+            outputDir: `./generated/${projectId}`,
+          });
+
+        if (rosResult.errors.length > 0) {
+          console.warn(
+            'ROS Dockerfile generation had errors:',
+            rosResult.errors
+          );
+        }
+
+        // Update project with ROS configuration
+        await Database.query(
+          `UPDATE projects SET 
+           config = COALESCE(config, '{}'::jsonb) || $1::jsonb,
+           metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+           WHERE id = $3`,
+          [
+            JSON.stringify({ ros: rosConfig }),
+            JSON.stringify({
+              rosGenerated: true,
+              rosFiles: {
+                dockerfile: rosResult.path,
+                compose: rosResult.composePath,
+                bake: rosResult.bakePath,
+              },
+            }),
+            projectId,
+          ]
+        );
+
+        // Add ROS modules to project dependencies
+        if (rosConfig.modules && Array.isArray(rosConfig.modules)) {
+          const rosModules = rosConfig.modules.map(
+            (moduleId: string, index: number) => ({
+              projectId,
+              moduleId,
+              orderIndex: algorithms.length + index, // Append after existing algorithms
+            })
+          );
+
+          if (rosModules.length > 0) {
+            const rosRows: string[] = [];
+            const rosParams: any[] = [];
+            let param = 1;
+
+            for (const { projectId, moduleId, orderIndex } of rosModules) {
+              rosRows.push(
+                `($${param++}, $${param++}, 'required', NULL, $${param++})`
+              );
+              rosParams.push(projectId, moduleId, orderIndex);
+            }
+
+            await Database.query(
+              `INSERT INTO project_module_dependencies (project_id, module_id, dependency_type, version_constraint, order_index)
+               VALUES ${rosRows.join(', ')}`,
+              rosParams
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Error handling ROS configuration:', error);
+        // Don't fail the entire project creation, just log the error
+      }
     }
 
     res.status(201).json({

@@ -1,0 +1,32 @@
+#
+{{moduleName}}
+module layer ARG BASE={{baseImage}}
+FROM ${BASE} # Install module-specific system packages
+{{#if apt.length}}
+  RUN apt-get update && apt-get install -y \
+  {{#each apt}}
+    {{this}}
+    \
+  {{/each}}
+  && rm -rf /var/lib/apt/lists/*
+{{/if}}
+
+# Install module-specific Python packages
+{{#if pip.length}}
+  RUN python3 -m pip install --upgrade pip && pip3 install \
+  {{#each pip}}
+    {{this}}
+    \
+  {{/each}}
+{{/if}}
+
+# Module-specific environment variables
+{{#each env}}ENV
+  {{@key}}={{this}}
+{{/each}}
+
+# Module-specific setup commands
+{{#each setupCommands}}
+  RUN
+  {{this}}
+{{/each}}

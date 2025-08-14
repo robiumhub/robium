@@ -11,7 +11,7 @@ export {
   ros2PackageSchema,
   environmentConfigSchema,
   simulationConfigSchema,
-  projectConfigSchema
+  projectConfigSchema,
 };
 
 // Export validation utilities (to be implemented)
@@ -23,7 +23,11 @@ export * from './types/project-config';
 export * from './types/ros2-package';
 export * from './types/environment-config';
 export * from './types/simulation-config';
+export * from './types/ros-modules';
 
 // Export utilities (to be implemented)
 export * from './utils/schema-loader';
-export * from './utils/config-migrator'; 
+export * from './utils/config-migrator';
+
+// Export ROS modules
+export * from './modules';

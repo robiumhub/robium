@@ -1549,15 +1549,85 @@
               "24.4"
             ],
             "details": "Set up logging for API access and dashboard interactions. Apply encryption for sensitive data in transit and at rest. Review and document compliance with relevant data protection standards.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": "Test logging and monitoring outputs for completeness. Perform security audits and penetration testing. Validate compliance with organizational and regulatory requirements."
+          }
+        ]
+      },
+      {
+        "id": 25,
+        "title": "Implement ROS Dockerfile Generation System with Multi-Stage Templates",
+        "description": "Create a comprehensive system for generating ROS Dockerfiles using templates and a module registry, supporting multi-stage builds, dynamic module selection, and integration with the existing project creation workflow.",
+        "details": "Implementation will involve the following key components:\n\n1. Template Structure Development:\n   - Create a hierarchical Handlebars template system with the following components:\n     - Base templates for ROS distributions (Noetic, Foxy, Humble, etc.)\n     - Robot-specific templates that extend base templates\n     - Module templates for specific ROS packages and capabilities\n     - Customization templates for user-specific requirements\n   - Implement template inheritance to allow proper layering of configurations\n   - Define clear placeholder syntax for dynamic content insertion\n\n2. Module Registry Implementation:\n   - Design and implement a JSON-based registry structure to store:\n     - Robot specifications (base image, ROS version, required packages)\n     - Module specifications (dependencies, apt/pip packages, build requirements)\n     - Version compatibility information\n     - Configuration options for each module\n   - Create CRUD operations for managing registry entries\n   - Implement validation logic for registry entries to ensure compatibility\n\n3. Backend Service Enhancement:\n   - Extend the existing DockerfileGenerationService to:\n     - Support multi-stage ROS Dockerfile generation\n     - Integrate with the module registry for dynamic content\n     - Handle dependency resolution between modules\n     - Generate docker-compose.yml and docker buildx bake configurations\n     - Implement caching mechanisms for improved performance\n   - Create new API endpoints for:\n     - Retrieving available ROS distributions\n     - Listing compatible modules for a given robot/ROS version\n     - Generating complete Dockerfile sets based on selections\n\n4. Project Creation Integration:\n   - Modify the project creation workflow to:\n     - Include ROS-specific configuration options\n     - Allow selection of robot type and ROS distribution\n     - Enable module selection with dependency validation\n     - Preview generated Dockerfile content before finalization\n   - Ensure backward compatibility with existing project types\n\n5. Frontend Integration:\n   - Develop UI components for:\n     - ROS distribution selection with version information\n     - Robot type selection with capability details\n     - Module selection with dependency visualization\n     - Configuration options for selected modules\n   - Implement client-side validation for compatible selections\n   - Create preview functionality for generated Dockerfiles\n\n6. Testing & Validation:\n   - Implement comprehensive testing for all components\n   - Create validation logic to ensure generated Dockerfiles are valid\n   - Test with various ROS distributions and module combinations",
+        "testStrategy": "Testing will be conducted through multiple approaches:\n\n1. Unit Tests:\n   - Test template rendering with various input combinations\n   - Verify module registry CRUD operations and validation logic\n   - Test DockerfileGenerationService methods with mock inputs\n   - Validate dependency resolution algorithms\n   - Verify API endpoints return correct responses for various inputs\n\n2. Integration Tests:\n   - Test end-to-end Dockerfile generation with different configurations\n   - Verify proper integration with project creation workflow\n   - Test module selection UI with various compatibility scenarios\n   - Validate generated docker-compose.yml and buildx configurations\n   - Ensure proper error handling for invalid configurations\n\n3. Validation Tests:\n   - Build actual Docker images from generated Dockerfiles\n   - Verify ROS environment is correctly configured in built images\n   - Test multi-stage build optimization and layer caching\n   - Validate that selected modules are properly installed and configured\n   - Measure build time and image size for optimization opportunities\n\n4. User Acceptance Testing:\n   - Create test scenarios for different user roles and use cases\n   - Verify UI usability for module selection and configuration\n   - Test error messages and guidance for incompatible selections\n   - Validate that generated Dockerfiles meet user expectations\n\n5. Performance Testing:\n   - Measure template rendering time for complex configurations\n   - Test system performance with large module registry\n   - Verify caching mechanisms improve subsequent generation times\n   - Ensure UI remains responsive during Dockerfile generation",
+        "status": "in-progress",
+        "dependencies": [
+          1,
+          4,
+          5,
+          17
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Phase 1: Establish Handlebars Template Hierarchy and JSON Registry Schemas",
+            "description": "Create the foundational Handlebars template system and JSON schemas for the module registry to support multi-stage ROS Dockerfile generation.",
+            "dependencies": [],
+            "details": "• Define template folders: base/<distro>, robots/<robot>, modules/<category>/<module>, partials/, and overlays/customizations.\n• Implement template inheritance and partials: base images (Noetic, Foxy, Humble, Jazzy), multi-stage stages (builder, runtime), and entrypoint/colcon partials. Include compose and buildx bake templates.\n• Design JSON schemas with AJV (or equivalent): RobotSpec, ModuleSpec, DistroSpec, CompatibilityMatrix, and RegistryIndex. Include fields for base image (e.g., osrf/ros:<distro>-ros-base/desktop), apt/pip/rosdep deps, build args, environment, and run commands.\n• Add placeholder conventions: {{ros.distro}}, {{robot.baseImage}}, {{module.apt[]}}, {{stages.builder.tools}}, guards, and helpers (e.g., join, uniq, versionCompare).\n• Seed initial registry data: Noetic/Foxy/Humble/Jazzy base images (ros-base/desktop variants), common modules (navigation2, perception, gazebo, turtlebot3, CUDA support), and example robots.\n• Provide multi-stage defaults patterned from ROS best practices: use OSRF images, builder stage with rosdep/colcon, runtime stage with minimal deps and sourced setup scripts.\n<info added on 2025-08-12T15:18:43.050Z>\nPhase 1 has been successfully completed with all planned components implemented. The template structure now includes Handlebars templates for various Dockerfile components with proper syntax for dynamic content insertion. JSON registry schemas have been created as TypeScript interfaces for ModuleSpec, RobotSpec, DistroSpec, and ROSProjectConfig, along with a ModuleLoader class that handles dependency resolution and compatibility checking. Sample module data has been created for TurtleBot4 robot specification and various modules including Navigation2, CycloneDDS RMW, DepthAI OAK-D, X11 GUI, and Debug Tools, each with comprehensive configuration details. The integration work has been completed with updated shared types, module loader with caching and validation, and a dependency resolution algorithm. All components are now ready for Phase 2 implementation.\n</info added on 2025-08-12T15:18:43.050Z>",
+            "status": "done",
+            "testStrategy": "• Validate JSON schemas with sample entries and negative cases (missing deps, incompatible distro).\n• Snapshot-render templates with mock contexts for each distro/robot/module combination.\n• Lint templates and run schema validations in CI.\n• Verify generated Dockerfiles contain correct FROM osrf/ros:<distro>-ros-base and multi-stage sections reflecting builder/runtime best practices[5][3][1]."
+          },
+          {
+            "id": 2,
+            "title": "Phase 2: Extend DockerfileGenerationService for Multi-Stage and Registry Integration",
+            "description": "Enhance the backend service to render multi-stage Dockerfiles from templates, resolve module dependencies, and emit compose and buildx bake files.",
+            "dependencies": [
+              "25.1"
+            ],
+            "details": "• Implement registry loader with caching and validation against schemas; expose query functions for distros, robots, modules, and compatibility.\n• Add dependency resolution: topological sort with cycle detection; merge apt/pip/rosdep/env/build-args across modules; handle variant selection (ros-core/base/desktop/desktop-full).\n• Implement templating pipeline: assemble rendering context from distro, robot, selected modules; render Dockerfile (multi-stage), docker-compose.yml, and docker-bake.hcl.\n• Add multi-stage generation policies: builder installs colcon/rosdep, runtime copies install and minimal runtime deps; optional development profile with volume mounts.\n• Expose new API endpoints: GET /ros/distros, GET /ros/robots?distro=, GET /ros/modules?robot=&distro=, POST /ros/generate (payload includes selections and options).\n• Introduce performance optimizations: memoize resolution results, content hashing for cache keys, and conditional rendering.\n<info added on 2025-08-12T15:20:56.544Z>\nPhase 2 has been completed successfully with all planned functionality implemented. The DockerfileGenerationService has been extended with ROS-specific capabilities including multi-stage Dockerfile generation, registry integration, and performance optimizations. The service now supports generating Dockerfiles with proper stage separation for build and runtime environments, resolving dependencies between modules using topological sorting, and creating associated docker-compose.yml and docker-bake.hcl files. The registry loader has been implemented with caching and validation against schemas, providing query functions for ROS distributions, compatible robots, and modules. All required API endpoints have been created and are ready for integration with the project creation workflow in Phase 3.\n</info added on 2025-08-12T15:20:56.544Z>",
+            "status": "done",
+            "testStrategy": "• Unit tests for dependency resolver (cycles, version constraints, optional features).\n• Contract tests for API endpoints with mocked registry.\n• Golden-file tests for generated Dockerfile/compose/bake outputs across sample selections (e.g., Humble + Nav2 + TurtleBot3).\n• Verify images reference correct base tags and compose settings like host networking where appropriate[5][2][1]."
+          },
+          {
+            "id": 3,
+            "title": "Phase 3: Integrate with Project Creation Workflow",
+            "description": "Wire the generation service into the existing project creation flow to capture ROS selections and produce artifacts with backward compatibility.",
+            "dependencies": [
+              "25.2"
+            ],
+            "details": "• Extend project settings model to include ROS flags, distro, robot, module list, and generation options.\n• Update project creation API to accept ROS configuration; call /ros/generate and store artifacts in project workspace.\n• Add preview endpoint to return rendered content without persisting.\n• Ensure non-ROS projects bypass ROS paths; preserve backward compatible defaults.\n• Add migration script for settings schema changes.\n<info added on 2025-08-12T15:31:39.947Z>\n• Project Creation Integration successfully completed with ROS configuration support\n• Added ROS-specific API endpoints for distros, robots, and modules:\n  - GET /api/projects/ros/distros\n  - GET /api/projects/ros/robots?distro=X\n  - GET /api/projects/ros/modules?robot=X\n  - POST /api/projects/ros/generate\n  - POST /api/projects/ros/preview\n• Extended database schema to store ROS configuration in project config JSONB field\n• Added ROS metadata tracking for generated files and paths\n• Integrated ROS modules with existing project_module_dependencies table\n• Implemented comprehensive error handling for ROS generation with graceful fallbacks\n• Ensured backward compatibility with non-ROS projects\n• Maintained proper ordering of modules (existing + ROS modules)\n</info added on 2025-08-12T15:31:39.947Z>",
+            "status": "done",
+            "testStrategy": "• Integration tests creating projects with and without ROS settings; assert artifacts are generated and persisted.\n• Preview flow tests to ensure no side effects.\n• Backward compatibility tests for legacy project creation requests."
+          },
+          {
+            "id": 4,
+            "title": "Phase 4: Frontend UI for ROS Configuration and Preview",
+            "description": "Build UI components for selecting distro, robot, and modules with dependency visualization and live Dockerfile preview.",
+            "dependencies": [
+              "25.3"
+            ],
+            "details": "• Implement selectors: ROS distribution with variant info, robot list filtered by distro, module catalog with search/tags.\n• Add dependency visualization and validation messaging; auto-include required modules.\n• Configuration panels for module options and build profiles (dev vs runtime).\n• Live preview pane rendering Dockerfile, docker-compose.yml, and bake file via preview endpoint.\n• Client-side caching of catalog data and optimistic UI for selections.\n<info added on 2025-08-12T15:36:44.987Z>\n✅ Frontend Integration:\n- Extended ProjectData interface to include ROS configuration\n- Added ROS configuration state management (distros, robots, modules, loading states)\n- Created ROS configuration step in the project creation wizard\n- Integrated with backend ROS API endpoints\n\n✅ ROS Configuration UI:\n- Added checkbox to enable/disable ROS configuration\n- Created dropdown for ROS distribution selection\n- Added robot selection dropdown (filtered by distribution)\n- Implemented module selection with checkboxes and descriptions\n- Added build profile selection (development/production)\n- Included proper loading states and error handling\n\n✅ Dynamic Data Fetching:\n- Fetches ROS distributions on component mount\n- Dynamically loads robots based on selected distribution\n- Loads compatible modules when robot is selected\n- Resets dependent fields when parent selections change\n\n✅ User Experience:\n- ROS configuration is optional and doesn't block project creation\n- Clear visual hierarchy with proper spacing and typography\n- Loading indicators and error messages\n- Responsive grid layout for different screen sizes\n- Proper form validation and state management\n\n✅ Integration:\n- Connected to backend ROS API endpoints\n- Integrated with existing project creation flow\n- Maintains backward compatibility with non-ROS projects\n- Proper error handling and user feedback\n</info added on 2025-08-12T15:36:44.987Z>",
+            "status": "done",
+            "testStrategy": "• Component unit tests for selectors and validators.\n• E2E flow: configure project -> preview -> create; verify server interactions and final artifacts.\n• Accessibility and performance checks on large module catalogs."
+          },
+          {
+            "id": 5,
+            "title": "Phase 5: End-to-End Testing, Validation, and Documentation",
+            "description": "Add comprehensive tests, validators for generated outputs, and documentation; perform cleanup and developer onboarding materials.",
+            "dependencies": [
+              "25.4"
+            ],
+            "details": "• Add Dockerfile lints (hadolint) and compose schema validation; validate bake file syntax.\n• Matrix tests across major distros (Noetic/Foxy/Humble/Jazzy) and module combinations.\n• CI jobs to build images from generated Dockerfiles; smoke run using compose with entrypoint that sources ROS and overlays.\n• Author documentation: template conventions, registry schema, API usage, UI guide, best practices (use OSRF base images, separate dev vs deploy, host networking considerations).\n• Remove deprecated generation paths and dead code; add codeowners and maintenance notes.",
+            "status": "pending",
+            "testStrategy": "• CI pipelines: schema validate, render, lint, build, and run smoke tests per distro.\n• Regression tests for previously reported edge cases.\n• Documentation validation with examples reflecting recommended ROS Docker practices including multi-stage builds and OSRF images[5][3][2][1]."
           }
         ]
       }
     ],
     "metadata": {
       "created": "2025-07-29T01:08:43.155Z",
-      "updated": "2025-08-08T23:46:53.017Z",
+      "updated": "2025-08-12T15:38:41.752Z",
       "description": "Tasks for development-todos context"
     }
   }

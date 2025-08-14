@@ -54,6 +54,22 @@ interface ProjectData {
   robot: string;
   hardware: string;
   is_template?: boolean;
+  rosConfig?: {
+    distro: string;
+    robot: string;
+    modules: string[];
+    customizations: {
+      udevRules: string[];
+      env: Record<string, string>;
+      expose: number[];
+      files: Array<{
+        path: string;
+        contents: string;
+      }>;
+      bashrcAliases: string[];
+    };
+    buildProfile: 'development' | 'production';
+  };
 }
 
 // Robot and hardware options
@@ -149,6 +165,18 @@ const ProjectCreationWizard: React.FC = () => {
   const [modulesLoading, setModulesLoading] = useState(false);
   const [modulesError, setModulesError] = useState<string | null>(null);
 
+  // ROS configuration state
+  const [rosDistros, setRosDistros] = useState<string[]>([]);
+  const [rosRobots, setRosRobots] = useState<
+    Array<{ id: string; title: string; description: string }>
+  >([]);
+  const [rosModules, setRosModules] = useState<
+    Array<{ id: string; title: string; category: string; description: string }>
+  >([]);
+  const [rosLoading, setRosLoading] = useState(false);
+  const [rosError, setRosError] = useState<string | null>(null);
+  const [enableROS, setEnableROS] = useState(false);
+
   useEffect(() => {
     const fetchModules = async () => {
       try {
@@ -174,6 +202,62 @@ const ProjectCreationWizard: React.FC = () => {
     fetchModules();
   }, []);
 
+  // Fetch ROS data
+  useEffect(() => {
+    const fetchRosData = async () => {
+      try {
+        setRosLoading(true);
+        setRosError(null);
+
+        // Fetch ROS distributions
+        const distros = await ApiService.get<string[]>('/projects/ros/distros');
+        setRosDistros(distros);
+
+        // Fetch robots for the first distribution (if available)
+        if (distros.length > 0) {
+          const robots = await ApiService.get<
+            Array<{ id: string; title: string; description: string }>
+          >(`/projects/ros/robots?distro=${distros[0]}`);
+          setRosRobots(robots);
+        }
+      } catch (err) {
+        setRosError(
+          err instanceof Error ? err.message : 'Failed to load ROS data'
+        );
+      } finally {
+        setRosLoading(false);
+      }
+    };
+
+    fetchRosData();
+  }, []);
+
+  // Fetch ROS modules when robot changes
+  useEffect(() => {
+    const fetchRosModules = async () => {
+      if (!projectData.rosConfig?.robot) return;
+
+      try {
+        setRosLoading(true);
+        const modules = await ApiService.get<
+          Array<{
+            id: string;
+            title: string;
+            category: string;
+            description: string;
+          }>
+        >(`/projects/ros/modules?robot=${projectData.rosConfig.robot}`);
+        setRosModules(modules);
+      } catch (err) {
+        console.error('Failed to fetch ROS modules:', err);
+      } finally {
+        setRosLoading(false);
+      }
+    };
+
+    fetchRosModules();
+  }, [projectData.rosConfig?.robot]);
+
   // Wizard steps - memoized to prevent re-creation on every render
   const steps: WizardStep[] = useMemo(
     () => [
@@ -195,6 +279,13 @@ const ProjectCreationWizard: React.FC = () => {
         label: 'Robot Configuration',
         description: 'Select robot and hardware',
         icon: <RobotIcon />,
+        completed: false,
+        valid: false,
+      },
+      {
+        label: 'ROS Configuration',
+        description: 'Configure ROS environment (optional)',
+        icon: <SmartToy />,
         completed: false,
         valid: false,
       },
@@ -225,6 +316,8 @@ const ProjectCreationWizard: React.FC = () => {
             projectData.robot.length > 0 && projectData.hardware.length > 0
           );
         case 3:
+          return true; // ROS step is optional
+        case 4:
           return true; // Review step
 
         default:
@@ -294,6 +387,8 @@ const ProjectCreationWizard: React.FC = () => {
         robot: projectData.robot,
         hardware: projectData.hardware,
         is_template: projectData.is_template === true,
+        rosConfig:
+          enableROS && projectData.rosConfig ? projectData.rosConfig : null,
       };
 
       // Call the API using ApiService
@@ -633,10 +728,205 @@ const ProjectCreationWizard: React.FC = () => {
                     </Box>
                   )}
 
-                  {/* Step 4 removed (Project Settings) */}
-
-                  {/* Step 4: Review */}
+                  {/* Step 4: ROS Configuration */}
                   {index === 3 && (
+                    <Box>
+                      <Typography variant="h6" gutterBottom>
+                        ROS Configuration (Optional)
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 3 }}
+                      >
+                        Configure ROS environment for your project
+                      </Typography>
+
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={enableROS}
+                            onChange={(e) => setEnableROS(e.target.checked)}
+                          />
+                        }
+                        label="Enable ROS configuration"
+                      />
+
+                      {enableROS && (
+                        <Grid container spacing={3} sx={{ mt: 2 }}>
+                          <Grid item xs={12} md={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>ROS Distribution</InputLabel>
+                              <Select
+                                value={projectData.rosConfig?.distro || ''}
+                                onChange={(e) =>
+                                  setProjectData((prev) => ({
+                                    ...prev,
+                                    rosConfig: {
+                                      ...prev.rosConfig,
+                                      distro: e.target.value,
+                                      robot: '', // Reset robot when distro changes
+                                      modules: [], // Reset modules when distro changes
+                                      customizations: {
+                                        udevRules: [],
+                                        env: {},
+                                        expose: [],
+                                        files: [],
+                                        bashrcAliases: [],
+                                      },
+                                      buildProfile: 'development',
+                                    },
+                                  }))
+                                }
+                                disabled={rosLoading}
+                              >
+                                {rosDistros.map((distro) => (
+                                  <MenuItem key={distro} value={distro}>
+                                    {distro}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </Grid>
+
+                          <Grid item xs={12} md={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Robot</InputLabel>
+                              <Select
+                                value={projectData.rosConfig?.robot || ''}
+                                onChange={(e) =>
+                                  setProjectData((prev) => ({
+                                    ...prev,
+                                    rosConfig: {
+                                      ...prev.rosConfig,
+                                      robot: e.target.value,
+                                      modules: [], // Reset modules when robot changes
+                                      customizations: {
+                                        udevRules: [],
+                                        env: {},
+                                        expose: [],
+                                        files: [],
+                                        bashrcAliases: [],
+                                      },
+                                      buildProfile: 'development',
+                                    },
+                                  }))
+                                }
+                                disabled={
+                                  rosLoading || !projectData.rosConfig?.distro
+                                }
+                              >
+                                {rosRobots.map((robot) => (
+                                  <MenuItem key={robot.id} value={robot.id}>
+                                    {robot.title}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          </Grid>
+
+                          <Grid item xs={12}>
+                            <Typography variant="subtitle1" gutterBottom>
+                              ROS Modules
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mb: 2 }}
+                            >
+                              Select modules for your ROS environment
+                            </Typography>
+                            {rosModules.map((module) => (
+                              <FormControlLabel
+                                key={module.id}
+                                control={
+                                  <Checkbox
+                                    checked={
+                                      projectData.rosConfig?.modules?.includes(
+                                        module.id
+                                      ) || false
+                                    }
+                                    onChange={(e) => {
+                                      const isChecked = e.target.checked;
+                                      setProjectData((prev) => ({
+                                        ...prev,
+                                        rosConfig: {
+                                          ...prev.rosConfig,
+                                          modules: isChecked
+                                            ? [
+                                                ...(prev.rosConfig?.modules ||
+                                                  []),
+                                                module.id,
+                                              ]
+                                            : (
+                                                prev.rosConfig?.modules || []
+                                              ).filter(
+                                                (id) => id !== module.id
+                                              ),
+                                        },
+                                      }));
+                                    }}
+                                  />
+                                }
+                                label={
+                                  <Box>
+                                    <Typography variant="body2">
+                                      {module.title}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {module.description}
+                                    </Typography>
+                                  </Box>
+                                }
+                              />
+                            ))}
+                          </Grid>
+
+                          <Grid item xs={12} md={6}>
+                            <FormControl fullWidth>
+                              <InputLabel>Build Profile</InputLabel>
+                              <Select
+                                value={
+                                  projectData.rosConfig?.buildProfile ||
+                                  'development'
+                                }
+                                onChange={(e) =>
+                                  setProjectData((prev) => ({
+                                    ...prev,
+                                    rosConfig: {
+                                      ...prev.rosConfig,
+                                      buildProfile: e.target.value as
+                                        | 'development'
+                                        | 'production',
+                                    },
+                                  }))
+                                }
+                              >
+                                <MenuItem value="development">
+                                  Development
+                                </MenuItem>
+                                <MenuItem value="production">
+                                  Production
+                                </MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Grid>
+                        </Grid>
+                      )}
+
+                      {rosError && (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                          {rosError}
+                        </Alert>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Step 5: Review */}
+                  {index === 4 && (
                     <Box>
                       <Typography variant="h6" gutterBottom>
                         Review Project Configuration

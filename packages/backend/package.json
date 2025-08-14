@@ -37,12 +37,15 @@
     "setup:project-tables": "ts-node src/scripts/setup-project-tables.ts"
   },
   "dependencies": {
+    "@robium/shared": "file:../shared",
     "@types/dockerode": "^3.3.42",
+    "@types/handlebars": "^4.0.40",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dockerode": "^4.0.7",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "handlebars": "^4.7.8",
     "helmet": "^7.0.0",
     "joi": "^17.9.2",
     "jsonwebtoken": "^9.0.2",

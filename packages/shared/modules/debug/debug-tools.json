@@ -1,0 +1,47 @@
+{
+  "id": "debug-tools",
+  "title": "Debug Tools",
+  "description": "Development and debugging tools for ROS applications - includes logging, monitoring, and debugging utilities",
+  "category": "debug",
+  "version": "1.0.0",
+  "rosDistros": ["humble", "foxy", "noetic"],
+  "dependencies": [],
+  "apt": [
+    "htop",
+    "iotop",
+    "nethogs",
+    "iftop",
+    "strace",
+    "ltrace",
+    "gdb",
+    "valgrind",
+    "perf",
+    "sysstat",
+    "dstat",
+    "net-tools",
+    "iputils-ping",
+    "curl",
+    "wget",
+    "vim",
+    "nano",
+    "tree",
+    "jq",
+    "yq",
+    "tmux",
+    "screen"
+  ],
+  "pip": ["psutil", "py-spy", "memory-profiler", "line-profiler"],
+  "env": {
+    "ROS_LOG_LEVEL": "debug"
+  },
+  "setupCommands": [],
+  "bashrcAliases": [
+    "alias ros-debug='export ROS_LOG_LEVEL=debug'",
+    "alias ros-info='export ROS_LOG_LEVEL=info'",
+    "alias ros-warn='export ROS_LOG_LEVEL=warn'",
+    "alias ros-error='export ROS_LOG_LEVEL=error'",
+    "alias top-ros='htop'",
+    "alias net-ros='nethogs'"
+  ]
+}
+
