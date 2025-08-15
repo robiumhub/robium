@@ -24,15 +24,15 @@ router.get('/', async (req: AuthRequest, res) => {
           WHEN 'baxter' THEN 'Rethink Robotics Baxter'
           ELSE INITCAP(REPLACE(robot_type, '_', ' '))
         END AS name,
-        COUNT(m.id) AS module_count
+        COUNT(rp.id) AS module_count
       FROM (
         SELECT DISTINCT unnest(supported_robots) AS robot_type
-        FROM modules 
+        FROM ros_packages 
         WHERE is_active = true 
         AND supported_robots IS NOT NULL 
         AND array_length(supported_robots, 1) > 0
       ) AS robot_types
-      LEFT JOIN modules m ON robot_type = ANY(m.supported_robots) AND m.is_active = true
+      LEFT JOIN ros_packages rp ON robot_type = ANY(rp.supported_robots) AND rp.is_active = true
       GROUP BY robot_type
       ORDER BY module_count DESC, name ASC
       `

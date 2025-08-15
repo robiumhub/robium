@@ -34,28 +34,15 @@ router.get('/stats', async (req, res) => {
       'SELECT COUNT(*)::int AS c FROM projects WHERE is_active = true AND is_template = true'
     )) as { rows: Array<{ c: number }> };
 
-    // Get module statistics
+    // Module statistics - count ROS packages as modules
     const totalModules = (await Database.query(
-      'SELECT COUNT(*)::int AS c FROM modules'
+      'SELECT COUNT(*)::int AS c FROM ros_packages WHERE is_active = true'
     )) as { rows: Array<{ c: number }> };
 
-    const activeModules = (await Database.query(
-      'SELECT COUNT(*)::int AS c FROM modules WHERE is_active = true'
-    )) as { rows: Array<{ c: number }> };
+    const activeModules = totalModules.rows[0]?.c ?? 0;
 
-    // Get robot statistics
-    const robotStats = (await Database.query(`
-      SELECT 
-        robot_name,
-        COUNT(*)::int AS module_count
-      FROM (
-        SELECT DISTINCT unnest(supported_robots) AS robot_name
-        FROM modules 
-        WHERE is_active = true AND supported_robots IS NOT NULL
-      ) AS robot_names
-      GROUP BY robot_name
-      ORDER BY module_count DESC
-    `)) as { rows: Array<{ robot_name: string; module_count: number }> };
+    // Robot statistics - modules table was removed, return empty array
+    const robotStats: Array<{ robot_name: string; module_count: number }> = [];
 
     // Calculate system health metrics (placeholder values for now)
     const systemHealth = {
@@ -69,33 +56,11 @@ router.get('/stats', async (req, res) => {
     res.json({
       success: true,
       data: {
-        // User statistics
-        totalUsers: totalUsers.rows[0]?.c ?? 0,
-        adminUsers: adminUsers.rows[0]?.c ?? 0,
-        regularUsers: regularUsers.rows[0]?.c ?? 0,
-        activeUsers: totalUsers.rows[0]?.c ?? 0, // Assuming all users are active for now
-
-        // Project statistics
-        totalProjects: totalProjects.rows[0]?.c ?? 0,
-        activeProjects: activeProjects.rows[0]?.c ?? 0,
+        // Frontend expects these fields directly
+        projects: totalProjects.rows[0]?.c ?? 0,
+        modules: totalModules.rows[0]?.c ?? 0,
         templates: templates.rows[0]?.c ?? 0,
-
-        // Module statistics
-        totalModules: totalModules.rows[0]?.c ?? 0,
-        activeModules: activeModules.rows[0]?.c ?? 0,
-
-        // Robot statistics
-        robots: robotStats.rows,
-        totalRobots: robotStats.rows.length,
-
-        // System metrics
-        systemHealth,
-
-        // Storage metrics (placeholder for now)
-        totalStorage: 1000000000000, // 1TB in bytes
-        usedStorage: Math.floor(Math.random() * 200000000000) + 50000000000, // 50-250GB for demo
-
-        lastUpdated: new Date().toISOString(),
+        datasets: 0, // Placeholder for now
       },
     });
   } catch (error) {

@@ -1,14 +1,17 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function (app) {
+  const httpTarget = process.env.BACKEND_URL || 'http://localhost:8000';
+  const wsTarget = httpTarget.replace('http', 'ws');
+
   // Single proxy rule for all API routes
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'http://backend:8000', // Use Docker service name
+      target: httpTarget,
       changeOrigin: true,
       pathRewrite: {
-        '^/api': '', // Remove /api prefix when forwarding to backend
+        '^/api': '',
       },
       onError: (err, req, res) => {
         console.error('Proxy error:', err);
@@ -24,8 +27,8 @@ module.exports = function (app) {
   app.use(
     '/ws',
     createProxyMiddleware({
-      target: 'ws://backend:8000', // Use Docker service name
-      ws: true, // Enable WebSocket proxying
+      target: wsTarget,
+      ws: true,
       changeOrigin: true,
       onError: (err, req, res) => {
         console.error('WebSocket proxy error:', err);

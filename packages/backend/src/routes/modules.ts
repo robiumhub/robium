@@ -10,40 +10,36 @@ router.get('/', async (req: AuthRequest, res) => {
     const { category, type, search } = req.query;
 
     let query = `
-      SELECT m.*, 
-             COALESCE(m.supported_robots, '{}'::text[]) AS supported_robots,
-             COUNT(DISTINCT mp.package_id) as package_count,
-             COUNT(DISTINCT md.dependency_module_id) as dependency_count
-      FROM modules m
-      LEFT JOIN module_packages mp ON m.id = mp.module_id
-      LEFT JOIN module_dependencies md ON m.id = md.module_id
-      WHERE m.is_active = true
+      SELECT rp.*, 
+             COALESCE(rp.supported_robots, '{}'::text[]) AS supported_robots
+      FROM ros_packages rp
+      WHERE rp.is_active = true
     `;
     const params: string[] = [];
     let paramIndex = 1;
 
     // Add category filter
     if (category && typeof category === 'string') {
-      query += ` AND m.category = $${paramIndex}`;
+      query += ` AND rp.category = $${paramIndex}`;
       params.push(category);
       paramIndex++;
     }
 
     // Add type filter
     if (type && typeof type === 'string') {
-      query += ` AND m.type = $${paramIndex}`;
+      query += ` AND rp.type = $${paramIndex}`;
       params.push(type);
       paramIndex++;
     }
 
     // Add search filter
     if (search && typeof search === 'string') {
-      query += ` AND (m.name ILIKE $${paramIndex} OR m.description ILIKE $${paramIndex})`;
+      query += ` AND (rp.name ILIKE $${paramIndex} OR rp.description ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
 
-    query += ' GROUP BY m.id ORDER BY m.name';
+    query += ' ORDER BY rp.name';
 
     const result = (await Database.query(query, params)) as {
       rows: Array<Record<string, any>>;
@@ -67,7 +63,7 @@ router.get('/', async (req: AuthRequest, res) => {
 router.get('/categories', async (req: AuthRequest, res) => {
   try {
     const result = (await Database.query(
-      'SELECT DISTINCT category FROM modules WHERE is_active = true AND category IS NOT NULL ORDER BY category'
+      'SELECT DISTINCT category FROM ros_packages WHERE is_active = true AND category IS NOT NULL ORDER BY category'
     )) as { rows: Array<{ category: string }> };
 
     res.json({
@@ -87,7 +83,7 @@ router.get('/categories', async (req: AuthRequest, res) => {
 router.get('/types', async (req: AuthRequest, res) => {
   try {
     const result = (await Database.query(
-      'SELECT DISTINCT type FROM modules WHERE is_active = true ORDER BY type'
+      'SELECT DISTINCT type FROM ros_packages WHERE is_active = true ORDER BY type'
     )) as { rows: Array<{ type: string }> };
 
     res.json({
@@ -116,33 +112,30 @@ router.get('/search', async (req: AuthRequest, res) => {
     }
 
     let query = `
-      SELECT m.*, 
-             COUNT(DISTINCT mp.package_id) as package_count,
-             COUNT(DISTINCT md.dependency_module_id) as dependency_count
-      FROM modules m
-      LEFT JOIN module_packages mp ON m.id = mp.module_id
-      LEFT JOIN module_dependencies md ON m.id = md.module_id
-      WHERE m.is_active = true 
-      AND (m.name ILIKE $1 OR m.description ILIKE $1 OR m.tags::text ILIKE $1)
+      SELECT rp.*, 
+             COALESCE(rp.supported_robots, '{}'::text[]) AS supported_robots
+      FROM ros_packages rp
+      WHERE rp.is_active = true 
+      AND (rp.name ILIKE $1 OR rp.description ILIKE $1 OR rp.tags::text ILIKE $1)
     `;
     const params: string[] = [`%${q}%`];
     let paramIndex = 2;
 
     // Add category filter
     if (category && typeof category === 'string') {
-      query += ` AND m.category = $${paramIndex}`;
+      query += ` AND rp.category = $${paramIndex}`;
       params.push(category);
       paramIndex++;
     }
 
     // Add type filter
     if (type && typeof type === 'string') {
-      query += ` AND m.type = $${paramIndex}`;
+      query += ` AND rp.type = $${paramIndex}`;
       params.push(type);
       paramIndex++;
     }
 
-    query += ` GROUP BY m.id ORDER BY m.name LIMIT $${paramIndex}`;
+    query += ` ORDER BY rp.name LIMIT $${paramIndex}`;
     params.push(parseInt(limit as string).toString());
 
     const result = (await Database.query(query, params)) as {
@@ -164,130 +157,26 @@ router.get('/search', async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/modules/:id/packages - Get packages for a specific module
-router.get('/:id/packages', async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = (await Database.query(
-      `
-      SELECT rp.*, mp.is_required, mp.order_index
-      FROM module_packages mp
-      JOIN ros_packages rp ON mp.package_id = rp.id
-      WHERE mp.module_id = $1
-      ORDER BY mp.order_index
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    res.json({
-      success: true,
-      data: result.rows,
-      count: result.rows.length,
-    });
-  } catch (error) {
-    console.error('Error fetching module packages:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch module packages',
-    });
-  }
-});
-
-// GET /api/modules/:id/dependencies - Get dependencies for a specific module
-router.get('/:id/dependencies', async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = (await Database.query(
-      `
-      SELECT m.*, md.dependency_type
-      FROM module_dependencies md
-      JOIN modules m ON md.dependency_module_id = m.id
-      WHERE md.module_id = $1
-      ORDER BY m.name
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    res.json({
-      success: true,
-      data: result.rows,
-      count: result.rows.length,
-    });
-  } catch (error) {
-    console.error('Error fetching module dependencies:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch module dependencies',
-    });
-  }
-});
-
-// GET /api/modules/:id - Get specific module with packages and dependencies (must be last)
+// GET /api/modules/:id - Get a specific module
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    // Get module details
-    const moduleResult = (await Database.query(
-      'SELECT * FROM modules WHERE id = $1 AND is_active = true',
+    const result = (await Database.query(
+      'SELECT * FROM ros_packages WHERE id = $1 AND is_active = true',
       [id]
     )) as { rows: Array<Record<string, any>> };
 
-    if (moduleResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Module not found',
       });
     }
 
-    const module = moduleResult.rows[0];
-
-    // Get packages for this module
-    const packagesResult = (await Database.query(
-      `
-      SELECT rp.*, mp.is_required, mp.order_index
-      FROM module_packages mp
-      JOIN ros_packages rp ON mp.package_id = rp.id
-      WHERE mp.module_id = $1
-      ORDER BY mp.order_index
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    // Get dependencies for this module
-    const dependenciesResult = (await Database.query(
-      `
-      SELECT m.*, md.dependency_type
-      FROM module_dependencies md
-      JOIN modules m ON md.dependency_module_id = m.id
-      WHERE md.module_id = $1
-      ORDER BY m.name
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
-    // Get modules that depend on this module
-    const dependentsResult = (await Database.query(
-      `
-      SELECT m.*, md.dependency_type
-      FROM module_dependencies md
-      JOIN modules m ON md.module_id = m.id
-      WHERE md.dependency_module_id = $1
-      ORDER BY m.name
-    `,
-      [id]
-    )) as { rows: Array<Record<string, any>> };
-
     res.json({
       success: true,
-      data: {
-        ...module,
-        packages: packagesResult.rows,
-        dependencies: dependenciesResult.rows,
-        dependents: dependentsResult.rows,
-      },
+      data: result.rows[0],
     });
   } catch (error) {
     console.error('Error fetching module:', error);

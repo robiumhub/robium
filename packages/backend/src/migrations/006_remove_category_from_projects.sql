@@ -4,8 +4,3 @@
 
 -- Remove category column from projects table
 ALTER TABLE projects DROP COLUMN IF EXISTS category;
-
--- Update migration record
-INSERT INTO migrations (id, name) VALUES 
-('006_remove_category_from_projects', 'Remove category column from projects table')
-ON CONFLICT (id) DO NOTHING; 

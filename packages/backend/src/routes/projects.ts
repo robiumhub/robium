@@ -16,10 +16,8 @@ router.get('/', async (req: AuthRequest, res) => {
     let query = `
       SELECT p.*, 
              COALESCE(p.tags, '{}'::text[]) AS tags,
-             COUNT(DISTINCT pmd.module_id) as module_count,
              COUNT(DISTINCT pp.package_id) as package_count
       FROM projects p
-      LEFT JOIN project_module_dependencies pmd ON p.id = pmd.project_id
       LEFT JOIN project_packages pp ON p.id = pp.project_id
       WHERE p.is_active = true
     `;
@@ -133,10 +131,8 @@ router.get('/templates', async (req: AuthRequest, res) => {
 
     let query = `
       SELECT p.*, 
-             COUNT(DISTINCT pmd.module_id) as module_count,
              COUNT(DISTINCT pp.package_id) as package_count
       FROM projects p
-      LEFT JOIN project_module_dependencies pmd ON p.id = pmd.project_id
       LEFT JOIN project_packages pp ON p.id = pp.project_id
       WHERE p.is_active = true AND p.is_template = true
     `;

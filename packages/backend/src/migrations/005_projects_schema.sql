@@ -77,7 +77,7 @@ CREATE INDEX idx_project_files_file_type ON project_files(file_type);
 CREATE INDEX idx_project_files_path ON project_files(file_path);
 
 -- Create trigger for project_files updated_at
-CREATE TRIGGER IF NOT EXISTS update_project_files_updated_at BEFORE UPDATE ON project_files
+CREATE TRIGGER update_project_files_updated_at BEFORE UPDATE ON project_files
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- DOWN
