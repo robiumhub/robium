@@ -17,6 +17,9 @@ import {
   MenuItem,
   Avatar,
   Chip,
+  Button,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Settings as SettingsIcon,
@@ -31,6 +34,7 @@ import {
   AccountCircle as AccountIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
+  Menu as MenuIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -49,6 +53,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { activeMenuItem, setActiveMenuItem } = useNavigation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -82,11 +88,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const menuItems = [
     { text: 'Home', icon: <HomeIcon />, path: '/' },
     { text: 'Projects', icon: <FolderIcon />, path: '/projects' },
-    { text: 'Modules', icon: <ModuleIcon />, path: '/modules' },
     { text: 'Templates', icon: <TemplateIcon />, path: '/templates' },
+    { text: 'Modules', icon: <ModuleIcon />, path: '/modules' },
     { text: 'Robots', icon: <RobotIcon />, path: '/robots' },
     { text: 'Datasets', icon: <StorageIcon />, path: '/datasets' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
   // Add admin menu item if user has admin role
@@ -122,6 +127,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </ListItemButton>
           </ListItem>
         ))}
+        <Divider />
+        <ListItem disablePadding>
+          <ListItemButton onClick={() => handleNavigation('/settings')}>
+            <ListItemIcon>
+              <SettingsIcon />
+            </ListItemIcon>
+            <ListItemText primary="Settings" />
+          </ListItemButton>
+        </ListItem>
       </List>
     </div>
   );
@@ -130,31 +144,90 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <Box sx={{ display: 'flex', height: '100vh' }}>
       <CssBaseline />
 
-      {/* Top App Bar */}
+      {/* Top App Bar with Navigation */}
       <AppBar
         position="fixed"
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          width: '100%',
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backgroundColor: 'white',
           color: 'text.primary',
           boxShadow: 1,
         }}
       >
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 1, md: 3 } }}>
+          {/* Left side - Logo and Navigation */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: { xs: 1, md: 3 },
+            }}
+          >
+            {/* Mobile Menu Button */}
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+
+            {/* Logo */}
             <Typography
               variant="h6"
               noWrap
               component="div"
-              sx={{ color: 'primary.main' }}
+              sx={{
+                color: 'primary.main',
+                fontWeight: 600,
+                cursor: 'pointer',
+                '&:hover': { opacity: 0.8 },
+              }}
+              onClick={() => handleNavigation('/')}
             >
-              Robium Platform
+              Robium
             </Typography>
+
+            {/* Desktop Navigation Links */}
+            {!isMobile && (
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {menuItems.map((item) => (
+                  <Button
+                    key={item.text}
+                    onClick={() => handleNavigation(item.path)}
+                    sx={{
+                      color:
+                        activeMenuItem === item.path
+                          ? 'primary.main'
+                          : 'text.secondary',
+                      textTransform: 'none',
+                      fontWeight: activeMenuItem === item.path ? 600 : 400,
+                      px: 2,
+                      py: 1,
+                      borderRadius: 1,
+                      '&:hover': {
+                        backgroundColor: 'action.hover',
+                        color: 'primary.main',
+                      },
+                      ...(activeMenuItem === item.path && {
+                        backgroundColor: 'primary.light',
+                        '&:hover': {
+                          backgroundColor: 'primary.light',
+                        },
+                      }),
+                    }}
+                  >
+                    {item.text}
+                  </Button>
+                ))}
+              </Box>
+            )}
           </Box>
 
-          {/* User Menu */}
+          {/* Right side - User Menu */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {user && (
               <>
@@ -163,9 +236,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   size="small"
                   color={user.role === 'admin' ? 'error' : 'default'}
                   variant="outlined"
+                  sx={{ display: { xs: 'none', sm: 'flex' } }}
                 />
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'text.secondary',
+                      display: { xs: 'none', sm: 'block' },
+                    }}
+                  >
                     {user.username}
                   </Typography>
                   <IconButton
@@ -215,12 +295,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </MenuItem>
       </Menu>
 
+      {/* Mobile Drawer */}
       <Box
         component="nav"
         id="main-navigation"
         role="navigation"
         aria-label="Main navigation"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{ display: { sm: 'none' } }}
       >
         <Drawer
           variant="temporary"
@@ -239,22 +320,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         >
           {drawer}
         </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              borderRight: 'none',
-              bgcolor: 'grey.50',
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
       </Box>
+
+      {/* Main Content */}
       <Box
         component="main"
         id="main-content"
@@ -262,83 +330,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         aria-label="Main content"
         sx={{
           flexGrow: 1,
-          p: 0, // Remove padding from main container for all pages
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          p: 0,
+          width: '100%',
           minHeight: '100vh',
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // Same gradient as home page
+          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
           pt: '64px', // Add top padding to account for the AppBar
         }}
       >
-        {/* Breadcrumb Section - Unified for all pages */}
-        <Box sx={{ py: 2, px: { xs: 2, md: 4 } }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              color: 'text.secondary',
-            }}
-          >
-            {(activeMenuItem === '/projects' ||
-              activeMenuItem.startsWith('/projects/')) && (
-              <FolderIcon sx={{ fontSize: 20 }} />
-            )}
-            {activeMenuItem === '/modules' && (
-              <ModuleIcon sx={{ fontSize: 20 }} />
-            )}
-            {activeMenuItem === '/templates' && (
-              <TemplateIcon sx={{ fontSize: 20 }} />
-            )}
-            {activeMenuItem === '/robots' && (
-              <RobotIcon sx={{ fontSize: 20 }} />
-            )}
-            {activeMenuItem === '/datasets' && (
-              <StorageIcon sx={{ fontSize: 20 }} />
-            )}
-            {activeMenuItem === '/settings' && (
-              <SettingsIcon sx={{ fontSize: 20 }} />
-            )}
-            {activeMenuItem === '/admin' && <AdminIcon sx={{ fontSize: 20 }} />}
-            {activeMenuItem.startsWith('/workspace/') && (
-              <CodeIcon sx={{ fontSize: 20 }} />
-            )}
-            {(activeMenuItem === '/' || activeMenuItem === '/home') && (
-              <HomeIcon sx={{ fontSize: 20 }} />
-            )}
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {activeMenuItem === '/projects' && 'Projects'}
-              {activeMenuItem.startsWith('/projects/') &&
-                activeMenuItem !== '/projects' && (
-                  <>
-                    <span
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => navigate('/projects')}
-                    >
-                      Projects
-                    </span>
-                    <span style={{ margin: '0 8px' }}>/</span>
-                    {activeMenuItem === '/projects/new' && 'Create Project'}
-                    {activeMenuItem.match(/^\/projects\/[^\/]+$/) &&
-                      activeMenuItem !== '/projects/new' &&
-                      'Project Details'}
-                  </>
-                )}
-              {activeMenuItem === '/modules' && 'Modules'}
-              {activeMenuItem === '/templates' && 'Templates'}
-              {activeMenuItem === '/datasets' && 'Datasets'}
-              {activeMenuItem === '/settings' && 'Settings'}
-              {activeMenuItem === '/admin' && 'Admin'}
-              {activeMenuItem.startsWith('/workspace/') && 'Workspace'}
-              {(activeMenuItem === '/' || activeMenuItem === '/home') && 'Home'}
-            </Typography>
-          </Box>
-        </Box>
-
         <Box
           sx={{
             width: '100%',
-            px: { xs: 2, md: 4 }, // Add consistent horizontal padding for all pages
-            mt: { xs: 1, sm: 2 }, // Consistent top margin for all pages
+            px: { xs: 2, md: 4 },
+            mt: { xs: 1, sm: 2 },
           }}
         >
           {children}

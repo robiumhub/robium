@@ -3,8 +3,14 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app/packages/backend
 
-# Copy only the backend package.json first
-COPY packages/backend/package.json packages/backend/package-lock.json* ./
+# Copy only the backend package.json first (omit package-lock to allow resolving local file deps)
+COPY packages/backend/package.json ./
+
+# Copy the shared package so local file dependency can be installed
+COPY packages/shared /app/packages/shared
+
+# Install shared package dependencies
+RUN cd /app/packages/shared && npm install
 
 # Install dependencies locally without workspace context
 RUN npm install

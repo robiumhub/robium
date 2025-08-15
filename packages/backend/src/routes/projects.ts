@@ -112,7 +112,24 @@ router.get('/types', async (req: AuthRequest, res) => {
 // GET /api/projects/templates - Get template projects
 router.get('/templates', async (req: AuthRequest, res) => {
   try {
-    const { category, search } = req.query;
+    const {
+      category,
+      search,
+      use_cases,
+      capabilities,
+      robot_targets,
+      simulators,
+      ros_distros,
+      rmw_implementations,
+      licenses,
+      difficulty,
+      tags,
+      requires_gpu,
+      official_only,
+      verified_only,
+      sort_by = 'updated_at',
+      sort_order = 'desc',
+    } = req.query;
 
     let query = `
       SELECT p.*, 
@@ -135,12 +152,116 @@ router.get('/templates', async (req: AuthRequest, res) => {
 
     // Add search filter
     if (search && typeof search === 'string') {
-      query += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`;
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex} OR p.tags::text ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
 
-    query += ' GROUP BY p.id ORDER BY p.name';
+    // Add metadata filters
+    if (use_cases && typeof use_cases === 'string') {
+      const useCases = use_cases.split(',');
+      useCases.forEach((useCase) => {
+        query += ` AND p.metadata->>'use_cases' LIKE $${paramIndex}`;
+        params.push(`%${useCase}%`);
+        paramIndex++;
+      });
+    }
+
+    if (capabilities && typeof capabilities === 'string') {
+      const caps = capabilities.split(',');
+      caps.forEach((cap) => {
+        query += ` AND p.metadata->>'capabilities' LIKE $${paramIndex}`;
+        params.push(`%${cap}%`);
+        paramIndex++;
+      });
+    }
+
+    if (robot_targets && typeof robot_targets === 'string') {
+      const targets = robot_targets.split(',');
+      targets.forEach((target) => {
+        query += ` AND p.metadata->>'robot_targets' LIKE $${paramIndex}`;
+        params.push(`%${target}%`);
+        paramIndex++;
+      });
+    }
+
+    if (simulators && typeof simulators === 'string') {
+      const sims = simulators.split(',');
+      sims.forEach((sim) => {
+        query += ` AND p.metadata->>'simulators' LIKE $${paramIndex}`;
+        params.push(`%${sim}%`);
+        paramIndex++;
+      });
+    }
+
+    if (ros_distros && typeof ros_distros === 'string') {
+      const distros = ros_distros.split(',');
+      distros.forEach((distro) => {
+        query += ` AND p.metadata->>'ros_distros' LIKE $${paramIndex}`;
+        params.push(`%${distro}%`);
+        paramIndex++;
+      });
+    }
+
+    if (rmw_implementations && typeof rmw_implementations === 'string') {
+      const rmws = rmw_implementations.split(',');
+      rmws.forEach((rmw) => {
+        query += ` AND p.metadata->>'rmw_implementations' LIKE $${paramIndex}`;
+        params.push(`%${rmw}%`);
+        paramIndex++;
+      });
+    }
+
+    if (licenses && typeof licenses === 'string') {
+      const licenseList = licenses.split(',');
+      query += ` AND p.license = ANY($${paramIndex})`;
+      params.push(licenseList as any);
+      paramIndex++;
+    }
+
+    if (difficulty && typeof difficulty === 'string') {
+      const difficulties = difficulty.split(',');
+      difficulties.forEach((diff) => {
+        query += ` AND p.metadata->>'difficulty' = $${paramIndex}`;
+        params.push(diff);
+        paramIndex++;
+      });
+    }
+
+    if (tags && typeof tags === 'string') {
+      const tagList = tags.split(',');
+      query += ` AND p.tags && $${paramIndex}`;
+      params.push(tagList as any);
+      paramIndex++;
+    }
+
+    if (requires_gpu === 'true') {
+      query += ` AND (p.config->>'simulation' = 'isaac' OR p.config->>'deployment' = 'cloud_gpu')`;
+    }
+
+    if (official_only === 'true') {
+      query += ` AND p.author = 'Robium Team'`;
+    }
+
+    if (verified_only === 'true') {
+      query += ` AND p.metadata->>'verified' = 'true'`;
+    }
+
+    query += ' GROUP BY p.id';
+
+    // Add sorting
+    const validSortFields = [
+      'name',
+      'created_at',
+      'updated_at',
+      'author',
+      'license',
+    ];
+    const sortField = validSortFields.includes(sort_by as string)
+      ? sort_by
+      : 'updated_at';
+    const sortDir = sort_order === 'asc' ? 'ASC' : 'DESC';
+    query += ` ORDER BY p.${sortField} ${sortDir}`;
 
     const result = (await Database.query(query, params)) as {
       rows: Array<Record<string, any>>;
@@ -156,6 +277,86 @@ router.get('/templates', async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch template projects',
+    });
+  }
+});
+
+// GET /api/projects/templates/stats - Get template statistics
+router.get('/templates/stats', async (req: AuthRequest, res) => {
+  try {
+    // Get total count
+    const totalResult = (await Database.query(
+      'SELECT COUNT(*) as total FROM projects WHERE is_active = true AND is_template = true'
+    )) as { rows: Array<{ total: string }> };
+    const totalTemplates = parseInt(totalResult.rows[0].total);
+
+    // Get tag counts
+    const tagResult = (await Database.query(`
+      SELECT unnest(tags) as tag, COUNT(*) as count
+      FROM projects 
+      WHERE is_active = true AND is_template = true AND tags IS NOT NULL
+      GROUP BY tag
+      ORDER BY count DESC
+    `)) as { rows: Array<{ tag: string; count: string }> };
+
+    // Get license counts
+    const licenseResult = (await Database.query(`
+      SELECT license, COUNT(*) as count
+      FROM projects 
+      WHERE is_active = true AND is_template = true
+      GROUP BY license
+      ORDER BY count DESC
+    `)) as { rows: Array<{ license: string; count: string }> };
+
+    // Get metadata counts (simplified for now)
+    const metadataResult = (await Database.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE metadata->>'difficulty' = 'beginner') as beginner_count,
+        COUNT(*) FILTER (WHERE metadata->>'difficulty' = 'intermediate') as intermediate_count,
+        COUNT(*) FILTER (WHERE metadata->>'difficulty' = 'advanced') as advanced_count,
+        COUNT(*) FILTER (WHERE author = 'Robium Team') as official_count,
+        COUNT(*) FILTER (WHERE metadata->>'verified' = 'true') as verified_count,
+        COUNT(*) FILTER (WHERE config->>'simulation' = 'isaac' OR config->>'deployment' = 'cloud_gpu') as gpu_count
+      FROM projects 
+      WHERE is_active = true AND is_template = true
+    `)) as {
+      rows: Array<{
+        beginner_count: string;
+        intermediate_count: string;
+        advanced_count: string;
+        official_count: string;
+        verified_count: string;
+        gpu_count: string;
+      }>;
+    };
+
+    const stats = {
+      total_templates: totalTemplates,
+      tag_counts: Object.fromEntries(
+        tagResult.rows.map((row) => [row.tag, parseInt(row.count)])
+      ),
+      license_counts: Object.fromEntries(
+        licenseResult.rows.map((row) => [row.license, parseInt(row.count)])
+      ),
+      difficulty_counts: {
+        beginner: parseInt(metadataResult.rows[0].beginner_count) || 0,
+        intermediate: parseInt(metadataResult.rows[0].intermediate_count) || 0,
+        advanced: parseInt(metadataResult.rows[0].advanced_count) || 0,
+      },
+      official_count: parseInt(metadataResult.rows[0].official_count) || 0,
+      verified_count: parseInt(metadataResult.rows[0].verified_count) || 0,
+      gpu_count: parseInt(metadataResult.rows[0].gpu_count) || 0,
+    };
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error('Error fetching template statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch template statistics',
     });
   }
 });
@@ -700,154 +901,61 @@ router.post(
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.userId;
-    const {
-      name,
-      description,
-      tags = [],
-      algorithms = [],
-      is_template = false,
-      rosConfig = null,
-    } = req.body;
+    const { name, description, config } = req.body;
 
     // Validate required fields
-    if (!name || !description) {
+    if (!name) {
       return res.status(400).json({
         success: false,
-        error: 'Name and description are required',
+        error: 'Name is required',
       });
+    }
+
+    // Validate config against shared schema
+    if (config) {
+      try {
+        const { schemaValidator } = await import('@robium/shared');
+        const validationResult = schemaValidator.validateProjectConfig(config);
+
+        if (!validationResult.valid) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid configuration',
+            details: validationResult.errors,
+          });
+        }
+      } catch (validationError) {
+        console.error('Schema validation error:', validationError);
+        return res.status(400).json({
+          success: false,
+          error: 'Configuration validation failed',
+        });
+      }
     }
 
     // Generate a unique ID for the project
     const projectId = crypto.randomUUID();
 
-    // Create the project with basic fields first
+    // Create the project with the new config structure
     const result = (await Database.query(
       `
       INSERT INTO projects (
-        id, name, description, owner_id, tags, is_template, type
+        id, name, description, owner_id, config, type
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7
+        $1, $2, $3, $4, $5, $6
       ) RETURNING *
     `,
       [
         projectId,
         name,
-        description,
+        description || '',
         userId, // owner_id
-        Array.isArray(tags) ? tags : [],
-        Boolean(is_template),
-        Boolean(is_template) ? 'template' : 'custom',
+        config ? JSON.stringify(config) : '{}',
+        'custom',
       ]
     )) as { rows: Array<Record<string, any>> };
 
     const newProject = result.rows[0];
-
-    // Persist selected modules into project_module_dependencies
-    if (Array.isArray(algorithms) && algorithms.length > 0) {
-      const values: string[] = [];
-      const placeholders: string[] = [];
-      let idx = 1;
-      for (const moduleId of algorithms) {
-        placeholders.push(
-          `($${idx++}, $${idx++}, 'required', NULL, ${idx++ - 1})`
-        );
-        // project_id, module_id, dependency_type 'required', version_constraint NULL, order_index
-        values.push(newProject.id, moduleId, String(placeholders.length - 1));
-      }
-
-      // Build a deterministic order_index sequence 0..n-1
-      // We'll rebuild placeholders accordingly
-      const rows: string[] = [];
-      let param = 1;
-      for (let orderIndex = 0; orderIndex < algorithms.length; orderIndex++) {
-        rows.push(`($${param++}, $${param++}, 'required', NULL, $${param++})`);
-      }
-
-      const insertParams: any[] = [];
-      for (let i = 0; i < algorithms.length; i++) {
-        insertParams.push(newProject.id, algorithms[i], i);
-      }
-
-      await Database.query(
-        `INSERT INTO project_module_dependencies (project_id, module_id, dependency_type, version_constraint, order_index)
-         VALUES ${rows.join(', ')}`,
-        insertParams
-      );
-    }
-
-    // Handle ROS configuration if provided
-    if (rosConfig && typeof rosConfig === 'object') {
-      try {
-        // Generate ROS Dockerfiles
-        const rosResult =
-          await dockerfileGenerationService.generateROSDockerfiles(rosConfig, {
-            includeCompose: true,
-            includeBake: true,
-            validateOnly: false,
-            outputDir: `./generated/${projectId}`,
-          });
-
-        if (rosResult.errors.length > 0) {
-          console.warn(
-            'ROS Dockerfile generation had errors:',
-            rosResult.errors
-          );
-        }
-
-        // Update project with ROS configuration
-        await Database.query(
-          `UPDATE projects SET 
-           config = COALESCE(config, '{}'::jsonb) || $1::jsonb,
-           metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
-           WHERE id = $3`,
-          [
-            JSON.stringify({ ros: rosConfig }),
-            JSON.stringify({
-              rosGenerated: true,
-              rosFiles: {
-                dockerfile: rosResult.path,
-                compose: rosResult.composePath,
-                bake: rosResult.bakePath,
-              },
-            }),
-            projectId,
-          ]
-        );
-
-        // Add ROS modules to project dependencies
-        if (rosConfig.modules && Array.isArray(rosConfig.modules)) {
-          const rosModules = rosConfig.modules.map(
-            (moduleId: string, index: number) => ({
-              projectId,
-              moduleId,
-              orderIndex: algorithms.length + index, // Append after existing algorithms
-            })
-          );
-
-          if (rosModules.length > 0) {
-            const rosRows: string[] = [];
-            const rosParams: any[] = [];
-            let param = 1;
-
-            for (const { projectId, moduleId, orderIndex } of rosModules) {
-              rosRows.push(
-                `($${param++}, $${param++}, 'required', NULL, $${param++})`
-              );
-              rosParams.push(projectId, moduleId, orderIndex);
-            }
-
-            await Database.query(
-              `INSERT INTO project_module_dependencies (project_id, module_id, dependency_type, version_constraint, order_index)
-               VALUES ${rosRows.join(', ')}`,
-              rosParams
-            );
-          }
-        }
-      } catch (error) {
-        console.error('Error handling ROS configuration:', error);
-        // Don't fail the entire project creation, just log the error
-      }
-    }
 
     res.status(201).json({
       success: true,

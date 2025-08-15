@@ -1,10 +1,11 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function (app) {
+  // Single proxy rule for all API routes
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'http://localhost:8000',
+      target: 'http://backend:8000', // Use Docker service name
       changeOrigin: true,
       pathRewrite: {
         '^/api': '', // Remove /api prefix when forwarding to backend
@@ -19,75 +20,15 @@ module.exports = function (app) {
     })
   );
 
-  // Proxy API requests to backend (only for actual API calls, not frontend routes)
+  // WebSocket proxy for real-time communication
   app.use(
-    '/api/projects',
+    '/ws',
     createProxyMiddleware({
-      target: 'http://localhost:8000',
+      target: 'ws://backend:8000', // Use Docker service name
+      ws: true, // Enable WebSocket proxying
       changeOrigin: true,
-      pathRewrite: {
-        '^/api/projects': '/projects', // Remove /api prefix when forwarding to backend
-      },
       onError: (err, req, res) => {
-        console.error('Proxy error:', err);
-        res.status(500).json({
-          error: 'Proxy error',
-          message: 'Backend server is not responding',
-        });
-      },
-    })
-  );
-
-  app.use(
-    '/api/auth',
-    createProxyMiddleware({
-      target: 'http://localhost:8000',
-      changeOrigin: true,
-      pathRewrite: {
-        '^/api/auth': '/auth', // Remove /api prefix when forwarding to backend
-      },
-      onError: (err, req, res) => {
-        console.error('Proxy error:', err);
-        res.status(500).json({
-          error: 'Proxy error',
-          message: 'Backend server is not responding',
-        });
-      },
-    })
-  );
-
-  app.use(
-    '/api/admin',
-    createProxyMiddleware({
-      target: 'http://localhost:8000',
-      changeOrigin: true,
-      pathRewrite: {
-        '^/api/admin': '/admin', // Remove /api prefix when forwarding to backend
-      },
-      onError: (err, req, res) => {
-        console.error('Proxy error:', err);
-        res.status(500).json({
-          error: 'Proxy error',
-          message: 'Backend server is not responding',
-        });
-      },
-    })
-  );
-
-  app.use(
-    '/api/dashboard',
-    createProxyMiddleware({
-      target: 'http://localhost:8000',
-      changeOrigin: true,
-      pathRewrite: {
-        '^/api/dashboard': '/dashboard', // Remove /api prefix when forwarding to backend
-      },
-      onError: (err, req, res) => {
-        console.error('Proxy error:', err);
-        res.status(500).json({
-          error: 'Proxy error',
-          message: 'Backend server is not responding',
-        });
+        console.error('WebSocket proxy error:', err);
       },
     })
   );

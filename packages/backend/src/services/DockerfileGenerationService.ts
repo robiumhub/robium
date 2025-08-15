@@ -59,6 +59,7 @@ export interface DockerfileOptions {
   optimize?: boolean;
   includeComments?: boolean;
   securityScan?: boolean;
+  context?: any;
 }
 
 export interface DockerfileResult {
@@ -277,7 +278,7 @@ RUN {{this}}
 # Copy from previous stage
 COPY --from={{copyFrom}} {{workdir}}/{{copyFrom}} {{workdir}}/
 {{/if}}
-
+e
 {{/each}}
 
 # Final stage
@@ -449,6 +450,322 @@ CMD ["bash"]
         size: 0,
       };
     }
+  }
+
+  /**
+   * Generate Dockerfile based on new project configuration schema
+   */
+  async generateFromProjectConfig(
+    projectId: string,
+    config: any,
+    options: DockerfileOptions = {}
+  ): Promise<DockerfileResult> {
+    try {
+      logger.info(
+        `Generating Dockerfile for project ${projectId} with new config schema`
+      );
+
+      // Map config to Dockerfile generation parameters
+      const dockerfileConfig = this.mapConfigToDockerfileConfig(config);
+
+      // Generate base Dockerfile content directly
+      const result: DockerfileResult = {
+        content: this.generateBaseDockerfileContent(dockerfileConfig),
+        path: '',
+        errors: [],
+        warnings: [],
+        optimizationSuggestions: [],
+        securityIssues: [],
+        buildTime: 0,
+        size: 0,
+      };
+
+      // Add RMW configuration
+      if (config.rmw) {
+        result.content = this.addRMWConfiguration(result.content, config.rmw);
+      }
+
+      // Add simulation packages if needed
+      if (config.simulation && config.simulation !== 'none') {
+        result.content = this.addSimulationPackages(
+          result.content,
+          config.simulation
+        );
+      }
+
+      // Add teleop packages if needed
+      if (config.teleopKeyboard || config.teleopJoystick) {
+        result.content = this.addTeleopPackages(result.content, config);
+      }
+
+      // Add Foxglove if enabled
+      if (config.foxglove) {
+        result.content = this.addFoxgloveConfiguration(result.content);
+      }
+
+      return result;
+    } catch (error) {
+      logger.error(`Error generating Dockerfile from project config: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate base Dockerfile content from configuration
+   */
+  private generateBaseDockerfileContent(config: ProjectConfiguration): string {
+    let content = `# Generated Dockerfile for ${config.name}
+# Project: ${config.name}
+# Type: ${config.type}
+# Generated: ${new Date().toISOString()}
+
+FROM ${config.baseImage}
+
+# Set working directory
+WORKDIR ${config.workdir}
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \\
+    ${
+      config.systemDependencies?.join(' \\\n    ') ||
+      'build-essential git wget curl'
+    } \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+${Object.entries(config.environmentVariables || {})
+  .map(([key, value]) => `ENV ${key}=${value}`)
+  .join('\n')}
+
+# Expose ports
+${config.ports?.map((port) => `EXPOSE ${port}`).join('\n') || ''}
+
+# Copy application code
+COPY . .
+
+# Set default command
+CMD ${config.command || '["bash"]'}
+`;
+
+    return content;
+  }
+
+  /**
+   * Map new project config to Dockerfile generation parameters
+   */
+  private mapConfigToDockerfileConfig(config: any): ProjectConfiguration {
+    // Map base image
+    let baseImage: string;
+    switch (config.baseImage) {
+      case 'ros_humble':
+        baseImage = 'ros:humble-ros-base-jammy';
+        break;
+      case 'cuda_ubuntu2204':
+        baseImage = 'nvidia/cuda:11.8-devel-ubuntu22.04';
+        break;
+      case 'jetson_l4t_ros':
+        baseImage = 'nvcr.io/nvidia/l4t-ros:r35.4.1-ros2-humble';
+        break;
+      default:
+        baseImage = 'ros:humble-ros-base-jammy';
+    }
+
+    // Map ROS version
+    const rosVersion = config.rosVersion || 'humble';
+
+    // Determine system dependencies based on configuration
+    const systemDependencies: string[] = [
+      'build-essential',
+      'cmake',
+      'git',
+      'wget',
+      'curl',
+      'python3-pip',
+      'python3-dev',
+    ];
+
+    // Add simulation dependencies
+    if (config.simulation === 'gazebo') {
+      systemDependencies.push('gazebo', 'libgazebo-dev');
+    } else if (config.simulation === 'isaac') {
+      systemDependencies.push('nvidia-container-toolkit');
+    }
+
+    // Add teleop dependencies
+    if (config.teleopJoystick) {
+      systemDependencies.push('joystick', 'jstest-gtk');
+    }
+
+    return {
+      id: 'project-config',
+      name: 'Project Configuration',
+      version: '1.0.0',
+      type: 'custom',
+      baseImage,
+      workdir: '/workspace',
+      systemDependencies,
+      environmentVariables: {
+        ROS_DISTRO: rosVersion,
+        RMW_IMPLEMENTATION: config.rmw || 'cyclonedds',
+        ...(config.simulation === 'isaac' && { NVIDIA_VISIBLE_DEVICES: 'all' }),
+      },
+      ports: config.foxglove ? ['9090'] : [],
+      command: this.getStartupCommand(config),
+    };
+  }
+
+  /**
+   * Add RMW configuration to Dockerfile
+   */
+  private addRMWConfiguration(dockerfileContent: string, rmw: string): string {
+    const rmwConfig = `
+# Configure RMW implementation
+ENV RMW_IMPLEMENTATION=${rmw}
+`;
+
+    // Insert after FROM line
+    const fromIndex = dockerfileContent.indexOf('FROM');
+    const insertIndex = dockerfileContent.indexOf('\n', fromIndex) + 1;
+
+    return (
+      dockerfileContent.slice(0, insertIndex) +
+      rmwConfig +
+      dockerfileContent.slice(insertIndex)
+    );
+  }
+
+  /**
+   * Add simulation packages to Dockerfile
+   */
+  private addSimulationPackages(
+    dockerfileContent: string,
+    simulation: string
+  ): string {
+    let packages = '';
+
+    if (simulation === 'gazebo') {
+      packages = `
+# Install Gazebo simulation packages
+RUN apt-get update && apt-get install -y \\
+    gazebo \\
+    libgazebo-dev \\
+    ros-\${ROS_DISTRO}-gazebo-ros-pkgs \\
+    ros-\${ROS_DISTRO}-gazebo-ros-control \\
+    && rm -rf /var/lib/apt/lists/*
+`;
+    } else if (simulation === 'isaac') {
+      packages = `
+# Install Isaac Sim dependencies
+RUN apt-get update && apt-get install -y \\
+    nvidia-container-toolkit \\
+    && rm -rf /var/lib/apt/lists/*
+`;
+    }
+
+    // Insert before WORKDIR
+    const workdirIndex = dockerfileContent.indexOf('WORKDIR');
+    const insertIndex = workdirIndex;
+
+    return (
+      dockerfileContent.slice(0, insertIndex) +
+      packages +
+      dockerfileContent.slice(insertIndex)
+    );
+  }
+
+  /**
+   * Add teleop packages to Dockerfile
+   */
+  private addTeleopPackages(dockerfileContent: string, config: any): string {
+    let packages = '';
+
+    if (config.teleopKeyboard) {
+      packages += `
+# Install keyboard teleop
+RUN apt-get update && apt-get install -y \\
+    ros-\${ROS_DISTRO}-teleop-twist-keyboard \\
+    && rm -rf /var/lib/apt/lists/*
+`;
+    }
+
+    if (config.teleopJoystick) {
+      packages += `
+# Install joystick teleop
+RUN apt-get update && apt-get install -y \\
+    joystick \\
+    jstest-gtk \\
+    ros-\${ROS_DISTRO}-joy \\
+    ros-\${ROS_DISTRO}-teleop-twist-joy \\
+    && rm -rf /var/lib/apt/lists/*
+`;
+    }
+
+    // Insert before WORKDIR
+    const workdirIndex = dockerfileContent.indexOf('WORKDIR');
+    const insertIndex = workdirIndex;
+
+    return (
+      dockerfileContent.slice(0, insertIndex) +
+      packages +
+      dockerfileContent.slice(insertIndex)
+    );
+  }
+
+  /**
+   * Add Foxglove configuration to Dockerfile
+   */
+  private addFoxgloveConfiguration(dockerfileContent: string): string {
+    const foxgloveConfig = `
+# Install Foxglove Studio Bridge
+RUN pip3 install foxglove-bridge
+
+# Expose Foxglove port
+EXPOSE 9090
+`;
+
+    // Insert before CMD
+    const cmdIndex = dockerfileContent.indexOf('CMD');
+    const insertIndex = cmdIndex;
+
+    return (
+      dockerfileContent.slice(0, insertIndex) +
+      foxgloveConfig +
+      dockerfileContent.slice(insertIndex)
+    );
+  }
+
+  /**
+   * Get startup command based on configuration
+   */
+  private getStartupCommand(config: any): string {
+    const commands: string[] = [];
+
+    // Add simulation startup
+    if (config.simulation === 'gazebo') {
+      commands.push('roslaunch gazebo_ros empty_world.launch');
+    } else if (config.simulation === 'isaac') {
+      commands.push('isaac-sim');
+    }
+
+    // Add teleop startup
+    if (config.teleopKeyboard) {
+      commands.push('rosrun teleop_twist_keyboard teleop_twist_keyboard.py');
+    }
+    if (config.teleopJoystick) {
+      commands.push('rosrun joy joy_node');
+    }
+
+    // Add Foxglove bridge
+    if (config.foxglove) {
+      commands.push('foxglove-bridge');
+    }
+
+    // Default to bash if no specific commands
+    if (commands.length === 0) {
+      commands.push('bash');
+    }
+
+    return commands.join(' & ');
   }
 
   /**

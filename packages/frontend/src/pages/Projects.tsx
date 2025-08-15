@@ -319,17 +319,11 @@ const Projects: React.FC = () => {
       setDockerfileLoading(true);
       setDockerfileError(null);
 
-      const result = await ApiService.get<{
-        success: boolean;
-        data: { content: string };
-        message?: string;
-      }>(`/dockerfiles/${project.id}`);
+      const result = await ApiService.get<{ content: string }>(
+        `/dockerfiles/${project.id}`
+      );
 
-      if (result.success) {
-        setDockerfileContent(result.data.content);
-      } else {
-        throw new Error(result.message || 'Failed to load Dockerfile');
-      }
+      setDockerfileContent(result.content);
     } catch (error) {
       console.error('Failed to load Dockerfile:', error);
       setDockerfileError(

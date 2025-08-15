@@ -27,7 +27,7 @@ export * from './types/ros-modules';
 
 // Export utilities (to be implemented)
 export * from './utils/schema-loader';
-export * from './utils/config-migrator';
+// export * from './utils/config-migrator'; // TODO: Implement config migrator
 
 // Export ROS modules
 export * from './modules';

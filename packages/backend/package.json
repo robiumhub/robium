@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@robium/shared": "file:../shared",
+    "ajv-formats": "^2.1.1",
     "@types/dockerode": "^3.3.42",
     "@types/handlebars": "^4.0.40",
     "bcryptjs": "^2.4.3",

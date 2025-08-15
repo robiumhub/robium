@@ -34,7 +34,10 @@ export interface ApiResponse<T = any> {
 
 // API Configuration
 // Use proxy in development, direct URL in production
-const API_BASE_URL = process.env.NODE_ENV === 'development' ? '/api' : (process.env.REACT_APP_API_URL || '/api');
+const API_BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? '/api'
+    : process.env.REACT_APP_API_URL || '/api';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -186,8 +189,9 @@ export class ApiService {
 
   static async refreshToken(): Promise<AuthResponse> {
     try {
-      const response =
-        await api.post<ApiResponse<AuthResponse>>('/auth/refresh');
+      const response = await api.post<ApiResponse<AuthResponse>>(
+        '/auth/refresh'
+      );
 
       if (response.data.success) {
         return response.data.data!;
@@ -247,6 +251,65 @@ export class ApiService {
         throw new Error(error.response.data.error);
       }
       throw new Error(error.message || 'Password change failed');
+    }
+  }
+
+  // Project management endpoints
+  static async createProject(payload: {
+    name: string;
+    description?: string;
+    config: any;
+  }): Promise<any> {
+    try {
+      const response = await api.post<ApiResponse<any>>('/projects', payload);
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Project creation failed');
+      }
+
+      return response.data.data!;
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error(error.message || 'Project creation failed');
+    }
+  }
+
+  static async getProjects(): Promise<any[]> {
+    try {
+      const response = await api.get<ApiResponse<any[]>>('/projects');
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to fetch projects');
+      }
+
+      return response.data.data!;
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error(error.message || 'Failed to fetch projects');
+    }
+  }
+
+  // Dockerfile generation endpoints
+  static async generateDockerfile(projectId: string): Promise<any> {
+    try {
+      const response = await api.post<ApiResponse<any>>(
+        `/dockerfiles/${projectId}/generate`
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Dockerfile generation failed');
+      }
+
+      return response.data.data!;
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error(error.message || 'Dockerfile generation failed');
     }
   }
 
