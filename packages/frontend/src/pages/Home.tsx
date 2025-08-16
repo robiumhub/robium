@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, Fragment, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -6,7 +6,6 @@ import {
   Typography,
   TextField,
   Button,
-  Grid,
   List,
   ListItem,
   ListItemIcon,
@@ -17,7 +16,10 @@ import {
   InputAdornment,
   Paper,
   Divider,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Send as SendIcon,
   Add as AddIcon,
@@ -30,6 +32,10 @@ import {
   Create as CreateIcon,
   Home as HomeIcon,
   Article as TemplateIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
+  ViewModule as ViewModuleIcon,
+  ViewList as ViewListIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -63,6 +69,10 @@ const Home: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [projectViewMode, setProjectViewMode] = useState<'grid' | 'list'>(
+    'list'
+  );
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -100,6 +110,21 @@ const Home: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Filter projects based on search query
+  const filteredProjects = useMemo(() => {
+    return recentProjects.filter(
+      (project) =>
+        project.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) ||
+        project.description
+          .toLowerCase()
+          .includes(projectSearchQuery.toLowerCase())
+    );
+  }, [recentProjects, projectSearchQuery]);
+
+  const handleClearProjectSearch = () => {
+    setProjectSearchQuery('');
   };
 
   const handleGenerateProject = () => {
@@ -286,25 +311,191 @@ const Home: React.FC = () => {
 
               {/* Recent Projects */}
               <Box sx={{ flex: 1 }}>
-                <Typography
-                  variant="h4"
-                  component="h3"
+                <Box
                   sx={{
-                    fontWeight: 700,
-                    mb: 4,
-                    color: '#2c3e50',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    mb: 3,
+                    flexWrap: 'wrap',
+                    gap: 2,
                   }}
                 >
-                  Recent Projects
-                </Typography>
+                  <Typography
+                    variant="h4"
+                    component="h3"
+                    sx={{
+                      fontWeight: 700,
+                      color: '#2c3e50',
+                    }}
+                  >
+                    Recent Projects
+                  </Typography>
 
-                {recentProjects.length > 0 ? (
-                  <List sx={{ p: 0 }}>
-                    {recentProjects.map((project, index) => (
-                      <React.Fragment key={project.id}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <ToggleButtonGroup
+                      value={projectViewMode}
+                      exclusive
+                      onChange={(_, newMode) =>
+                        newMode && setProjectViewMode(newMode)
+                      }
+                      size="small"
+                    >
+                      <ToggleButton value="grid">
+                        <ViewModuleIcon />
+                      </ToggleButton>
+                      <ToggleButton value="list">
+                        <ViewListIcon />
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
+                </Box>
+
+                {/* Search Controls */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    gap: 2,
+                    mb: 3,
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                  }}
+                >
+                  <TextField
+                    placeholder="Search projects..."
+                    value={projectSearchQuery}
+                    onChange={(e) => setProjectSearchQuery(e.target.value)}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                      endAdornment: projectSearchQuery && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            onClick={handleClearProjectSearch}
+                            edge="end"
+                          >
+                            <ClearIcon />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                    size="small"
+                    sx={{ minWidth: 200 }}
+                  />
+
+                  <Typography variant="body2" color="text.secondary">
+                    {filteredProjects.length} of {recentProjects.length}{' '}
+                    projects
+                  </Typography>
+                </Box>
+
+                {filteredProjects.length > 0 ? (
+                  projectViewMode === 'list' ? (
+                    <List sx={{ p: 0 }}>
+                      {filteredProjects.map((project, index) => (
+                        <React.Fragment key={project.id}>
+                          <Card
+                            sx={{
+                              mb: 2,
+                              borderRadius: 3,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                              transition: 'all 0.3s ease-in-out',
+                              cursor: 'pointer',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 20px rgba(0,0,0,0.12)',
+                              },
+                            }}
+                            onClick={() => handleOpenProject(project.id)}
+                          >
+                            <CardContent sx={{ p: 3 }}>
+                              <Box
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="space-between"
+                              >
+                                <Box display="flex" alignItems="center" gap={2}>
+                                  <FolderIcon
+                                    color="primary"
+                                    sx={{ fontSize: 32 }}
+                                  />
+                                  <Box>
+                                    <Typography
+                                      variant="h6"
+                                      sx={{ fontWeight: 600, mb: 1 }}
+                                    >
+                                      {project.name}
+                                    </Typography>
+                                    <Box
+                                      display="flex"
+                                      alignItems="center"
+                                      gap={2}
+                                    >
+                                      <Box
+                                        display="flex"
+                                        alignItems="center"
+                                        gap={1}
+                                      >
+                                        <TimeIcon
+                                          fontSize="small"
+                                          color="action"
+                                        />
+                                        <Typography
+                                          variant="body2"
+                                          color="text.secondary"
+                                        >
+                                          {new Date(
+                                            project.updated_at
+                                          ).toLocaleDateString()}
+                                        </Typography>
+                                      </Box>
+                                      <Chip
+                                        label={project.status}
+                                        size="small"
+                                        color="success"
+                                        sx={{ fontWeight: 500 }}
+                                      />
+                                    </Box>
+                                  </Box>
+                                </Box>
+                                <IconButton
+                                  size="medium"
+                                  sx={{
+                                    '&:hover': {
+                                      backgroundColor: 'primary.main',
+                                      color: 'white',
+                                    },
+                                  }}
+                                >
+                                  <OpenInNewIcon />
+                                </IconButton>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </React.Fragment>
+                      ))}
+                    </List>
+                  ) : (
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: '1fr',
+                          sm: 'repeat(2, 1fr)',
+                          md: 'repeat(3, 1fr)',
+                        },
+                        gap: 3,
+                      }}
+                    >
+                      {filteredProjects.map((project) => (
                         <Card
+                          key={project.id}
                           sx={{
-                            mb: 2,
+                            height: '100%',
                             borderRadius: 3,
                             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                             transition: 'all 0.3s ease-in-out',
@@ -320,69 +511,51 @@ const Home: React.FC = () => {
                             <Box
                               display="flex"
                               alignItems="center"
+                              gap={2}
+                              mb={2}
+                            >
+                              <FolderIcon
+                                color="primary"
+                                sx={{ fontSize: 24 }}
+                              />
+                              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                {project.name}
+                              </Typography>
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mb: 2 }}
+                            >
+                              {project.description}
+                            </Typography>
+                            <Box
+                              display="flex"
+                              alignItems="center"
                               justifyContent="space-between"
                             >
-                              <Box display="flex" alignItems="center" gap={2}>
-                                <FolderIcon
-                                  color="primary"
-                                  sx={{ fontSize: 32 }}
-                                />
-                                <Box>
-                                  <Typography
-                                    variant="h6"
-                                    sx={{ fontWeight: 600, mb: 1 }}
-                                  >
-                                    {project.name}
-                                  </Typography>
-                                  <Box
-                                    display="flex"
-                                    alignItems="center"
-                                    gap={2}
-                                  >
-                                    <Box
-                                      display="flex"
-                                      alignItems="center"
-                                      gap={1}
-                                    >
-                                      <TimeIcon
-                                        fontSize="small"
-                                        color="action"
-                                      />
-                                      <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                      >
-                                        {new Date(
-                                          project.updated_at
-                                        ).toLocaleDateString()}
-                                      </Typography>
-                                    </Box>
-                                    <Chip
-                                      label={project.status}
-                                      size="small"
-                                      color="success"
-                                      sx={{ fontWeight: 500 }}
-                                    />
-                                  </Box>
-                                </Box>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <TimeIcon fontSize="small" color="action" />
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {new Date(
+                                    project.updated_at
+                                  ).toLocaleDateString()}
+                                </Typography>
                               </Box>
-                              <IconButton
-                                size="medium"
-                                sx={{
-                                  '&:hover': {
-                                    backgroundColor: 'primary.main',
-                                    color: 'white',
-                                  },
-                                }}
-                              >
-                                <OpenInNewIcon />
-                              </IconButton>
+                              <Chip
+                                label={project.status}
+                                size="small"
+                                color="success"
+                              />
                             </Box>
                           </CardContent>
                         </Card>
-                      </React.Fragment>
-                    ))}
-                  </List>
+                      ))}
+                    </Box>
+                  )
                 ) : (
                   <Card
                     sx={{
@@ -398,24 +571,27 @@ const Home: React.FC = () => {
                         color="text.secondary"
                         sx={{ mb: 3, fontWeight: 500 }}
                       >
-                        No projects yet. Create your first project to get
-                        started!
+                        {projectSearchQuery
+                          ? 'No projects found matching your search'
+                          : 'No projects yet. Create your first project to get started!'}
                       </Typography>
-                      <Button
-                        variant="contained"
-                        size="large"
-                        startIcon={<AddIcon />}
-                        onClick={handleCreateProject}
-                        sx={{
-                          borderRadius: 3,
-                          px: 4,
-                          py: 1.5,
-                          fontSize: '1.1rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Create Your First Project
-                      </Button>
+                      {!projectSearchQuery && (
+                        <Button
+                          variant="contained"
+                          size="large"
+                          startIcon={<AddIcon />}
+                          onClick={handleCreateProject}
+                          sx={{
+                            borderRadius: 3,
+                            px: 4,
+                            py: 1.5,
+                            fontSize: '1.1rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Create Your First Project
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 )}

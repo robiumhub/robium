@@ -7,8 +7,8 @@ import { Database } from '../utils/database';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 async function main() {
-  const newPassword = 'admin123';
-  const email = 'mahmutdemir@gmail.com';
+  const newPassword = 'bn193431';
+  const email = 'admin@robium.dev';
 
   try {
     await Database.connect();

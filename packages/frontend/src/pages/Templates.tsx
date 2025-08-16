@@ -17,6 +17,9 @@ import {
   Alert,
   Paper,
   Drawer,
+  ToggleButtonGroup,
+  ToggleButton,
+  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,8 +30,9 @@ import {
   Star as StarIcon,
   FilterList as FilterListIcon,
   NewReleases as NewIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import TemplateCard from '../components/TemplateCard';
 import TemplateFilters from '../components/TemplateFilters';
 import TemplatePreview from '../components/TemplatePreview';
@@ -69,6 +73,7 @@ const Templates: React.FC = () => {
     DEFAULT_TEMPLATE_FILTERS
   );
   const [sortBy, setSortBy] = useState<SortOption>('updated_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
@@ -308,28 +313,33 @@ const Templates: React.FC = () => {
 
     // Apply sorting
     filtered.sort((a, b) => {
+      let comparison = 0;
       switch (sortBy) {
         case 'name':
-          return a.name.localeCompare(b.name);
+          comparison = a.name.localeCompare(b.name);
+          break;
         case 'created_at':
-          return (
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          comparison =
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
         case 'updated_at':
-          return (
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-          );
+          comparison =
+            new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+          break;
         case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
+          comparison = (a.rating || 0) - (b.rating || 0);
+          break;
         case 'installs_7d':
-          return (b.installs_7d || 0) - (a.installs_7d || 0);
+          comparison = (a.installs_7d || 0) - (b.installs_7d || 0);
+          break;
         default:
           return 0;
       }
+      return sortOrder === 'desc' ? -comparison : comparison;
     });
 
     return filtered;
-  }, [templates, searchQuery, filters, sortBy]);
+  }, [templates, searchQuery, filters, sortBy, sortOrder]);
 
   // Handlers
   const handlePreview = (template: Template) => {
@@ -424,35 +434,37 @@ const Templates: React.FC = () => {
     return (
       <Box>
         {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" gutterBottom>
-            Project Templates
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-            Discover and launch pre-configured ROS2 projects. Templates are
-            created by the Robium community and verified by our team.
-          </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              {processedTemplates.length} of {templates.length} templates
+            </Typography>
+          </Box>
 
-          {/* Stats */}
-          {stats && (
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Chip
-                icon={<TrendingIcon />}
-                label={`${stats.total_templates} templates`}
-                variant="outlined"
-              />
-              <Chip
-                icon={<StarIcon />}
-                label="Community curated"
-                variant="outlined"
-              />
-              <Chip
-                icon={<NewIcon />}
-                label="Regular updates"
-                variant="outlined"
-              />
-            </Box>
-          )}
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, newMode) => newMode && setViewMode(newMode)}
+              size="small"
+            >
+              <ToggleButton value="grid">
+                <GridIcon />
+              </ToggleButton>
+              <ToggleButton value="list">
+                <ListIcon />
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         </Box>
 
         {/* Search and Controls */}
@@ -790,19 +802,94 @@ const Templates: React.FC = () => {
 
         {/* Cards Area */}
         <Box sx={{ flex: 1 }}>
-          {/* Results header: count only */}
+          {/* Header Controls and Search/Sort - Cards Section */}
           <Box
             sx={{
-              mb: 2,
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              gap: 2,
+              mb: 3,
               flexWrap: 'wrap',
+              gap: 2,
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              {processedTemplates.length} of {templates.length} templates
-            </Typography>
+            {/* Left side: Search and Sort Controls */}
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 2,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <TextField
+                placeholder="Search templates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchQuery && (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={handleClearSearch}>
+                        <ClearIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                size="small"
+                sx={{ minWidth: 200 }}
+              />
+
+              <TextField
+                select
+                label="Sort by"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                size="small"
+                sx={{ minWidth: 140 }}
+              >
+                <MenuItem value="name">Name</MenuItem>
+                <MenuItem value="created_at">Created</MenuItem>
+                <MenuItem value="updated_at">Updated</MenuItem>
+                <MenuItem value="rating">Rating</MenuItem>
+                <MenuItem value="installs_7d">Installs</MenuItem>
+              </TextField>
+
+              <ToggleButtonGroup
+                value={sortOrder}
+                exclusive
+                onChange={(_, value) => value && setSortOrder(value)}
+                size="small"
+              >
+                <ToggleButton value="asc">↑</ToggleButton>
+                <ToggleButton value="desc">↓</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {/* Right side: Template count, View mode */}
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                {processedTemplates.length} of {templates.length} templates
+              </Typography>
+
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                size="small"
+              >
+                <ToggleButton value="grid">
+                  <GridIcon />
+                </ToggleButton>
+                <ToggleButton value="list">
+                  <ListIcon />
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
           </Box>
 
           {/* Templates Grid */}

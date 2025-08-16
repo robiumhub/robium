@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Grid,
   Chip,
   IconButton,
   Tooltip,
@@ -28,7 +27,11 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Alert,
+  Divider,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
+
 import {
   Search as SearchIcon,
   FilterList as FilterIcon,
@@ -40,8 +43,10 @@ import {
   Compare as CompareIcon,
   ViewList as ViewListIcon,
   ViewModule as ViewModuleIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { RobotsService, Robot } from '../services/robotsService';
+import { Link as RouterLink } from 'react-router-dom';
 
 interface ModuleMetadata {
   name: string;
@@ -64,6 +69,8 @@ interface ModuleFilters {
 }
 
 const Modules: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [modules, setModules] = useState<ModuleMetadata[]>([]);
   const [filteredModules, setFilteredModules] = useState<ModuleMetadata[]>([]);
   const [displayedModules, setDisplayedModules] = useState<ModuleMetadata[]>(
@@ -93,102 +100,100 @@ const Modules: React.FC = () => {
   const modulesPerPage = 12;
 
   useEffect(() => {
-    // Fetch modules and robots from API
-    const fetchData = async () => {
+    const fetchModules = async () => {
       try {
-        setLoading(true);
-
-        // Fetch robots data
-        const robotsData = await RobotsService.getRobots();
-        setRobots(robotsData);
-
-        // Fetch modules data
-        const response = await fetch('http://localhost:8000/modules', {
-          headers: {
-            'Content-Type': 'application/json',
+        // Mock data for now
+        const mockModules: ModuleMetadata[] = [
+          {
+            name: 'navigation_core',
+            description: 'Core navigation functionality for autonomous robots',
+            version: '1.0.0',
+            category: 'navigation',
+            packages: ['nav2_core', 'nav2_controller'],
+            tags: ['autonomous', 'pathfinding'],
+            supported_robots: ['turtlebot4', 'kobuki'],
           },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            // Handle both old and new API response formats
-            const modulesData = Array.isArray(result.data)
-              ? result.data
-              : result.data.modules;
-            setModules(modulesData);
-            setFilteredModules(modulesData);
-          } else {
-            console.error('Failed to fetch modules:', result.error);
-          }
-        } else {
-          console.error('Failed to fetch modules:', response.statusText);
-        }
+          {
+            name: 'perception_vision',
+            description: 'Computer vision and image processing modules',
+            version: '2.1.0',
+            category: 'perception',
+            packages: ['opencv_ros', 'vision_msgs'],
+            tags: ['vision', 'detection'],
+            supported_robots: ['turtlebot4', 'depthai_oakd'],
+          },
+          {
+            name: 'manipulation_arm',
+            description: 'Robotic arm manipulation and control',
+            version: '1.5.0',
+            category: 'manipulation',
+            packages: ['moveit', 'ur5_control'],
+            tags: ['arm', 'grasping'],
+            supported_robots: ['ur5', 'franka'],
+          },
+        ];
+        setModules(mockModules);
+        setFilteredModules(mockModules);
+        setLoading(false);
       } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
+        console.error('Error fetching modules:', error);
         setLoading(false);
       }
     };
 
-    fetchData();
+    const fetchRobots = async () => {
+      try {
+        const robotsData = await RobotsService.getRobots();
+        setRobots(robotsData);
+      } catch (error) {
+        console.error('Error fetching robots:', error);
+      }
+    };
+
+    fetchModules();
+    fetchRobots();
   }, []);
 
+  // Filter modules based on search, category, and robots
   useEffect(() => {
-    let filtered = modules;
+    let filtered = modules.filter((module) => {
+      const matchesSearch =
+        module.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+        module.description.toLowerCase().includes(filters.search.toLowerCase());
 
-    // Apply search filter
-    if (filters.search) {
-      filtered = filtered.filter(
-        (module) =>
-          module.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-          module.description
-            .toLowerCase()
-            .includes(filters.search.toLowerCase()) ||
-          module.tags?.some((tag) =>
-            tag.toLowerCase().includes(filters.search.toLowerCase())
-          )
-      );
-    }
+      const matchesCategory =
+        filters.category === 'all' || module.category === filters.category;
 
-    // Apply category filter
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(
-        (module) => module.category === filters.category
-      );
-    }
+      const matchesRobots =
+        filters.robots.length === 0 ||
+        (module.supported_robots &&
+          module.supported_robots.some((robot) =>
+            filters.robots.includes(robot)
+          ));
 
-    // Apply robots filter (intersection)
-    if (filters.robots.length > 0) {
-      filtered = filtered.filter((module) => {
-        const robots = module.supported_robots || [];
-        return filters.robots.every((r) => robots.includes(r));
-      });
-    }
+      return matchesSearch && matchesCategory && matchesRobots;
+    });
 
-    // Apply sorting
+    // Sort modules
     filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-
+      let comparison = 0;
       switch (filters.sortBy) {
         case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          comparison = a.name.localeCompare(b.name);
           break;
         case 'category':
-          aValue = a.category.toLowerCase();
-          bValue = b.category.toLowerCase();
+          comparison = a.category.localeCompare(b.category);
+          break;
+        case 'complexity':
+          comparison = (a.packages.length || 0) - (b.packages.length || 0);
+          break;
+        case 'status':
+          comparison = (a.version || '').localeCompare(b.version || '');
           break;
         default:
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          comparison = 0;
       }
-
-      if (filters.sortOrder === 'asc') {
-        return aValue.localeCompare(bValue);
-      } else {
-        return bValue.localeCompare(aValue);
-      }
+      return filters.sortOrder === 'asc' ? comparison : -comparison;
     });
 
     setFilteredModules(filtered);
@@ -254,353 +259,789 @@ const Modules: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Modules
-      </Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom>
-        Browse and manage available robotics modules for your projects
-      </Typography>
-
-      {/* Enhanced Search and Filter Controls */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 2,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            mb: 2,
-          }}
-        >
-          <TextField
-            placeholder="Search modules..."
-            value={filters.search}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, search: e.target.value }))
-            }
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
+      {/* Mobile controls keep current toolbar; Desktop uses left sidebar */}
+      {isMobile ? (
+        <Box sx={{ mb: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              mb: 2,
             }}
-            sx={{ minWidth: 300 }}
-          />
-          <FormControl sx={{ minWidth: 150 }}>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={filters.category}
-              label="Category"
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, category: e.target.value }))
-              }
-            >
-              <MenuItem value="all">All Categories</MenuItem>
-              {categories.map((category) => (
-                <MenuItem key={category} value={category}>
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl sx={{ minWidth: 220 }}>
-            <InputLabel>Supported Robots</InputLabel>
-            <Select
-              multiple
-              value={filters.robots}
-              label="Supported Robots"
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  robots: e.target.value as string[],
-                }))
-              }
-              renderValue={(selected) =>
-                (selected as string[])
-                  .map((r) => RobotsService.getRobotDisplayName(r))
-                  .join(', ')
-              }
-            >
-              {robots.map((robot) => (
-                <MenuItem key={robot.code} value={robot.code}>
-                  {robot.name} ({robot.module_count} modules)
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl sx={{ minWidth: 150 }}>
-            <InputLabel>Sort By</InputLabel>
-            <Select
-              value={filters.sortBy}
-              label="Sort By"
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
-              }
-            >
-              <MenuItem value="name">Name</MenuItem>
-              <MenuItem value="category">Category</MenuItem>
-              <MenuItem value="complexity">Complexity</MenuItem>
-              <MenuItem value="status">Status</MenuItem>
-            </Select>
-          </FormControl>
-          <ToggleButtonGroup
-            value={filters.sortOrder}
-            exclusive
-            onChange={(_, value) =>
-              value && setFilters((prev) => ({ ...prev, sortOrder: value }))
-            }
-            size="small"
           >
-            <ToggleButton value="asc">↑</ToggleButton>
-            <ToggleButton value="desc">↓</ToggleButton>
-          </ToggleButtonGroup>
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, value) => value && setViewMode(value)}
-            size="small"
-          >
-            <ToggleButton value="grid">
-              <ViewModuleIcon />
-            </ToggleButton>
-            <ToggleButton value="list">
-              <ViewListIcon />
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            {showFilters ? 'Hide' : 'Show'} Filters
-          </Button>
-        </Box>
-
-        {/* Selection Controls */}
-        {selectedModules.size > 0 && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+            <TextField
+              placeholder="Search modules..."
+              value={filters.search}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, search: e.target.value }))
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
               }}
+              sx={{ minWidth: 300 }}
+            />
+            <FormControl sx={{ minWidth: 150 }}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={filters.category}
+                label="Category"
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, category: e.target.value }))
+                }
+              >
+                <MenuItem value="all">All Categories</MenuItem>
+                {categories.map((category) => (
+                  <MenuItem key={category} value={category}>
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 220 }}>
+              <InputLabel>Supported Robots</InputLabel>
+              <Select
+                multiple
+                value={filters.robots}
+                label="Supported Robots"
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    robots: e.target.value as string[],
+                  }))
+                }
+                renderValue={(selected) =>
+                  (selected as string[])
+                    .map((r) => RobotsService.getRobotDisplayName(r))
+                    .join(', ')
+                }
+              >
+                {robots.map((robot) => (
+                  <MenuItem key={robot.code} value={robot.code}>
+                    {robot.name} ({robot.module_count} modules)
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 150 }}>
+              <InputLabel>Sort By</InputLabel>
+              <Select
+                value={filters.sortBy}
+                label="Sort By"
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
+                }
+              >
+                <MenuItem value="name">Name</MenuItem>
+                <MenuItem value="category">Category</MenuItem>
+                <MenuItem value="complexity">Complexity</MenuItem>
+                <MenuItem value="status">Status</MenuItem>
+              </Select>
+            </FormControl>
+            <ToggleButtonGroup
+              value={filters.sortOrder}
+              exclusive
+              onChange={(_, value) =>
+                value && setFilters((prev) => ({ ...prev, sortOrder: value }))
+              }
+              size="small"
             >
-              <Typography>
-                {selectedModules.size} module
-                {selectedModules.size !== 1 ? 's' : ''} selected
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  size="small"
-                  startIcon={<CompareIcon />}
-                  onClick={() => {
-                    const selectedModuleList = modules.filter((m) =>
-                      selectedModules.has(m.name)
-                    );
-                    setCompareModules(selectedModuleList);
-                    setCompareDialogOpen(true);
+              <ToggleButton value="asc">↑</ToggleButton>
+              <ToggleButton value="desc">↓</ToggleButton>
+            </ToggleButtonGroup>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, value) => value && setViewMode(value)}
+              size="small"
+            >
+              <ToggleButton value="grid">
+                <ViewModuleIcon />
+              </ToggleButton>
+              <ToggleButton value="list">
+                <ViewListIcon />
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Button
+              variant="outlined"
+              startIcon={<FilterIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              {showFilters ? 'Hide' : 'Show'} Filters
+            </Button>
+          </Box>
+
+          {selectedModules.size > 0 && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography>
+                  {selectedModules.size} module
+                  {selectedModules.size !== 1 ? 's' : ''} selected
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    startIcon={<CompareIcon />}
+                    onClick={() => {
+                      const selectedModuleList = modules.filter((m) =>
+                        selectedModules.has(m.name)
+                      );
+                      setCompareModules(selectedModuleList);
+                      setCompareDialogOpen(true);
+                    }}
+                    disabled={selectedModules.size < 2}
+                  >
+                    Compare ({selectedModules.size})
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setSelectedModules(new Set())}
+                  >
+                    Clear Selection
+                  </Button>
+                </Box>
+              </Box>
+            </Alert>
+          )}
+
+          <Typography variant="body2" color="text.secondary">
+            Showing {displayedModules.length} of {filteredModules.length}{' '}
+            modules
+          </Typography>
+
+          {/* Modules Grid/List for Mobile */}
+          <Box
+            sx={{
+              display: viewMode === 'grid' ? 'grid' : 'block',
+              gridTemplateColumns:
+                viewMode === 'grid'
+                  ? {
+                      xs: '1fr',
+                      sm: 'repeat(2, 1fr)',
+                    }
+                  : '1fr',
+              gap: 3,
+            }}
+          >
+            {displayedModules.map((module) => (
+              <Box key={module.name}>
+                <Card
+                  sx={{
+                    height: viewMode === 'grid' ? '100%' : 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    border: selectedModules.has(module.name) ? 2 : 1,
+                    borderColor: selectedModules.has(module.name)
+                      ? 'primary.main'
+                      : 'divider',
+                    '&:hover': {
+                      boxShadow: 4,
+                      transform: selectedModules.has(module.name)
+                        ? 'none'
+                        : 'translateY(-2px)',
+                      transition: 'all 0.2s ease-in-out',
+                    },
                   }}
-                  disabled={selectedModules.size < 2}
+                  onClick={() => handleModuleClick(module)}
                 >
-                  Compare ({selectedModules.size})
-                </Button>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setSelectedModules(new Set())}
-                >
-                  Clear Selection
-                </Button>
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        mb: 2,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          flex: 1,
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedModules.has(module.name)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const newSelected = new Set(selectedModules);
+                            if (newSelected.has(module.name)) {
+                              newSelected.delete(module.name);
+                            } else {
+                              newSelected.add(module.name);
+                            }
+                            setSelectedModules(newSelected);
+                          }}
+                          size="small"
+                        />
+                        <Typography variant="h6" component="h2" gutterBottom>
+                          {module.name
+                            .replace(/_/g, ' ')
+                            .replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </Typography>
+                      </Box>
+                      <Tooltip title="Module Details">
+                        <IconButton size="small">
+                          <InfoIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      {module.description}
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 1,
+                        flexWrap: 'wrap',
+                        mb: 2,
+                      }}
+                    >
+                      <Chip
+                        label={module.category}
+                        size="small"
+                        sx={{
+                          backgroundColor: getCategoryColor(module.category),
+                          color: 'white',
+                        }}
+                      />
+                      {module.tags?.map((tag) => (
+                        <Chip
+                          key={tag}
+                          label={tag}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        Version: {module.version}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+          {/* Left Sidebar */}
+          <Box
+            sx={{
+              width: 300,
+              flexShrink: 0,
+              position: 'sticky',
+              top: 0,
+              alignSelf: 'flex-start',
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              p: 2,
+            }}
+          >
+
+
+            {/* Categories */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Categories
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Chip
+                  label="All"
+                  clickable
+                  color={filters.category === 'all' ? 'primary' : 'default'}
+                  variant={filters.category === 'all' ? 'filled' : 'outlined'}
+                  onClick={() =>
+                    setFilters((prev) => ({ ...prev, category: 'all' }))
+                  }
+                />
+                {categories.map((category) => (
+                  <Chip
+                    key={category}
+                    label={category}
+                    clickable
+                    color={
+                      filters.category === category ? 'primary' : 'default'
+                    }
+                    variant={
+                      filters.category === category ? 'filled' : 'outlined'
+                    }
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, category }))
+                    }
+                  />
+                ))}
               </Box>
             </Box>
-          </Alert>
-        )}
 
-        <Typography variant="body2" color="text.secondary">
-          Showing {displayedModules.length} of {filteredModules.length} modules
-        </Typography>
-      </Box>
+            <Divider sx={{ my: 2 }} />
 
-      {/* Modules Grid/List */}
-      <Box
-        sx={{
-          display: viewMode === 'grid' ? 'grid' : 'block',
-          gridTemplateColumns:
-            viewMode === 'grid'
-              ? {
-                  xs: '1fr',
-                  sm: 'repeat(2, 1fr)',
-                  md: 'repeat(3, 1fr)',
-                  lg: 'repeat(4, 1fr)',
-                }
-              : '1fr',
-          gap: 3,
-        }}
-      >
-        {displayedModules.map((module) => (
-          <Box key={module.name}>
-            <Card
-              sx={{
-                height: viewMode === 'grid' ? '100%' : 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                cursor: 'pointer',
-                border: selectedModules.has(module.name) ? 2 : 1,
-                borderColor: selectedModules.has(module.name)
-                  ? 'primary.main'
-                  : 'divider',
-                '&:hover': {
-                  boxShadow: 4,
-                  transform: selectedModules.has(module.name)
-                    ? 'none'
-                    : 'translateY(-2px)',
-                  transition: 'all 0.2s ease-in-out',
-                },
-              }}
-              onClick={() => handleModuleClick(module)}
-            >
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    mb: 2,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      flex: 1,
-                    }}
-                  >
-                    <Checkbox
-                      checked={selectedModules.has(module.name)}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        const newSelected = new Set(selectedModules);
-                        if (newSelected.has(module.name)) {
-                          newSelected.delete(module.name);
-                        } else {
-                          newSelected.add(module.name);
-                        }
-                        setSelectedModules(newSelected);
+            {/* Robots */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Supported Robots
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {robots.map((robot) => {
+                  const selected = filters.robots.includes(robot.code);
+                  return (
+                    <Chip
+                      key={robot.code}
+                      label={robot.name}
+                      clickable
+                      color={selected ? 'primary' : 'default'}
+                      variant={selected ? 'filled' : 'outlined'}
+                      onClick={() => {
+                        const exists = filters.robots.includes(robot.code);
+                        const next = exists
+                          ? filters.robots.filter((r) => r !== robot.code)
+                          : [...filters.robots, robot.code];
+                        setFilters((prev) => ({ ...prev, robots: next }));
                       }}
                       size="small"
                     />
-                    <Typography variant="h6" component="h2" gutterBottom>
-                      {module.name
-                        .replace(/_/g, ' ')
-                        .replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </Typography>
-                  </Box>
-                  <Tooltip title="Module Details">
-                    <IconButton size="small">
-                      <InfoIcon />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
+                  );
+                })}
+              </Box>
+            </Box>
 
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2 }}
+            <Divider sx={{ my: 2 }} />
+
+            {/* Sorting */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Sort
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {['name', 'category', 'complexity', 'status'].map((opt) => (
+                  <Chip
+                    key={opt}
+                    label={opt.charAt(0).toUpperCase() + opt.slice(1)}
+                    clickable
+                    color={filters.sortBy === opt ? 'primary' : 'default'}
+                    variant={filters.sortBy === opt ? 'filled' : 'outlined'}
+                    onClick={() =>
+                      setFilters((prev) => ({ ...prev, sortBy: opt }))
+                    }
+                    size="small"
+                  />
+                ))}
+                <Chip
+                  label={filters.sortOrder === 'asc' ? 'Asc' : 'Desc'}
+                  clickable
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc',
+                    }))
+                  }
+                  size="small"
+                />
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Right content */}
+          <Box sx={{ flex: 1 }}>
+            {/* Header Controls and Search/Sort - Cards Section */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 3,
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              {/* Left side: Search and Sort Controls */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 2,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <TextField
+                  placeholder="Search modules..."
+                  value={filters.search}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, search: e.target.value }))
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                  size="small"
+                  sx={{ minWidth: 200 }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={filters.category}
+                    label="Category"
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                      }))
+                    }
+                  >
+                    <MenuItem value="all">All Categories</MenuItem>
+                    {categories.map((category) => (
+                      <MenuItem key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={filters.sortBy}
+                    label="Sort By"
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        sortBy: e.target.value,
+                      }))
+                    }
+                  >
+                    <MenuItem value="name">Name</MenuItem>
+                    <MenuItem value="category">Category</MenuItem>
+                    <MenuItem value="complexity">Complexity</MenuItem>
+                    <MenuItem value="status">Status</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <ToggleButtonGroup
+                  value={filters.sortOrder}
+                  exclusive
+                  onChange={(_, value) =>
+                    value &&
+                    setFilters((prev) => ({ ...prev, sortOrder: value }))
+                  }
+                  size="small"
                 >
-                  {module.description}
+                  <ToggleButton value="asc">↑</ToggleButton>
+                  <ToggleButton value="desc">↓</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {/* Right side: Module count, View mode */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  {displayedModules.length} of {filteredModules.length} modules
                 </Typography>
 
-                <Box
-                  sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                  size="small"
                 >
-                  <CategoryIcon
-                    sx={{ fontSize: 16, color: 'text.secondary' }}
-                  />
-                  <Chip
-                    label={module.category}
-                    size="small"
-                    sx={{
-                      backgroundColor: getCategoryColor(module.category),
-                      color: 'white',
-                      fontSize: '0.75rem',
-                    }}
-                  />
-                </Box>
+                  <ToggleButton value="grid">
+                    <ViewModuleIcon />
+                  </ToggleButton>
+                  <ToggleButton value="list">
+                    <ViewListIcon />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Box>
 
+            {/* Selection Controls */}
+            {selectedModules.size > 0 && (
+              <Alert severity="info" sx={{ mb: 2 }}>
                 <Box
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 0.5,
-                    mb: 1,
+                    justifyContent: 'space-between',
                   }}
                 >
-                  {(module.supported_robots || []).map((r) => (
-                    <Chip
-                      key={r}
-                      label={r.replace(/_/g, ' ')}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <PackageIcon
-                    sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    {module.packages.length} packages
+                  <Typography>
+                    {selectedModules.size} module
+                    {selectedModules.size !== 1 ? 's' : ''} selected
                   </Typography>
-                </Box>
-
-                {module.dependencies && module.dependencies.length > 0 && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <DependencyIcon
-                      sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      {module.dependencies.length} dependencies
-                    </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      size="small"
+                      startIcon={<CompareIcon />}
+                      onClick={() => {
+                        const selectedModuleList = modules.filter((m) =>
+                          selectedModules.has(m.name)
+                        );
+                        setCompareModules(selectedModuleList);
+                        setCompareDialogOpen(true);
+                      }}
+                      disabled={selectedModules.size < 2}
+                    >
+                      Compare ({selectedModules.size})
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setSelectedModules(new Set())}
+                    >
+                      Clear Selection
+                    </Button>
                   </Box>
-                )}
-
-                <Box sx={{ mt: 2 }}>
-                  {module.tags?.slice(0, 3).map((tag) => (
-                    <Chip
-                      key={tag}
-                      label={tag}
-                      size="small"
-                      variant="outlined"
-                      sx={{ mr: 0.5, mb: 0.5 }}
-                    />
-                  ))}
-                  {module.tags && module.tags.length > 3 && (
-                    <Chip
-                      label={`+${module.tags.length - 3} more`}
-                      size="small"
-                      variant="outlined"
-                      sx={{ mr: 0.5, mb: 0.5 }}
-                    />
-                  )}
                 </Box>
+              </Alert>
+            )}
 
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ mt: 2, display: 'block' }}
-                >
-                  Version: {module.version}
-                </Typography>
-              </CardContent>
-            </Card>
+            {/* Modules Grid/List */}
+            <Box
+              sx={{
+                display: viewMode === 'grid' ? 'grid' : 'block',
+                gridTemplateColumns:
+                  viewMode === 'grid'
+                    ? {
+                        xs: '1fr',
+                        sm: 'repeat(2, 1fr)',
+                        md: 'repeat(3, 1fr)',
+                        lg: 'repeat(4, 1fr)',
+                      }
+                    : '1fr',
+                gap: 3,
+              }}
+            >
+              {displayedModules.map((module) => (
+                <Box key={module.name}>
+                  <Card
+                    sx={{
+                      height: viewMode === 'grid' ? '100%' : 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      cursor: 'pointer',
+                      border: selectedModules.has(module.name) ? 2 : 1,
+                      borderColor: selectedModules.has(module.name)
+                        ? 'primary.main'
+                        : 'divider',
+                      '&:hover': {
+                        boxShadow: 4,
+                        transform: selectedModules.has(module.name)
+                          ? 'none'
+                          : 'translateY(-2px)',
+                        transition: 'all 0.2s ease-in-out',
+                      },
+                    }}
+                    onClick={() => handleModuleClick(module)}
+                  >
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          mb: 2,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            flex: 1,
+                          }}
+                        >
+                          <Checkbox
+                            checked={selectedModules.has(module.name)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              const newSelected = new Set(selectedModules);
+                              if (newSelected.has(module.name)) {
+                                newSelected.delete(module.name);
+                              } else {
+                                newSelected.add(module.name);
+                              }
+                              setSelectedModules(newSelected);
+                            }}
+                            size="small"
+                          />
+                          <Typography variant="h6" component="h2" gutterBottom>
+                            {module.name
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </Typography>
+                        </Box>
+                        <Tooltip title="Module Details">
+                          <IconButton size="small">
+                            <InfoIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 2 }}
+                      >
+                        {module.description}
+                      </Typography>
+
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          mb: 1,
+                          gap: 1,
+                        }}
+                      >
+                        <CategoryIcon
+                          sx={{ fontSize: 16, color: 'text.secondary' }}
+                        />
+                        <Chip
+                          label={module.category}
+                          size="small"
+                          sx={{
+                            backgroundColor: getCategoryColor(module.category),
+                            color: 'white',
+                            fontSize: '0.75rem',
+                          }}
+                        />
+                      </Box>
+
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 0.5,
+                          mb: 1,
+                        }}
+                      >
+                        {(module.supported_robots || []).map((r) => (
+                          <Chip
+                            key={r}
+                            label={r.replace(/_/g, ' ')}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ))}
+                      </Box>
+
+                      <Box
+                        sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+                      >
+                        <PackageIcon
+                          sx={{
+                            fontSize: 16,
+                            mr: 0.5,
+                            color: 'text.secondary',
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {module.packages.length} packages
+                        </Typography>
+                      </Box>
+
+                      {module.dependencies &&
+                        module.dependencies.length > 0 && (
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              mb: 1,
+                            }}
+                          >
+                            <DependencyIcon
+                              sx={{
+                                fontSize: 16,
+                                mr: 0.5,
+                                color: 'text.secondary',
+                              }}
+                            />
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {module.dependencies.length} dependencies
+                            </Typography>
+                          </Box>
+                        )}
+
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 0.5,
+                          mb: 1,
+                        }}
+                      >
+                        {module.tags?.slice(0, 3).map((tag) => (
+                          <Chip
+                            key={tag}
+                            label={tag}
+                            size="small"
+                            variant="outlined"
+                            sx={{ mr: 0.5, mb: 0.5 }}
+                          />
+                        ))}
+                        {module.tags && module.tags.length > 3 && (
+                          <Chip
+                            label={`+${module.tags.length - 3} more`}
+                            size="small"
+                            variant="outlined"
+                            sx={{ mr: 0.5, mb: 0.5 }}
+                          />
+                        )}
+                      </Box>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ mt: 2, display: 'block' }}
+                      >
+                        Version: {module.version}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Box>
+              ))}
+            </Box>
           </Box>
-        ))}
-      </Box>
+        </Box>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -702,20 +1143,45 @@ const Modules: React.FC = () => {
                 )}
 
               {selectedModule.tags && selectedModule.tags.length > 0 && (
-                <Box>
+                <Box sx={{ mb: 2 }}>
                   <Typography variant="h6" gutterBottom>
                     <TagIcon
                       sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }}
                     />
-                    Tags
+                    Tags ({selectedModule.tags.length})
                   </Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                     {selectedModule.tags.map((tag) => (
-                      <Chip key={tag} label={tag} size="small" />
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        size="small"
+                        variant="outlined"
+                      />
                     ))}
                   </Box>
                 </Box>
               )}
+
+              {selectedModule.supported_robots &&
+                selectedModule.supported_robots.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Supported Robots ({selectedModule.supported_robots.length}
+                      )
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {selectedModule.supported_robots.map((robot) => (
+                        <Chip
+                          key={robot}
+                          label={robot.replace(/_/g, ' ')}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
             </DialogContent>
             <DialogActions>
               <Button onClick={handleCloseDialog}>Close</Button>
@@ -727,153 +1193,117 @@ const Modules: React.FC = () => {
         )}
       </Dialog>
 
-      {/* Module Comparison Dialog */}
+      {/* Compare Modules Dialog */}
       <Dialog
         open={compareDialogOpen}
         onClose={() => setCompareDialogOpen(false)}
         maxWidth="lg"
         fullWidth
       >
-        <DialogTitle>
-          <Typography variant="h5">Module Comparison</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Compare {compareModules.length} modules
-          </Typography>
-        </DialogTitle>
+        <DialogTitle>Compare Modules</DialogTitle>
         <DialogContent>
-          <Box sx={{ overflow: 'auto' }}>
-            <Grid container spacing={2}>
-              {compareModules.map((module) => (
-                <Grid item xs={12} md={6} lg={4} key={module.name}>
-                  <Card>
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        {module.name
-                          .replace(/_/g, ' ')
-                          .replace(/\b\w/g, (l) => l.toUpperCase())}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 2 }}
-                      >
-                        {module.description}
-                      </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                md: 'repeat(2, 1fr)',
+              },
+              gap: 2,
+            }}
+          >
+            {compareModules.map((module) => (
+              <Box key={module.name}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      {module.name
+                        .replace(/_/g, ' ')
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      {module.description}
+                    </Typography>
 
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                          Category
-                        </Typography>
-                        <Chip
-                          label={module.category}
-                          size="small"
-                          sx={{
-                            backgroundColor: getCategoryColor(module.category),
-                            color: 'white',
-                          }}
-                        />
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Category
+                      </Typography>
+                      <Chip
+                        label={module.category}
+                        size="small"
+                        sx={{
+                          backgroundColor: getCategoryColor(module.category),
+                          color: 'white',
+                        }}
+                      />
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Packages ({module.packages.length})
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {module.packages.slice(0, 3).map((pkg) => (
+                          <Chip
+                            key={pkg}
+                            label={pkg}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ))}
+                        {module.packages.length > 3 && (
+                          <Chip
+                            label={`+${module.packages.length - 3} more`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
                       </Box>
+                    </Box>
 
-                      {module.complexity && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>
-                            Complexity
-                          </Typography>
-                          <Chip
-                            label={module.complexity}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Box>
-                      )}
-
-                      {module.status && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom>
-                            Status
-                          </Typography>
-                          <Chip
-                            label={module.status}
-                            size="small"
-                            variant="outlined"
-                            color={
-                              module.status === 'stable'
-                                ? 'success'
-                                : module.status === 'deprecated'
-                                ? 'error'
-                                : 'warning'
-                            }
-                          />
-                        </Box>
-                      )}
-
+                    {module.dependencies && module.dependencies.length > 0 && (
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="subtitle2" gutterBottom>
-                          Packages ({module.packages.length})
+                          Dependencies ({module.dependencies.length})
                         </Typography>
                         <Box
-                          sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
+                          sx={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 0.5,
+                          }}
                         >
-                          {module.packages.slice(0, 3).map((pkg) => (
+                          {module.dependencies.slice(0, 3).map((dep) => (
                             <Chip
-                              key={pkg}
-                              label={pkg}
+                              key={dep}
+                              label={dep}
                               size="small"
                               variant="outlined"
                             />
                           ))}
-                          {module.packages.length > 3 && (
+                          {module.dependencies.length > 3 && (
                             <Chip
-                              label={`+${module.packages.length - 3} more`}
+                              label={`+${module.dependencies.length - 3} more`}
                               size="small"
                               variant="outlined"
                             />
                           )}
                         </Box>
                       </Box>
+                    )}
 
-                      {module.dependencies &&
-                        module.dependencies.length > 0 && (
-                          <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>
-                              Dependencies ({module.dependencies.length})
-                            </Typography>
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 0.5,
-                              }}
-                            >
-                              {module.dependencies.slice(0, 3).map((dep) => (
-                                <Chip
-                                  key={dep}
-                                  label={dep}
-                                  size="small"
-                                  variant="outlined"
-                                />
-                              ))}
-                              {module.dependencies.length > 3 && (
-                                <Chip
-                                  label={`+${
-                                    module.dependencies.length - 3
-                                  } more`}
-                                  size="small"
-                                  variant="outlined"
-                                />
-                              )}
-                            </Box>
-                          </Box>
-                        )}
-
-                      <Typography variant="caption" color="text.secondary">
-                        Version: {module.version}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+                    <Typography variant="caption" color="text.secondary">
+                      Version: {module.version}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Box>
+            ))}
           </Box>
         </DialogContent>
         <DialogActions>

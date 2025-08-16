@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
-  Grid,
   Card,
   CardContent,
   CardActions,
@@ -24,7 +23,14 @@ import {
   IconButton,
   Badge,
   LinearProgress,
+  Divider,
+  useTheme,
+  useMediaQuery,
+  ToggleButtonGroup,
+  ToggleButton,
+  InputAdornment,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Download as DownloadIcon,
   Visibility as ViewIcon,
@@ -35,8 +41,13 @@ import {
   Sensors as SensorIcon,
   CloudDownload as CloudIcon,
   Info as InfoIcon,
+  ViewModule as ViewModuleIcon,
+  ViewList as ViewListIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { ApiService } from '../services/api';
 
 interface Dataset {
@@ -58,6 +69,8 @@ interface Dataset {
 }
 
 const Datasets: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +78,12 @@ const Datasets: React.FC = () => {
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<
+    'name' | 'category' | 'size' | 'samples' | 'created_at'
+  >('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const navigate = useNavigate();
 
   // Mock datasets data - in real app, this would come from API
@@ -183,13 +202,12 @@ const Datasets: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Simulate API call
+    // Load datasets immediately (no artificial delay)
     const loadDatasets = async () => {
       try {
         setLoading(true);
         // In real app: const response = await ApiService.get('/datasets');
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // For now, use mock data without artificial delay
         setDatasets(mockDatasets);
       } catch (err) {
         setError('Failed to load datasets');
@@ -214,9 +232,7 @@ const Datasets: React.FC = () => {
       setDownloading(true);
       // In real app: await ApiService.post('/datasets/download', { datasetId: selectedDataset.id });
 
-      // Simulate download
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
+      // For now, simulate a quick download (no artificial delay)
       setDownloadDialogOpen(false);
       setSelectedDataset(null);
 
@@ -271,13 +287,74 @@ const Datasets: React.FC = () => {
     }
   };
 
-  const filteredDatasets =
-    filterCategory === 'all'
-      ? datasets
-      : datasets.filter(
-          (dataset) =>
-            dataset.category.toLowerCase() === filterCategory.toLowerCase()
-        );
+  const filteredAndSortedDatasets = useMemo(() => {
+    let filtered = datasets;
+
+    // Apply category filter
+    if (filterCategory !== 'all') {
+      filtered = filtered.filter(
+        (dataset) =>
+          dataset.category.toLowerCase() === filterCategory.toLowerCase()
+      );
+    }
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (dataset) =>
+          dataset.name.toLowerCase().includes(query) ||
+          dataset.description.toLowerCase().includes(query) ||
+          dataset.category.toLowerCase().includes(query) ||
+          dataset.tags.some((tag) => tag.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'category':
+          aValue = a.category.toLowerCase();
+          bValue = b.category.toLowerCase();
+          break;
+        case 'size':
+          // Extract numeric size for comparison
+          aValue = parseFloat(a.size.replace(/[^\d.]/g, ''));
+          bValue = parseFloat(b.size.replace(/[^\d.]/g, ''));
+          break;
+        case 'samples':
+          aValue = a.samples;
+          bValue = b.samples;
+          break;
+        case 'created_at':
+          aValue = a.id; // Using ID as proxy for creation date
+          bValue = b.id;
+          break;
+        default:
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+    return filtered;
+  }, [datasets, filterCategory, searchQuery, sortBy, sortOrder]);
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
 
   const categories = [
     'all',
@@ -312,130 +389,491 @@ const Datasets: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Datasets
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Browse and download datasets for your robotics projects. Each dataset
-        includes detailed information about modalities, usage, and requirements.
-      </Typography>
+      {isMobile ? (
+        <Box>
+          {/* Mobile Layout */}
+          <Box sx={{ mb: 3 }}>
+            <FormControl sx={{ minWidth: 200, mb: 2 }}>
+              <InputLabel>Filter by Category</InputLabel>
+              <Select
+                value={filterCategory}
+                label="Filter by Category"
+                onChange={(e) => setFilterCategory(e.target.value)}
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category} value={category}>
+                    {category === 'all' ? 'All Categories' : category}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-      {/* Filter */}
-      <Box sx={{ mb: 3 }}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Filter by Category</InputLabel>
-          <Select
-            value={filterCategory}
-            label="Filter by Category"
-            onChange={(e) => setFilterCategory(e.target.value)}
-          >
-            {categories.map((category) => (
-              <MenuItem key={category} value={category}>
-                {category === 'all' ? 'All Categories' : category}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-
-      <Grid container spacing={3}>
-        {filteredDatasets.map((dataset) => (
-          <Grid item xs={12} sm={6} md={4} key={dataset.id}>
-            <Card
+            {/* Search and Sort Controls for Mobile */}
+            <Box
               sx={{
-                height: '100%',
                 display: 'flex',
-                flexDirection: 'column',
+                gap: 2,
+                mb: 3,
+                flexWrap: 'wrap',
+                alignItems: 'center',
               }}
             >
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <Avatar sx={{ mr: 1, bgcolor: 'primary.main' }}>
-                    {getCategoryIcon(dataset.category)}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6" component="h2">
-                      {dataset.name}
-                    </Typography>
-                    <Chip
-                      label={dataset.category}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Box>
-                </Box>
+              <TextField
+                placeholder="Search datasets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchQuery && (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={handleClearSearch}
+                        edge="end"
+                      >
+                        <ClearIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                size="small"
+                sx={{ minWidth: 200 }}
+              />
 
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2 }}
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel>Sort By</InputLabel>
+                <Select
+                  value={sortBy}
+                  label="Sort By"
+                  onChange={(e) => setSortBy(e.target.value as any)}
                 >
-                  {dataset.description}
-                </Typography>
+                  <MenuItem value="name">Name</MenuItem>
+                  <MenuItem value="category">Category</MenuItem>
+                  <MenuItem value="size">Size</MenuItem>
+                  <MenuItem value="samples">Samples</MenuItem>
+                </Select>
+              </FormControl>
 
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    <strong>Modalities:</strong>
-                  </Typography>
-                  <Box display="flex" flexWrap="wrap" gap={0.5}>
-                    {dataset.modalities.map((modality) => (
+              <ToggleButtonGroup
+                value={sortOrder}
+                exclusive
+                onChange={(_, value) => value && setSortOrder(value)}
+                size="small"
+              >
+                <ToggleButton value="asc">↑</ToggleButton>
+                <ToggleButton value="desc">↓</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {/* Header Controls for Mobile */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 3,
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                {filteredAndSortedDatasets.length} of {datasets.length} datasets
+              </Typography>
+
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                size="small"
+              >
+                <ToggleButton value="grid">
+                  <ViewModuleIcon />
+                </ToggleButton>
+                <ToggleButton value="list">
+                  <ViewListIcon />
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          </Box>
+
+          {/* Mobile Datasets Display */}
+          <Box
+            sx={{
+              display: viewMode === 'grid' ? 'grid' : 'block',
+              gridTemplateColumns: viewMode === 'grid' ? '1fr' : '1fr',
+              gap: 3,
+            }}
+          >
+            {filteredAndSortedDatasets.map((dataset) => (
+              <Card
+                key={dataset.id}
+                sx={{
+                  height: viewMode === 'grid' ? '100%' : 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <Avatar sx={{ mr: 1, bgcolor: 'primary.main' }}>
+                      {getCategoryIcon(dataset.category)}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" component="h2">
+                        {dataset.name}
+                      </Typography>
                       <Chip
-                        key={modality}
-                        icon={getModalityIcon(modality)}
-                        label={modality}
+                        label={dataset.category}
                         size="small"
                         variant="outlined"
                       />
+                    </Box>
+                  </Box>
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    {dataset.description}
+                  </Typography>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Modalities:</strong>
+                    </Typography>
+                    <Box display="flex" flexWrap="wrap" gap={0.5}>
+                      {dataset.modalities.map((modality) => (
+                        <Chip
+                          key={modality}
+                          icon={getModalityIcon(modality)}
+                          label={modality}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Size:</strong> {dataset.size} •{' '}
+                      <strong>Samples:</strong>{' '}
+                      {dataset.samples.toLocaleString()}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Format:</strong> {dataset.format}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    {dataset.tags.map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        size="small"
+                        variant="outlined"
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                      />
                     ))}
                   </Box>
-                </Box>
 
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    <strong>Size:</strong> {dataset.size} •{' '}
-                    <strong>Samples:</strong> {dataset.samples.toLocaleString()}
-                  </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    <strong>Format:</strong> {dataset.format}
+                    <strong>License:</strong> {dataset.license}
                   </Typography>
-                </Box>
+                </CardContent>
 
-                <Box sx={{ mb: 2 }}>
-                  {dataset.tags.map((tag) => (
+                <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
+                  <Tooltip title="View dataset details">
+                    <IconButton size="small">
+                      <ViewIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleDownloadDataset(dataset)}
+                    size="small"
+                  >
+                    Download
+                  </Button>
+                </CardActions>
+              </Card>
+            ))}
+          </Box>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+          {/* Left Sidebar */}
+          <Box
+            sx={{
+              width: 300,
+              flexShrink: 0,
+              position: 'sticky',
+              top: 0,
+              alignSelf: 'flex-start',
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              p: 2,
+            }}
+          >
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Categories
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Chip
+                  label="All"
+                  clickable
+                  color={filterCategory === 'all' ? 'primary' : 'default'}
+                  variant={filterCategory === 'all' ? 'filled' : 'outlined'}
+                  onClick={() => setFilterCategory('all')}
+                />
+                {categories
+                  .filter((c) => c !== 'all')
+                  .map((category) => (
                     <Chip
-                      key={tag}
-                      label={tag}
+                      key={category}
+                      label={category}
+                      clickable
+                      color={
+                        filterCategory === category ? 'primary' : 'default'
+                      }
+                      variant={
+                        filterCategory === category ? 'filled' : 'outlined'
+                      }
+                      onClick={() => setFilterCategory(category)}
                       size="small"
-                      variant="outlined"
-                      sx={{ mr: 0.5, mb: 0.5 }}
                     />
                   ))}
-                </Box>
+              </Box>
+            </Box>
 
-                <Typography variant="body2" color="text.secondary">
-                  <strong>License:</strong> {dataset.license}
-                </Typography>
-              </CardContent>
+            <Divider sx={{ my: 2 }} />
 
-              <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
-                <Tooltip title="View dataset details">
-                  <IconButton size="small">
-                    <ViewIcon />
-                  </IconButton>
-                </Tooltip>
-                <Button
-                  variant="contained"
-                  startIcon={<DownloadIcon />}
-                  onClick={() => handleDownloadDataset(dataset)}
+            <Box sx={{ color: 'text.secondary', fontSize: 12 }}>
+              Tip: Use categories to quickly narrow down relevant datasets.
+            </Box>
+          </Box>
+
+          {/* Right content */}
+          <Box sx={{ flex: 1 }}>
+            {/* Header Controls and Search/Sort - Cards Section */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 3,
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              {/* Left side: Search and Sort Controls */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 2,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <TextField
+                  placeholder="Search datasets..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={handleClearSearch}
+                          edge="end"
+                        >
+                          <ClearIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  size="small"
+                  sx={{ minWidth: 200 }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={sortBy}
+                    label="Sort By"
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                  >
+                    <MenuItem value="name">Name</MenuItem>
+                    <MenuItem value="category">Category</MenuItem>
+                    <MenuItem value="size">Size</MenuItem>
+                    <MenuItem value="samples">Samples</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <ToggleButtonGroup
+                  value={sortOrder}
+                  exclusive
+                  onChange={(_, value) => value && setSortOrder(value)}
                   size="small"
                 >
-                  Download
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                  <ToggleButton value="asc">↑</ToggleButton>
+                  <ToggleButton value="desc">↓</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {/* Right side: Dataset count, View mode */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  {filteredAndSortedDatasets.length} of {datasets.length}{' '}
+                  datasets
+                </Typography>
+
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                  size="small"
+                >
+                  <ToggleButton value="grid">
+                    <ViewModuleIcon />
+                  </ToggleButton>
+                  <ToggleButton value="list">
+                    <ViewListIcon />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Box>
+
+            {/* Datasets Grid/List */}
+            <Box
+              sx={{
+                display: viewMode === 'grid' ? 'grid' : 'block',
+                gridTemplateColumns:
+                  viewMode === 'grid'
+                    ? {
+                        xs: '1fr',
+                        sm: 'repeat(2, 1fr)',
+                        md: 'repeat(3, 1fr)',
+                        lg: 'repeat(4, 1fr)',
+                      }
+                    : '1fr',
+                gap: 3,
+              }}
+            >
+              {filteredAndSortedDatasets.map((dataset) => (
+                <Card
+                  key={dataset.id}
+                  sx={{
+                    height: viewMode === 'grid' ? '100%' : 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box display="flex" alignItems="center" mb={2}>
+                      <Avatar sx={{ mr: 1, bgcolor: 'primary.main' }}>
+                        {getCategoryIcon(dataset.category)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h6" component="h2">
+                          {dataset.name}
+                        </Typography>
+                        <Chip
+                          label={dataset.category}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Box>
+                    </Box>
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      {dataset.description}
+                    </Typography>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Modalities:</strong>
+                      </Typography>
+                      <Box display="flex" flexWrap="wrap" gap={0.5}>
+                        {dataset.modalities.map((modality) => (
+                          <Chip
+                            key={modality}
+                            icon={getModalityIcon(modality)}
+                            label={modality}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Size:</strong> {dataset.size} •{' '}
+                        <strong>Samples:</strong>{' '}
+                        {dataset.samples.toLocaleString()}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Format:</strong> {dataset.format}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      {dataset.tags.map((tag) => (
+                        <Chip
+                          key={tag}
+                          label={tag}
+                          size="small"
+                          variant="outlined"
+                          sx={{ mr: 0.5, mb: 0.5 }}
+                        />
+                      ))}
+                    </Box>
+
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>License:</strong> {dataset.license}
+                    </Typography>
+                  </CardContent>
+
+                  <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
+                    <Tooltip title="View dataset details">
+                      <IconButton size="small">
+                        <ViewIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Button
+                      variant="contained"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => handleDownloadDataset(dataset)}
+                      size="small"
+                    >
+                      Download
+                    </Button>
+                  </CardActions>
+                </Card>
+              ))}
+            </Box>
+          </Box>
+        </Box>
+      )}
 
       {/* Download Dialog */}
       <Dialog

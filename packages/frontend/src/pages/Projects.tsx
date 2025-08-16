@@ -24,20 +24,21 @@ import {
   Alert,
   Skeleton,
   Fab,
-  Badge,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Divider,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
-import { Grid } from '@mui/material';
+
 import {
   Add as AddIcon,
   Folder as FolderIcon,
   Search as SearchIcon,
   ViewList as ViewListIcon,
   ViewModule as ViewModuleIcon,
-  FilterList as FilterIcon,
   Sort as SortIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -45,7 +46,6 @@ import {
   MoreVert as MoreIcon,
   Refresh as RefreshIcon,
   Visibility as ViewIcon,
-  Settings as SettingsIcon,
   Download as ExportIcon,
   Share as ShareIcon,
   Code as CodeIcon,
@@ -110,11 +110,14 @@ interface ProjectFilters {
   search: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  tags?: string[];
 }
 
 const Projects: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +127,7 @@ const Projects: React.FC = () => {
     sortBy: 'lastUpdated',
     sortOrder: 'desc',
   });
-  const [showFilters, setShowFilters] = useState(false);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [dockerfileDialogOpen, setDockerfileDialogOpen] = useState(false);
@@ -218,8 +221,12 @@ const Projects: React.FC = () => {
         project.packages?.some((pkg) =>
           pkg.name.toLowerCase().includes(filters.search.toLowerCase())
         );
+      const matchesTags =
+        !filters.tags || filters.tags.length === 0
+          ? true
+          : (project.tags || []).some((t) => filters.tags!.includes(t));
 
-      return matchesSearch;
+      return matchesSearch && matchesTags;
     });
 
     // Sort projects
@@ -259,6 +266,12 @@ const Projects: React.FC = () => {
   }, [projects, filters]);
 
   // Removed type filtering; all projects are custom
+
+  const availableTags = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => (p.tags || []).forEach((t) => set.add(t)));
+    return Array.from(set).sort();
+  }, [projects]);
 
   // Handle project actions
   const handleEditProject = (project: Project) => {
@@ -403,118 +416,6 @@ const Projects: React.FC = () => {
 
   return (
     <Box>
-      {/* Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
-          flexWrap: 'wrap',
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Projects
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {filteredProjects.length} of {projects.length} projects
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Tooltip title="Refresh">
-            <IconButton onClick={() => window.location.reload()}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, newMode) => newMode && setViewMode(newMode)}
-            size="small"
-          >
-            <ToggleButton value="grid">
-              <ViewModuleIcon />
-            </ToggleButton>
-            <ToggleButton value="list">
-              <ViewListIcon />
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            component={RouterLink}
-            to="/projects/new"
-          >
-            New Project
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Search and Filters */}
-      <Box sx={{ mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              placeholder="Search projects..."
-              value={filters.search}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, search: e.target.value }))
-              }
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <FormControl size="small" sx={{ minWidth: 140 }}>
-                <InputLabel>Sort By</InputLabel>
-                <Select
-                  value={filters.sortBy}
-                  label="Sort By"
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
-                  }
-                >
-                  <MenuItem value="lastUpdated">Last Updated</MenuItem>
-                  <MenuItem value="name">Name</MenuItem>
-                  <MenuItem value="moduleCount">Modules</MenuItem>
-                  <MenuItem value="packageCount">Packages</MenuItem>
-                  <MenuItem value="createdAt">Created</MenuItem>
-                </Select>
-              </FormControl>
-
-              <IconButton
-                onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc',
-                  }))
-                }
-              >
-                <SortIcon
-                  sx={{
-                    transform:
-                      filters.sortOrder === 'desc' ? 'rotate(180deg)' : 'none',
-                  }}
-                />
-              </IconButton>
-            </Box>
-          </Grid>
-        </Grid>
-      </Box>
-
       {/* Error Alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -523,201 +424,574 @@ const Projects: React.FC = () => {
       )}
 
       {/* Projects Grid/List */}
-      {loading ? (
-        <Grid container spacing={3}>
-          {[...Array(6)].map((_, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
-              <ProjectSkeleton />
-            </Grid>
-          ))}
-        </Grid>
-      ) : filteredProjects.length === 0 ? (
-        <Box
-          sx={{
-            textAlign: 'center',
-            py: 8,
-            color: 'text.secondary',
-          }}
-        >
-          <FolderIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
-          <Typography variant="h6" gutterBottom>
-            No projects found
-          </Typography>
-          <Typography variant="body2">
-            {filters.search
-              ? 'Try adjusting your search or filters'
-              : 'Create your first project to get started'}
-          </Typography>
-        </Box>
-      ) : (
-        <Grid container spacing={3}>
-          {filteredProjects.map((project) => (
-            <Grid item xs={12} sm={6} md={4} key={project.id}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative',
-                  '&:hover': {
-                    boxShadow: 4,
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.2s ease-in-out',
-                  },
-                }}
-              >
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box
-                    sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}
-                  >
-                    <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                      <FolderIcon />
-                    </Avatar>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="h6" component="h2" gutterBottom>
-                        {project.name}
-                      </Typography>
+      {isMobile ? (
+        // original content for mobile
+        <>
+          {loading ? (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)',
+                },
+                gap: 3,
+              }}
+            >
+              {[...Array(6)].map((_, index) => (
+                <Box key={index}>
+                  <ProjectSkeleton />
+                </Box>
+              ))}
+            </Box>
+          ) : filteredProjects.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
+              <FolderIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
+              <Typography variant="h6" gutterBottom>
+                No projects found
+              </Typography>
+              <Typography variant="body2">
+                {filters.search
+                  ? 'Try adjusting your search or filters'
+                  : 'Create your first project to get started'}
+              </Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)',
+                },
+                gap: 3,
+              }}
+            >
+              {filteredProjects.map((project) => (
+                <Card
+                  key={project.id}
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    '&:hover': {
+                      boxShadow: 4,
+                      transform: 'translateY(-2px)',
+                      transition: 'all 0.2s ease-in-out',
+                    },
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box
+                      sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}
+                    >
+                      <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                        <FolderIcon />
+                      </Avatar>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="h6" component="h2" gutterBottom>
+                          {project.name}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2, lineHeight: 1.5 }}
-                  >
-                    {project.description}
-                  </Typography>
-
-                  {/* Display tags if any */}
-                  {project.tags && project.tags.length > 0 && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2, lineHeight: 1.5 }}
+                    >
+                      {project.description}
+                    </Typography>
+                    {project.tags && project.tags.length > 0 && (
+                      <Box sx={{ mb: 2 }}>
+                        {project.tags.slice(0, 5).map((tag, index) => (
+                          <Chip
+                            key={index}
+                            label={tag}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            sx={{ mr: 0.5, mb: 0.5 }}
+                          />
+                        ))}
+                        {project.tags.length > 5 && (
+                          <Chip
+                            label={`+${project.tags.length - 5}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                    )}
                     <Box sx={{ mb: 2 }}>
-                      {project.tags.slice(0, 5).map((tag, index) => (
+                      {project.modules?.slice(0, 3).map((module) => (
                         <Chip
-                          key={index}
-                          label={tag}
+                          key={module.id}
+                          label={module.name}
                           size="small"
-                          variant="outlined"
-                          color="primary"
                           sx={{ mr: 0.5, mb: 0.5 }}
                         />
                       ))}
-                      {project.tags.length > 5 && (
+                      {(project.modules?.length || 0) > 3 && (
                         <Chip
-                          label={`+${project.tags.length - 5}`}
+                          label={`+${(project.modules?.length || 0) - 3}`}
                           size="small"
                           variant="outlined"
                         />
                       )}
                     </Box>
-                  )}
+                    <Box sx={{ mb: 2 }}>
+                      {project.packages?.slice(0, 3).map((pkg) => (
+                        <Chip
+                          key={pkg.id}
+                          label={pkg.name}
+                          size="small"
+                          sx={{ mr: 0.5, mb: 0.5 }}
+                        />
+                      ))}
+                      {(project.packages?.length || 0) > 3 && (
+                        <Chip
+                          label={`+${(project.packages?.length || 0) - 3}`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {project.module_count} module
+                        {project.module_count !== 1 ? 's' : ''}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Updated:{' '}
+                        {new Date(project.updated_at).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                  <CardActions sx={{ justifyContent: 'space-between' }}>
+                    <Box>
+                      <Button
+                        size="small"
+                        component={RouterLink}
+                        to={`/workspace/${project.id}`}
+                        startIcon={<CodeIcon />}
+                        variant="contained"
+                        color="primary"
+                      >
+                        Open Workspace
+                      </Button>
+                      <Button
+                        size="small"
+                        component={RouterLink}
+                        to={`/projects/${project.id}`}
+                        startIcon={<ViewIcon />}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => handleEditProject(project)}
+                        startIcon={<EditIcon />}
+                      >
+                        Edit
+                      </Button>
+                    </Box>
+                    <Box>
+                      <Tooltip title="Delete project">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteProject(project)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="More actions">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, project)}
+                        >
+                          <MoreIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </CardActions>
+                </Card>
+              ))}
+            </Box>
+          )}
+        </>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+          {/* Left Sidebar */}
+          <Box
+            sx={{
+              width: 300,
+              flexShrink: 0,
+              position: 'sticky',
+              top: 0,
+              alignSelf: 'flex-start',
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+              bgcolor: 'background.paper',
+              p: 2,
+            }}
+          >
+            {/* New Project Button */}
+            <Box sx={{ mb: 3 }}>
+              <Button
+                variant="contained"
+                fullWidth
+                startIcon={<AddIcon />}
+                component={RouterLink}
+                to="/projects/new"
+                sx={{ mb: 2 }}
+              >
+                New Project
+              </Button>
+            </Box>
 
-                  <Box sx={{ mb: 2 }}>
-                    {project.modules?.slice(0, 3).map((module) => (
-                      <Chip
-                        key={module.id}
-                        label={module.name}
-                        size="small"
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))}
-                    {(project.modules?.length || 0) > 3 && (
-                      <Chip
-                        label={`+${(project.modules?.length || 0) - 3}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    )}
+            {/* Tags */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Tags
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {availableTags.map((tag) => {
+                  const selected = (filters.tags || []).includes(tag);
+                  return (
+                    <Chip
+                      key={tag}
+                      label={tag}
+                      clickable
+                      color={selected ? 'primary' : 'default'}
+                      variant={selected ? 'filled' : 'outlined'}
+                      onClick={() => {
+                        const exists = (filters.tags || []).includes(tag);
+                        const next = exists
+                          ? (filters.tags || []).filter((t) => t !== tag)
+                          : [...(filters.tags || []), tag];
+                        setFilters((prev) => ({ ...prev, tags: next }));
+                      }}
+                      size="small"
+                    />
+                  );
+                })}
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Right content */}
+          <Box sx={{ flex: 1 }}>
+            {/* Header Controls and Search/Sort - Cards Section */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 3,
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              {/* Left side: Search and Sort Controls */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 2,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <TextField
+                  placeholder="Search projects..."
+                  value={filters.search}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, search: e.target.value }))
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                  size="small"
+                  sx={{ minWidth: 200 }}
+                />
+
+                <FormControl size="small" sx={{ minWidth: 140 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={filters.sortBy}
+                    label="Sort By"
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        sortBy: e.target.value,
+                      }))
+                    }
+                  >
+                    <MenuItem value="lastUpdated">Last Updated</MenuItem>
+                    <MenuItem value="name">Name</MenuItem>
+                    <MenuItem value="moduleCount">Modules</MenuItem>
+                    <MenuItem value="packageCount">Packages</MenuItem>
+                    <MenuItem value="createdAt">Created</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <ToggleButtonGroup
+                  value={filters.sortOrder}
+                  exclusive
+                  onChange={(_, value) =>
+                    value &&
+                    setFilters((prev) => ({ ...prev, sortOrder: value }))
+                  }
+                  size="small"
+                >
+                  <ToggleButton value="asc">↑</ToggleButton>
+                  <ToggleButton value="desc">↓</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
+              {/* Right side: Project count, View mode */}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  {filteredProjects.length} of {projects.length} projects
+                </Typography>
+
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                  size="small"
+                >
+                  <ToggleButton value="grid">
+                    <ViewModuleIcon />
+                  </ToggleButton>
+                  <ToggleButton value="list">
+                    <ViewListIcon />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Box>
+
+            {loading ? (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: 'repeat(3, 1fr)',
+                  },
+                  gap: 3,
+                }}
+              >
+                {[...Array(6)].map((_, index) => (
+                  <Box key={index}>
+                    <ProjectSkeleton />
                   </Box>
-
-                  <Box sx={{ mb: 2 }}>
-                    {project.packages?.slice(0, 3).map((pkg) => (
-                      <Chip
-                        key={pkg.id}
-                        label={pkg.name}
-                        size="small"
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))}
-                    {(project.packages?.length || 0) > 3 && (
-                      <Chip
-                        label={`+${(project.packages?.length || 0) - 3}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    )}
-                  </Box>
-
-                  <Box
+                ))}
+              </Box>
+            ) : filteredProjects.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
+                <FolderIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
+                <Typography variant="h6" gutterBottom>
+                  No projects found
+                </Typography>
+                <Typography variant="body2">
+                  {filters.search
+                    ? 'Try adjusting your search or filters'
+                    : 'Create your first project to get started'}
+                </Typography>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: 'repeat(3, 1fr)',
+                  },
+                  gap: 3,
+                }}
+              >
+                {filteredProjects.map((project) => (
+                  <Card
+                    key={project.id}
                     sx={{
+                      height: '100%',
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+                      flexDirection: 'column',
+                      position: 'relative',
+                      '&:hover': {
+                        boxShadow: 4,
+                        transform: 'translateY(-2px)',
+                        transition: 'all 0.2s ease-in-out',
+                      },
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary">
-                      {project.module_count} module
-                      {project.module_count !== 1 ? 's' : ''}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Updated:{' '}
-                      {new Date(project.updated_at).toLocaleDateString()}
-                    </Typography>
-                  </Box>
-                </CardContent>
-
-                <CardActions sx={{ justifyContent: 'space-between' }}>
-                  <Box>
-                    <Button
-                      size="small"
-                      component={RouterLink}
-                      to={`/workspace/${project.id}`}
-                      startIcon={<CodeIcon />}
-                      variant="contained"
-                      color="primary"
-                    >
-                      Open Workspace
-                    </Button>
-                    <Button
-                      size="small"
-                      component={RouterLink}
-                      to={`/projects/${project.id}`}
-                      startIcon={<ViewIcon />}
-                    >
-                      View
-                    </Button>
-                    <Button
-                      size="small"
-                      onClick={() => handleEditProject(project)}
-                      startIcon={<EditIcon />}
-                    >
-                      Edit
-                    </Button>
-                  </Box>
-
-                  <Box>
-                    <Tooltip title="Delete project">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDeleteProject(project)}
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          mb: 2,
+                        }}
                       >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="More actions">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleMenuOpen(e, project)}
+                        <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                          <FolderIcon />
+                        </Avatar>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="h6" component="h2" gutterBottom>
+                            {project.name}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 2, lineHeight: 1.5 }}
                       >
-                        <MoreIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+                        {project.description}
+                      </Typography>
+                      {project.tags && project.tags.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                          {project.tags.slice(0, 5).map((tag, index) => (
+                            <Chip
+                              key={index}
+                              label={tag}
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                              sx={{ mr: 0.5, mb: 0.5 }}
+                            />
+                          ))}
+                          {project.tags.length > 5 && (
+                            <Chip
+                              label={`+${project.tags.length - 5}`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
+                      )}
+                      <Box sx={{ mb: 2 }}>
+                        {project.modules?.slice(0, 3).map((module) => (
+                          <Chip
+                            key={module.id}
+                            label={module.name}
+                            size="small"
+                            sx={{ mr: 0.5, mb: 0.5 }}
+                          />
+                        ))}
+                        {(project.modules?.length || 0) > 3 && (
+                          <Chip
+                            label={`+${(project.modules?.length || 0) - 3}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                      <Box sx={{ mb: 2 }}>
+                        {project.packages?.slice(0, 3).map((pkg) => (
+                          <Chip
+                            key={pkg.id}
+                            label={pkg.name}
+                            size="small"
+                            sx={{ mr: 0.5, mb: 0.5 }}
+                          />
+                        ))}
+                        {(project.packages?.length || 0) > 3 && (
+                          <Chip
+                            label={`+${(project.packages?.length || 0) - 3}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          {project.module_count} module
+                          {project.module_count !== 1 ? 's' : ''}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Updated:{' '}
+                          {new Date(project.updated_at).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                    <CardActions sx={{ justifyContent: 'space-between' }}>
+                      <Box>
+                        <Button
+                          size="small"
+                          component={RouterLink}
+                          to={`/workspace/${project.id}`}
+                          startIcon={<CodeIcon />}
+                          variant="contained"
+                          color="primary"
+                        >
+                          Open Workspace
+                        </Button>
+                        <Button
+                          size="small"
+                          component={RouterLink}
+                          to={`/projects/${project.id}`}
+                          startIcon={<ViewIcon />}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => handleEditProject(project)}
+                          startIcon={<EditIcon />}
+                        >
+                          Edit
+                        </Button>
+                      </Box>
+                      <Box>
+                        <Tooltip title="Delete project">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteProject(project)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="More actions">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleMenuOpen(e, project)}
+                          >
+                            <MoreIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </CardActions>
+                  </Card>
+                ))}
+              </Box>
+            )}
+          </Box>
+        </Box>
       )}
 
       {/* Delete Confirmation Dialog */}
