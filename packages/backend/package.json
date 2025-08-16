@@ -34,7 +34,9 @@
     "populate:ros-packages": "ts-node src/scripts/populate-ros-packages.ts",
     "populate:modules": "ts-node src/scripts/populate-modules.ts",
     "populate:projects": "ts-node src/scripts/populate-projects.ts",
-    "setup:project-tables": "ts-node src/scripts/setup-project-tables.ts"
+    "setup:project-tables": "ts-node src/scripts/setup-project-tables.ts",
+    "db:seed": "ts-node src/scripts/seed-users.ts",
+    "db:seed:samples": "ts-node src/scripts/seed-sample-data.ts"
   },
   "dependencies": {
     "@robium/shared": "file:../shared",

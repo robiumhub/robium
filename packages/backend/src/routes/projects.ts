@@ -8,10 +8,11 @@ import { ROSProjectConfig } from '@robium/shared';
 
 const router = express.Router();
 
-// GET /api/projects - Get all projects
-router.get('/', async (req: AuthRequest, res) => {
+// GET /api/projects - Get current user's projects
+router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { type, search, is_template } = req.query;
+    const ownerId = req.user?.userId as string;
 
     let query = `
       SELECT p.*, 
@@ -19,10 +20,10 @@ router.get('/', async (req: AuthRequest, res) => {
              COUNT(DISTINCT pp.package_id) as package_count
       FROM projects p
       LEFT JOIN project_packages pp ON p.id = pp.project_id
-      WHERE p.is_active = true
+      WHERE p.is_active = true AND p.owner_id = $1
     `;
-    const params: string[] = [];
-    let paramIndex = 1;
+    const params: string[] = [ownerId];
+    let paramIndex = 2;
 
     // Add type filter
     if (type && typeof type === 'string') {
@@ -505,16 +506,17 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // GET /api/projects/:id - Get specific project with modules and packages
-router.get('/:id', async (req: AuthRequest, res) => {
+router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+    const ownerId = req.user?.userId as string;
 
     // Get project details
     const projectResult = (await Database.query(
       `SELECT p.*, COALESCE(p.tags, '{}'::text[]) AS tags 
        FROM projects p 
-       WHERE p.id = $1 AND p.is_active = true`,
-      [id]
+       WHERE p.id = $1 AND p.is_active = true AND p.owner_id = $2`,
+      [id, ownerId]
     )) as { rows: Array<Record<string, any>> };
 
     if (projectResult.rows.length === 0) {
@@ -988,13 +990,8 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 
     const project = projectResult.rows[0];
 
-    // Check if user is admin or the project owner
-    // Allow deletion if user is admin, project owner, or if project has no owner (created_by is null)
-    if (
-      req.user?.role !== 'admin' &&
-      project.created_by !== null &&
-      project.created_by !== userId
-    ) {
+    // Only project owner or admin can delete
+    if (req.user?.role !== 'admin' && project.owner_id !== userId) {
       return res.status(403).json({
         success: false,
         error: 'You do not have permission to delete this project',

@@ -202,13 +202,29 @@ const Datasets: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Load datasets immediately (no artificial delay)
+    // Load datasets from backend (mapped from ros_packages)
     const loadDatasets = async () => {
       try {
         setLoading(true);
-        // In real app: const response = await ApiService.get('/datasets');
-        // For now, use mock data without artificial delay
-        setDatasets(mockDatasets);
+        const data = await ApiService.get<any[]>('/ros-packages');
+        const mapped: Dataset[] = (data || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          category: p.category || 'General',
+          modalities: Array.isArray(p.tags) ? p.tags : [],
+          size: 'N/A',
+          samples: 0,
+          format: p.type || 'package',
+          license: p.license || 'Unknown',
+          tags: Array.isArray(p.tags) ? p.tags : [],
+          usage: '',
+          requirements: [],
+          downloadUrl: undefined,
+          previewUrl: undefined,
+          documentation: undefined,
+        }));
+        setDatasets(mapped);
       } catch (err) {
         setError('Failed to load datasets');
         console.error('Error loading datasets:', err);

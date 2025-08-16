@@ -46,6 +46,7 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import { RobotsService, Robot } from '../services/robotsService';
+import ApiService from '../services/api';
 import { Link as RouterLink } from 'react-router-dom';
 
 interface ModuleMetadata {
@@ -102,41 +103,29 @@ const Modules: React.FC = () => {
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        // Mock data for now
-        const mockModules: ModuleMetadata[] = [
-          {
-            name: 'navigation_core',
-            description: 'Core navigation functionality for autonomous robots',
-            version: '1.0.0',
-            category: 'navigation',
-            packages: ['nav2_core', 'nav2_controller'],
-            tags: ['autonomous', 'pathfinding'],
-            supported_robots: ['turtlebot4', 'kobuki'],
-          },
-          {
-            name: 'perception_vision',
-            description: 'Computer vision and image processing modules',
-            version: '2.1.0',
-            category: 'perception',
-            packages: ['opencv_ros', 'vision_msgs'],
-            tags: ['vision', 'detection'],
-            supported_robots: ['turtlebot4', 'depthai_oakd'],
-          },
-          {
-            name: 'manipulation_arm',
-            description: 'Robotic arm manipulation and control',
-            version: '1.5.0',
-            category: 'manipulation',
-            packages: ['moveit', 'ur5_control'],
-            tags: ['arm', 'grasping'],
-            supported_robots: ['ur5', 'franka'],
-          },
-        ];
-        setModules(mockModules);
-        setFilteredModules(mockModules);
-        setLoading(false);
+        setLoading(true);
+        // Fetch actual modules from backend (ros_packages view)
+        // Supports optional server-side filters later; for now fetch all
+        const data = await ApiService.get<ModuleMetadata[]>('/modules');
+        // Normalize fields if needed
+        const normalized: ModuleMetadata[] = data.map((m: any) => ({
+          name: m.name,
+          description: m.description || '',
+          version: m.version || '1.0.0',
+          category: m.category || 'unknown',
+          packages: Array.isArray(m.packages) ? m.packages : [],
+          dependencies: Array.isArray(m.dependencies) ? m.dependencies : [],
+          tags: Array.isArray(m.tags) ? m.tags : [],
+          supported_robots: Array.isArray(m.supported_robots)
+            ? m.supported_robots
+            : [],
+          parameters: m.parameters || undefined,
+        }));
+        setModules(normalized);
+        setFilteredModules(normalized);
       } catch (error) {
         console.error('Error fetching modules:', error);
+      } finally {
         setLoading(false);
       }
     };
@@ -569,8 +558,6 @@ const Modules: React.FC = () => {
               p: 2,
             }}
           >
-
-
             {/* Categories */}
             <Box sx={{ mb: 2 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>

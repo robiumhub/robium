@@ -36,21 +36,11 @@ cleanup_all() {
     echo "🔄 Stopping Node.js processes..."
     pkill -f "node\|npm\|ts-node\|react-scripts" 2>/dev/null || true
     
-    # Stop and remove all Docker containers
-    echo "🐳 Stopping Docker containers..."
-    docker stop $(docker ps -aq) 2>/dev/null || true
-    docker rm $(docker ps -aq) 2>/dev/null || true
-    
     # Kill processes on specific ports
     echo "🔌 Clearing ports..."
     kill_port 3000
     kill_port 8000
-    kill_port 5432
-    
-    # Stop Docker Compose services
-    echo "📦 Stopping Docker Compose services..."
-    docker-compose down -v 2>/dev/null || true
-    docker compose down -v 2>/dev/null || true
+    # Note: Do NOT touch Postgres port/containers; we preserve DB data
     
     # Wait a moment for cleanup to complete
     sleep 2
@@ -75,8 +65,8 @@ done
 
 echo "✅ Ports are available"
 
-# Start database first
-echo "🗄️  Starting database..."
+# Start or restart database without removing data
+echo "🗄️  Ensuring database is running..."
 docker compose up -d database
 
 # Wait for database to be ready
