@@ -973,7 +973,14 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
         await Database.query(
           `UPDATE projects SET github_repo_owner = $1, github_repo_name = $2, github_repo_url = $3, github_repo_id = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6`,
-          [repo.owner.login, repo.name, repo.html_url, repo.id, userId, projectId]
+          [
+            repo.owner.login,
+            repo.name,
+            repo.html_url,
+            repo.id,
+            userId,
+            projectId,
+          ]
         );
 
         newProject.github_repo_owner = repo.owner.login;
@@ -983,7 +990,12 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
         // Generate scaffold files and push as initial commit
         const files = projectScaffoldService.generateScaffold(name);
-        await gh.createOrUpdateFiles(repo.owner.login, repo.name, files, 'chore: initial project scaffold');
+        await gh.createOrUpdateFiles(
+          repo.owner.login,
+          repo.name,
+          files,
+          'chore: initial project scaffold'
+        );
       } catch (ghErr) {
         console.error('GitHub repo creation failed:', ghErr);
         // Non-blocking

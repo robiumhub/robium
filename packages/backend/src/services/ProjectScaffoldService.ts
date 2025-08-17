@@ -67,41 +67,60 @@ __pycache__/
 
 Dev-ready containerized workspace for ${projectName}.
 
-## Quickstart
+## Quickstart (preferred)
 
-1) Build and start the dev container (detached):
+Use the helper scripts:
+
+1) Start dev container (detached):
 
 \`\`\`
-docker compose up -d
+bash scripts/dev-start.sh
 \`\`\`
 
 2) Open a shell (repeat for multiple terminals):
 
 \`\`\`
-docker compose exec app bash
+bash scripts/dev-shell.sh
 \`\`\`
 
 3) Stop the environment:
 
 \`\`\`
-docker compose down
+bash scripts/dev-stop.sh
 \`\`\`
 
 Changes in this repo are live-mounted at /workspace inside the container.
+
+## Alternative (docker compose directly)
+
+\`\`\`
+docker compose up -d
+docker compose exec app bash
+docker compose down
+\`\`\`
 `;
 
     const devStart = `#!/usr/bin/env bash
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$REPO_ROOT"
 docker compose up -d
 `;
 
     const devShell = `#!/usr/bin/env bash
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$REPO_ROOT"
 docker compose exec app bash
 `;
 
     const devStop = `#!/usr/bin/env bash
 set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$REPO_ROOT"
 docker compose down
 `;
 
