@@ -5,6 +5,7 @@ import { authenticateToken } from '../middleware/auth';
 import crypto from 'crypto';
 import { dockerfileGenerationService } from '../services/DockerfileGenerationService';
 import { ROSProjectConfig } from '@robium/shared';
+import { getGitHubService } from '../services/GitHubService';
 
 const router = express.Router();
 
@@ -955,6 +956,32 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     const newProject = result.rows[0];
 
+    // If admin user, create a GitHub repo and persist repo info
+    if (req.user?.role === 'admin') {
+      try {
+        const gh = getGitHubService();
+        const repo = await gh.createRepoForAuthenticatedUser({
+          name: name.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').slice(0, 100),
+          description: description || `Robium project ${name}`,
+          private: false,
+          autoInit: true,
+        });
+
+        await Database.query(
+          `UPDATE projects SET github_repo_owner = $1, github_repo_name = $2, github_repo_url = $3, github_repo_id = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6`,
+          [repo.owner.login, repo.name, repo.html_url, repo.id, userId, projectId]
+        );
+
+        newProject.github_repo_owner = repo.owner.login;
+        newProject.github_repo_name = repo.name;
+        newProject.github_repo_url = repo.html_url;
+        newProject.github_repo_id = repo.id;
+      } catch (ghErr) {
+        console.error('GitHub repo creation failed:', ghErr);
+        // Do not fail project creation if GitHub fails
+      }
+    }
+
     res.status(201).json({
       success: true,
       data: newProject,
@@ -1030,3 +1057,24 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 export default router;
+ 
+// POST /api/projects/:id/convert-to-template - Admin only: turn project into a template
+router.post('/:id/convert-to-template', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+    const { id } = req.params;
+    const result = (await Database.query(
+      `UPDATE projects SET is_template = true, updated_at = NOW(), updated_by = $1 WHERE id = $2 AND is_active = true RETURNING *`,
+      [req.user.userId, id]
+    )) as { rows: Array<Record<string, any>> };
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+    res.json({ success: true, data: result.rows[0], message: 'Project converted to template' });
+  } catch (error) {
+    console.error('Error converting to template:', error);
+    res.status(500).json({ success: false, error: 'Failed to convert project to template' });
+  }
+});

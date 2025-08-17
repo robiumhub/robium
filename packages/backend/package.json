@@ -39,6 +39,7 @@
     "db:seed:samples": "ts-node src/scripts/seed-sample-data.ts"
   },
   "dependencies": {
+    "node-fetch": "^2.6.12",
     "@robium/shared": "file:../shared",
     "ajv-formats": "^2.1.1",
     "@types/dockerode": "^3.3.42",
