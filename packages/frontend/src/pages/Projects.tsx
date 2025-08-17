@@ -391,16 +391,22 @@ const Projects: React.FC = () => {
       case 'convertTemplate':
         (async () => {
           try {
-            await ApiService.post(`/projects/${selectedProjectForMenu.id}/convert-to-template`);
+            await ApiService.post(
+              `/projects/${selectedProjectForMenu.id}/convert-to-template`
+            );
             setProjects((prev) =>
               prev.map((p) =>
-                p.id === selectedProjectForMenu.id ? { ...p, is_template: true } : p
+                p.id === selectedProjectForMenu.id
+                  ? { ...p, is_template: true }
+                  : p
               )
             );
           } catch (err) {
             console.error('Failed to convert to template:', err);
             setError(
-              err instanceof Error ? err.message : 'Failed to convert to template'
+              err instanceof Error
+                ? err.message
+                : 'Failed to convert to template'
             );
           }
         })();
@@ -1155,14 +1161,16 @@ const Projects: React.FC = () => {
           </ListItemIcon>
           <ListItemText>View Dockerfile</ListItemText>
         </MenuItem>
-        {user?.role === 'admin' && selectedProjectForMenu && !selectedProjectForMenu.is_template && (
-          <MenuItem onClick={() => handleMenuAction('convertTemplate')}>
-            <ListItemIcon>
-              <EditIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Convert to Template</ListItemText>
-          </MenuItem>
-        )}
+        {user?.role === 'admin' &&
+          selectedProjectForMenu &&
+          !selectedProjectForMenu.is_template && (
+            <MenuItem onClick={() => handleMenuAction('convertTemplate')}>
+              <ListItemIcon>
+                <EditIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Convert to Template</ListItemText>
+            </MenuItem>
+          )}
         <MenuItem
           onClick={() => handleMenuAction('delete')}
           sx={{ color: 'error.main' }}

@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { dockerfileGenerationService } from '../services/DockerfileGenerationService';
 import { ROSProjectConfig } from '@robium/shared';
 import { getGitHubService } from '../services/GitHubService';
+import { projectScaffoldService } from '../services/ProjectScaffoldService';
 
 const router = express.Router();
 
@@ -956,7 +957,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     const newProject = result.rows[0];
 
-    // If admin user, create a GitHub repo and persist repo info
+    // If admin user, create a GitHub repo and persist repo info + scaffold
     if (req.user?.role === 'admin') {
       try {
         const gh = getGitHubService();
@@ -972,23 +973,20 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
         await Database.query(
           `UPDATE projects SET github_repo_owner = $1, github_repo_name = $2, github_repo_url = $3, github_repo_id = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6`,
-          [
-            repo.owner.login,
-            repo.name,
-            repo.html_url,
-            repo.id,
-            userId,
-            projectId,
-          ]
+          [repo.owner.login, repo.name, repo.html_url, repo.id, userId, projectId]
         );
 
         newProject.github_repo_owner = repo.owner.login;
         newProject.github_repo_name = repo.name;
         newProject.github_repo_url = repo.html_url;
         newProject.github_repo_id = repo.id;
+
+        // Generate scaffold files and push as initial commit
+        const files = projectScaffoldService.generateScaffold(name);
+        await gh.createOrUpdateFiles(repo.owner.login, repo.name, files, 'chore: initial project scaffold');
       } catch (ghErr) {
         console.error('GitHub repo creation failed:', ghErr);
-        // Do not fail project creation if GitHub fails
+        // Non-blocking
       }
     }
 

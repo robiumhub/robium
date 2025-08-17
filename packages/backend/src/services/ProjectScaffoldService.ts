@@ -1,0 +1,127 @@
+export interface ProjectFileSpec {
+  path: string;
+  content: string;
+}
+
+export class ProjectScaffoldService {
+  static generateScaffold(projectName: string): ProjectFileSpec[] {
+    const safeName = projectName
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, '-')
+      .slice(0, 100);
+
+    const dockerfile = `# Dev-friendly base image
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    bash ca-certificates curl git sudo build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Default command keeps the container running for multi-terminal dev
+CMD ["bash"]
+`;
+
+    const dockerCompose = `version: '3.9'
+services:
+  app:
+    build: .
+    container_name: ${safeName}-dev
+    working_dir: /workspace
+    command: tail -f /dev/null
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8080:8080"
+`;
+
+    const dockerignore = `node_modules
+.git
+.gitignore
+*.log
+dist
+build
+.cache
+.venv
+__pycache__
+.DS_Store
+`;
+
+    const gitignore = `# Dependencies & build artifacts
+node_modules/
+dist/
+build/
+.cache/
+.venv/
+__pycache__/
+.DS_Store
+*.log
+`;
+
+    const readme = `# ${projectName}
+
+Dev-ready containerized workspace for ${projectName}.
+
+## Quickstart
+
+1) Build and start the dev container (detached):
+
+\`\`\`
+docker compose up -d
+\`\`\`
+
+2) Open a shell (repeat for multiple terminals):
+
+\`\`\`
+docker compose exec app bash
+\`\`\`
+
+3) Stop the environment:
+
+\`\`\`
+docker compose down
+\`\`\`
+
+Changes in this repo are live-mounted at /workspace inside the container.
+`;
+
+    const devStart = `#!/usr/bin/env bash
+set -euo pipefail
+docker compose up -d
+`;
+
+    const devShell = `#!/usr/bin/env bash
+set -euo pipefail
+docker compose exec app bash
+`;
+
+    const devStop = `#!/usr/bin/env bash
+set -euo pipefail
+docker compose down
+`;
+
+    const placeholderSrc = `// Your source code lives here. This directory is bind-mounted into the container.
+`;
+
+    return [
+      { path: 'Dockerfile', content: dockerfile },
+      { path: 'docker-compose.yml', content: dockerCompose },
+      { path: '.dockerignore', content: dockerignore },
+      { path: '.gitignore', content: gitignore },
+      { path: 'README.md', content: readme },
+      { path: 'scripts/dev-start.sh', content: devStart },
+      { path: 'scripts/dev-shell.sh', content: devShell },
+      { path: 'scripts/dev-stop.sh', content: devStop },
+      { path: 'src/.keep', content: placeholderSrc },
+    ];
+  }
+}
+
+export const projectScaffoldService = ProjectScaffoldService;
+
+

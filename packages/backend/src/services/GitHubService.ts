@@ -27,7 +27,7 @@ export class GitHubService {
   }
 
   async createRepoForAuthenticatedUser(options: CreateRepoOptions): Promise<GitHubRepo> {
-    const resp = await fetch(`${this.apiBase}/user/repos`, {
+    const resp = await (global as any).fetch(`${this.apiBase}/user/repos`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -48,6 +48,50 @@ export class GitHubService {
     }
 
     return (await resp.json()) as GitHubRepo;
+  }
+
+  async createOrUpdateFiles(owner: string, repo: string, files: { path: string; content: string }[], commitMessage: string): Promise<void> {
+    for (const f of files) {
+      // Get current SHA if file exists
+      const getResp = await (global as any).fetch(
+        `${this.apiBase}/repos/${owner}/${repo}/contents/${encodeURIComponent(f.path)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            Accept: 'application/vnd.github+json',
+          },
+        }
+      );
+
+      const exists = getResp.status === 200;
+      let sha: string | undefined;
+      if (exists) {
+        const meta = await getResp.json();
+        sha = meta.sha;
+      }
+
+      const putResp = await (global as any).fetch(
+        `${this.apiBase}/repos/${owner}/${repo}/contents/${encodeURIComponent(f.path)}`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: commitMessage,
+            content: Buffer.from(f.content, 'utf-8').toString('base64'),
+            sha,
+          }),
+        }
+      );
+
+      if (!putResp.ok) {
+        const text = await putResp.text();
+        throw new Error(`GitHub commit failed for ${f.path}: ${putResp.status} ${text}`);
+      }
+    }
   }
 }
 
