@@ -30,7 +30,9 @@ CMD ["bash"]
     const dockerCompose = `version: '3.9'
 services:
   app:
-    build: .
+    build:
+      context: .
+      network: host
     container_name: ${safeName}-dev
     working_dir: /workspace
     command: tail -f /dev/null
