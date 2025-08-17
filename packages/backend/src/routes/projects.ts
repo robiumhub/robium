@@ -430,6 +430,9 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
+    const requestedName = (req.body && typeof req.body.name === 'string' && req.body.name.trim())
+      ? (req.body.name as string).trim()
+      : null;
 
     // Load source project
     const source = (await Database.query(
@@ -445,7 +448,7 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
 
     const src = source.rows[0];
     const cloneId = crypto.randomUUID();
-    const cloneName = `${src.name}-copy`;
+    const cloneName = requestedName || `${src.name}-copy`;
 
     await Database.transaction(async (client: any) => {
       // Insert cloned project

@@ -444,7 +444,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
           onClick={() => onLaunch(template)}
           fullWidth={isMobile}
         >
-          Launch
+          Use Template
         </Button>
       </CardActions>
     </Card>

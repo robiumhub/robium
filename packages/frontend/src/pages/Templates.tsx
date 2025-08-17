@@ -347,14 +347,17 @@ const Templates: React.FC = () => {
     setPreviewOpen(true);
   };
 
-  const handleLaunch = (template: Template) => {
-    // Navigate to project creation with template pre-filled
-    navigate('/projects/create', {
-      state: {
-        templateId: template.id,
-        templateConfig: template.config,
-      },
-    });
+  const handleLaunch = async (template: Template) => {
+    const name = window.prompt('New project name from template:', `${template.name}-copy`);
+    if (!name) return;
+    try {
+      // POST clone with custom name
+      const cloned = await ApiService.post<any>(`/projects/${template.id}/clone`, { name });
+      navigate(`/projects/${cloned.id}`);
+    } catch (err) {
+      console.error('Failed to create project from template:', err);
+      alert(err instanceof Error ? err.message : 'Failed to create project from template');
+    }
   };
 
   const handleBookmark = (templateId: string, bookmarked: boolean) => {
