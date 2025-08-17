@@ -506,7 +506,9 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
     if (
       req.user?.role === 'admin' &&
       src.github_repo_owner &&
-      src.github_repo_name
+      src.github_repo_name &&
+      src.github_repo_owner.trim() !== '' &&
+      src.github_repo_name.trim() !== ''
     ) {
       try {
         const gh = getGitHubService();
@@ -515,6 +517,9 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
           .replace(/[^a-z0-9-_]+/g, '-')
           .slice(0, 100);
         const forkOrg = process.env.GITHUB_FORK_ORG;
+        
+        console.log(`Attempting to clone from template: ${src.github_repo_owner}/${src.github_repo_name} to ${safeName}`);
+        
         let newRepo;
         try {
           newRepo = await gh.forkRepo(
@@ -526,20 +531,36 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
               waitSeconds: 60,
             }
           );
+          console.log(`Successfully forked repo: ${newRepo.html_url}`);
         } catch (forkErr) {
           console.warn(
             'Fork failed, falling back to template generate:',
             forkErr
           );
-          newRepo = await gh.createRepoFromTemplate(
-            src.github_repo_owner,
-            src.github_repo_name,
-            {
+          try {
+            newRepo = await gh.createRepoFromTemplate(
+              src.github_repo_owner,
+              src.github_repo_name,
+              {
+                name: safeName,
+                description: src.description || cloneName,
+                private: false,
+              }
+            );
+            console.log(`Successfully created repo from template: ${newRepo.html_url}`);
+          } catch (templateErr) {
+            console.error('Template generation also failed:', templateErr);
+            console.log('Falling back to creating a new empty repo');
+            
+            // Final fallback: create a new empty repo
+            newRepo = await gh.createRepoForAuthenticatedUser({
               name: safeName,
-              description: src.description || cloneName,
+              description: `Cloned from ${src.name} (template repo unavailable)`,
               private: false,
-            }
-          );
+              autoInit: true,
+            });
+            console.log(`Created new empty repo as fallback: ${newRepo.html_url}`);
+          }
         }
 
         await Database.query(
@@ -559,7 +580,8 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
         cloned.rows[0].github_repo_url = newRepo.html_url;
         cloned.rows[0].github_repo_id = newRepo.id;
       } catch (ghErr) {
-        console.error('GitHub template repo creation failed:', ghErr);
+        console.error('All GitHub repo creation methods failed:', ghErr);
+        console.log('Project cloned but no GitHub repo was created');
       }
     } else if (req.user?.role === 'admin') {
       // No repo info on template; create a new repo for the cloned project
@@ -569,6 +591,7 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
           .toLowerCase()
           .replace(/[^a-z0-9-_]+/g, '-')
           .slice(0, 100);
+        console.log(`Creating new repo for cloned project: ${safeName} (template had no GitHub repo info)`);
         const repo = await gh.createRepoForAuthenticatedUser({
           name: safeName,
           description: src.description || cloneName,
@@ -583,6 +606,7 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
         cloned.rows[0].github_repo_name = repo.name;
         cloned.rows[0].github_repo_url = repo.html_url;
         cloned.rows[0].github_repo_id = repo.id;
+        console.log(`Successfully created new repo: ${repo.html_url}`);
       } catch (ghErr) {
         console.error('GitHub repo creation for clone failed:', ghErr);
       }
