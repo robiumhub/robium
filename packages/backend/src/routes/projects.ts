@@ -996,6 +996,34 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           files,
           'chore: initial project scaffold'
         );
+
+        // Replace Dockerfile with generated content to match UI preview
+        try {
+          let gen: any;
+          if (newProject.config && newProject.config.robotTarget !== undefined) {
+            gen = await dockerfileGenerationService.generateFromProjectConfig(
+              projectId,
+              newProject.config,
+              { includeComments: true, optimize: true }
+            );
+          } else {
+            gen = await dockerfileGenerationService.generateDockerfile(projectId, {
+              includeComments: true,
+              optimize: true,
+            });
+          }
+
+          if (gen?.content) {
+            await gh.createOrUpdateFiles(
+              repo.owner.login,
+              repo.name,
+              [{ path: 'Dockerfile', content: gen.content }],
+              'chore: update Dockerfile to generated version'
+            );
+          }
+        } catch (genErr) {
+          console.error('Failed to generate and push Dockerfile:', genErr);
+        }
       } catch (ghErr) {
         console.error('GitHub repo creation failed:', ghErr);
         // Non-blocking
