@@ -57,6 +57,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { ApiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 // Types
 interface Project {
@@ -84,6 +85,9 @@ interface Project {
   package_count: number;
   modules?: Module[];
   packages?: Package[];
+  github_repo_url?: string;
+  github_repo_owner?: string;
+  github_repo_name?: string;
 }
 
 interface Module {
@@ -138,6 +142,7 @@ const Projects: React.FC = () => {
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProjectForMenu, setSelectedProjectForMenu] =
     useState<Project | null>(null);
+  const { user } = useAuth();
 
   // Projects will be loaded from the API
 
@@ -183,6 +188,9 @@ const Projects: React.FC = () => {
             package_count: project.package_count || 0,
             modules: project.modules || [],
             packages: project.packages || [],
+            github_repo_url: project.github_repo_url,
+            github_repo_owner: project.github_repo_owner,
+            github_repo_name: project.github_repo_name,
           })
         );
 
@@ -379,6 +387,23 @@ const Projects: React.FC = () => {
         break;
       case 'dockerfile':
         handleViewDockerfile(selectedProjectForMenu);
+        break;
+      case 'convertTemplate':
+        (async () => {
+          try {
+            await ApiService.post(`/projects/${selectedProjectForMenu.id}/convert-to-template`);
+            setProjects((prev) =>
+              prev.map((p) =>
+                p.id === selectedProjectForMenu.id ? { ...p, is_template: true } : p
+              )
+            );
+          } catch (err) {
+            console.error('Failed to convert to template:', err);
+            setError(
+              err instanceof Error ? err.message : 'Failed to convert to template'
+            );
+          }
+        })();
         break;
     }
     handleMenuClose();
@@ -904,6 +929,18 @@ const Projects: React.FC = () => {
                           />
                         )}
                       </Box>
+                      {project.github_repo_url && (
+                        <Box sx={{ mb: 2 }}>
+                          <Button
+                            size="small"
+                            href={project.github_repo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            View GitHub Repo
+                          </Button>
+                        </Box>
+                      )}
                       <Box sx={{ mb: 2 }}>
                         {project.packages?.slice(0, 3).map((pkg) => (
                           <Chip
@@ -1118,6 +1155,14 @@ const Projects: React.FC = () => {
           </ListItemIcon>
           <ListItemText>View Dockerfile</ListItemText>
         </MenuItem>
+        {user?.role === 'admin' && selectedProjectForMenu && !selectedProjectForMenu.is_template && (
+          <MenuItem onClick={() => handleMenuAction('convertTemplate')}>
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Convert to Template</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem
           onClick={() => handleMenuAction('delete')}
           sx={{ color: 'error.main' }}

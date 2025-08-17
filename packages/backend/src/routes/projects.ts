@@ -961,7 +961,10 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       try {
         const gh = getGitHubService();
         const repo = await gh.createRepoForAuthenticatedUser({
-          name: name.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').slice(0, 100),
+          name: name
+            .toLowerCase()
+            .replace(/[^a-z0-9-_]+/g, '-')
+            .slice(0, 100),
           description: description || `Robium project ${name}`,
           private: false,
           autoInit: true,
@@ -969,7 +972,14 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
         await Database.query(
           `UPDATE projects SET github_repo_owner = $1, github_repo_name = $2, github_repo_url = $3, github_repo_id = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6`,
-          [repo.owner.login, repo.name, repo.html_url, repo.id, userId, projectId]
+          [
+            repo.owner.login,
+            repo.name,
+            repo.html_url,
+            repo.id,
+            userId,
+            projectId,
+          ]
         );
 
         newProject.github_repo_owner = repo.owner.login;
@@ -1057,24 +1067,37 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 export default router;
- 
+
 // POST /api/projects/:id/convert-to-template - Admin only: turn project into a template
-router.post('/:id/convert-to-template', authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    if (req.user?.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Forbidden' });
+router.post(
+  '/:id/convert-to-template',
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Forbidden' });
+      }
+      const { id } = req.params;
+      const result = (await Database.query(
+        `UPDATE projects SET is_template = true, updated_at = NOW(), updated_by = $1 WHERE id = $2 AND is_active = true RETURNING *`,
+        [req.user.userId, id]
+      )) as { rows: Array<Record<string, any>> };
+      if (result.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ success: false, error: 'Project not found' });
+      }
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Project converted to template',
+      });
+    } catch (error) {
+      console.error('Error converting to template:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to convert project to template',
+      });
     }
-    const { id } = req.params;
-    const result = (await Database.query(
-      `UPDATE projects SET is_template = true, updated_at = NOW(), updated_by = $1 WHERE id = $2 AND is_active = true RETURNING *`,
-      [req.user.userId, id]
-    )) as { rows: Array<Record<string, any>> };
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Project not found' });
-    }
-    res.json({ success: true, data: result.rows[0], message: 'Project converted to template' });
-  } catch (error) {
-    console.error('Error converting to template:', error);
-    res.status(500).json({ success: false, error: 'Failed to convert project to template' });
   }
-});
+);
