@@ -21,6 +21,7 @@ import {
   Alert,
   CircularProgress,
   Chip,
+  FormHelperText,
 } from '@mui/material';
 import { Grid } from '@mui/material';
 import {
@@ -302,6 +303,7 @@ const ConfigurationSection: React.FC<{
             <MenuItem value="turtlebot4">TurtleBot 4</MenuItem>
             <MenuItem value="ur5">UR5</MenuItem>
           </Select>
+          <FormHelperText>Mock: not applied to Dockerfile yet</FormHelperText>
         </FormControl>
 
         <FormControl fullWidth sx={{ mb: 2 }}>
@@ -340,6 +342,7 @@ const ConfigurationSection: React.FC<{
             <MenuItem value="real">Real</MenuItem>
             <MenuItem value="hybrid">Hybrid</MenuItem>
           </Select>
+          <FormHelperText>Mock: not applied to Dockerfile yet</FormHelperText>
         </FormControl>
       </Grid>
 
@@ -355,6 +358,7 @@ const ConfigurationSection: React.FC<{
             <MenuItem value="cloud_gpu">Cloud GPU</MenuItem>
             <MenuItem value="edge">Edge</MenuItem>
           </Select>
+          <FormHelperText>Mock: not applied to Dockerfile yet</FormHelperText>
         </FormControl>
 
         <FormControl fullWidth sx={{ mb: 2 }}>

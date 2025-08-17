@@ -1000,17 +1000,23 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
         // Replace Dockerfile with generated content to match UI preview
         try {
           let gen: any;
-          if (newProject.config && newProject.config.robotTarget !== undefined) {
+          if (
+            newProject.config &&
+            newProject.config.robotTarget !== undefined
+          ) {
             gen = await dockerfileGenerationService.generateFromProjectConfig(
               projectId,
               newProject.config,
               { includeComments: true, optimize: true }
             );
           } else {
-            gen = await dockerfileGenerationService.generateDockerfile(projectId, {
-              includeComments: true,
-              optimize: true,
-            });
+            gen = await dockerfileGenerationService.generateDockerfile(
+              projectId,
+              {
+                includeComments: true,
+                optimize: true,
+              }
+            );
           }
 
           if (gen?.content) {
