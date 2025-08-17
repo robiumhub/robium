@@ -523,7 +523,7 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
             {
               name: safeName,
               organization: forkOrg,
-              waitSeconds: 30,
+              waitSeconds: 60,
             }
           );
         } catch (forkErr) {
@@ -560,6 +560,31 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
         cloned.rows[0].github_repo_id = newRepo.id;
       } catch (ghErr) {
         console.error('GitHub template repo creation failed:', ghErr);
+      }
+    } else if (req.user?.role === 'admin') {
+      // No repo info on template; create a new repo for the cloned project
+      try {
+        const gh = getGitHubService();
+        const safeName = cloneName
+          .toLowerCase()
+          .replace(/[^a-z0-9-_]+/g, '-')
+          .slice(0, 100);
+        const repo = await gh.createRepoForAuthenticatedUser({
+          name: safeName,
+          description: src.description || cloneName,
+          private: false,
+          autoInit: true,
+        });
+        await Database.query(
+          `UPDATE projects SET github_repo_owner = $1, github_repo_name = $2, github_repo_url = $3, github_repo_id = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6`,
+          [repo.owner.login, repo.name, repo.html_url, repo.id, userId, cloneId]
+        );
+        cloned.rows[0].github_repo_owner = repo.owner.login;
+        cloned.rows[0].github_repo_name = repo.name;
+        cloned.rows[0].github_repo_url = repo.html_url;
+        cloned.rows[0].github_repo_id = repo.id;
+      } catch (ghErr) {
+        console.error('GitHub repo creation for clone failed:', ghErr);
       }
     }
 
