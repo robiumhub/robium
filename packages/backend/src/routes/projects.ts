@@ -430,9 +430,10 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const userId = req.user?.userId;
-    const requestedName = (req.body && typeof req.body.name === 'string' && req.body.name.trim())
-      ? (req.body.name as string).trim()
-      : null;
+    const requestedName =
+      req.body && typeof req.body.name === 'string' && req.body.name.trim()
+        ? (req.body.name as string).trim()
+        : null;
 
     // Load source project
     const source = (await Database.query(
@@ -500,6 +501,42 @@ router.post('/:id/clone', authenticateToken, async (req: AuthRequest, res) => {
     )) as {
       rows: Array<Record<string, any>>;
     };
+
+    // If admin, create a new GitHub repo from template (prefer fork)
+    if (req.user?.role === 'admin' && src.github_repo_owner && src.github_repo_name) {
+      try {
+        const gh = getGitHubService();
+        const safeName = cloneName.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').slice(0, 100);
+        const forkOrg = process.env.GITHUB_FORK_ORG;
+        let newRepo;
+        try {
+          newRepo = await gh.forkRepo(src.github_repo_owner, src.github_repo_name, {
+            name: safeName,
+            organization: forkOrg,
+            waitSeconds: 30,
+          });
+        } catch (forkErr) {
+          console.warn('Fork failed, falling back to template generate:', forkErr);
+          newRepo = await gh.createRepoFromTemplate(src.github_repo_owner, src.github_repo_name, {
+            name: safeName,
+            description: src.description || cloneName,
+            private: false,
+          });
+        }
+
+        await Database.query(
+          `UPDATE projects SET github_repo_owner = $1, github_repo_name = $2, github_repo_url = $3, github_repo_id = $4, updated_at = NOW(), updated_by = $5 WHERE id = $6`,
+          [newRepo.owner.login, newRepo.name, newRepo.html_url, newRepo.id, userId, cloneId]
+        );
+
+        cloned.rows[0].github_repo_owner = newRepo.owner.login;
+        cloned.rows[0].github_repo_name = newRepo.name;
+        cloned.rows[0].github_repo_url = newRepo.html_url;
+        cloned.rows[0].github_repo_id = newRepo.id;
+      } catch (ghErr) {
+        console.error('GitHub template repo creation failed:', ghErr);
+      }
+    }
 
     res
       .status(201)
