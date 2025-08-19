@@ -31,8 +31,8 @@
     "typescript": "^4.9.5"
   },
   "scripts": {
-    "start": "FAST_REFRESH=false NODE_OPTIONS=--max-old-space-size=4096 react-scripts start",
-    "dev": "FAST_REFRESH=false NODE_OPTIONS=--max-old-space-size=4096 react-scripts start",
+    "start": "FAST_REFRESH=false NODE_OPTIONS=--max-old-space-size=2048 SKIP_PREFLIGHT_CHECK=true react-scripts start",
+    "dev": "FAST_REFRESH=false NODE_OPTIONS=--max-old-space-size=2048 SKIP_PREFLIGHT_CHECK=true react-scripts start",
     "build": "node build-simple.js",
     "build:simple": "node build-simple.js",
     "test": "react-scripts test",
