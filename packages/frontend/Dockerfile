@@ -15,4 +15,4 @@ COPY packages/frontend/public ./public
 COPY packages/frontend/tsconfig.json ./
 
 EXPOSE 3000
-CMD ["sh", "-c", "FAST_REFRESH=false NODE_OPTIONS='--max-old-space-size=2048' SKIP_PREFLIGHT_CHECK=true npm start"] 
+CMD ["sh", "-c", "FAST_REFRESH=false NODE_OPTIONS='--max-old-space-size=3072' SKIP_PREFLIGHT_CHECK=true npm start"] 

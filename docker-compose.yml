@@ -14,12 +14,15 @@ services:
       - NODE_ENV=development
       - FAST_REFRESH=false
       - BACKEND_URL=http://backend:8000
+      - CHOKIDAR_USEPOLLING=false
+      - WATCHPACK_POLLING=false
+      - GENERATE_SOURCEMAP=false
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 6G
         reservations:
-          memory: 2G
+          memory: 3G
     depends_on:
       - backend
 
