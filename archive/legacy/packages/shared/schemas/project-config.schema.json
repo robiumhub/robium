@@ -1,0 +1,35 @@
+{
+  "title": "Project Configuration",
+  "description": "Schema for a Robium project configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+
+    "robotTarget": { "type": "string", "enum": ["none", "turtlebot4", "ur5"] },
+    "simulation": { "type": "string", "enum": ["none", "gazebo", "isaac"] },
+    "rmw": { "type": "string", "enum": ["cyclonedds", "fastrtps"] },
+    "execution": { "type": "string", "enum": ["simulator", "real", "hybrid"] },
+    "deployment": { "type": "string", "enum": ["local", "cloud_gpu", "edge"] },
+    "baseImage": {
+      "type": "string",
+      "enum": ["ros_humble", "cuda_ubuntu2204", "jetson_l4t_ros"]
+    },
+    "rosVersion": { "type": "string", "enum": ["humble", "iron", "jazzy"] },
+
+    "foxglove": { "type": "boolean", "default": false },
+    "teleopKeyboard": { "type": "boolean", "default": false },
+    "teleopJoystick": { "type": "boolean", "default": false }
+  },
+  "required": [
+    "name",
+    "robotTarget",
+    "simulation",
+    "rmw",
+    "execution",
+    "deployment",
+    "baseImage",
+    "rosVersion"
+  ]
+}

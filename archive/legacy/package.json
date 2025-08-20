@@ -1,0 +1,21 @@
+{
+  "name": "robium",
+  "version": "1.0.0",
+  "description": "Robium - Robot Development Platform",
+  "scripts": {
+    "dev": "./scripts/start-dev.sh",
+    "start": "./scripts/start-dev.sh",
+    "clean": "pkill -f 'npm run dev' || true && pkill -f 'npm start' || true && pkill -f 'ts-node-dev' || true && pkill -f 'react-scripts' || true",
+    "kill-ports": "lsof -ti:3000 | xargs kill -9 2>/dev/null || true && lsof -ti:3001 | xargs kill -9 2>/dev/null || true && lsof -ti:8000 | xargs kill -9 2>/dev/null || true",
+    "compose:down": "docker compose -f ./docker-compose.yml down --remove-orphans",
+    "db:status": "cd packages/backend && npm run migrate:status",
+    "db:migrate": "cd packages/backend && npm run migrate:up",
+    "db:seed": "cd packages/backend && npm run db:seed",
+    "db:reset": "cd packages/backend && npm run migrate:reset && npm run db:seed",
+    "db:seed:all": "cd packages/backend && npm run db:seed:all"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^4.9.5"
+  }
+}

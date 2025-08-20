@@ -1,0 +1,496 @@
+{
+  "$schema": "http://json-schema.org/draft-2020-12/schema#",
+  "title": "Robium Environment Configuration Schema",
+  "description": "Schema for environment variables, system configurations, resource limits, and runtime settings",
+  "type": "object",
+  "required": ["environment", "resources", "network"],
+  "properties": {
+    "environment": {
+      "type": "object",
+      "required": ["variables"],
+      "properties": {
+        "variables": {
+          "type": "object",
+          "description": "Environment variables for the container",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["value", "type"],
+            "properties": {
+              "value": {
+                "description": "Environment variable value"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["string", "number", "boolean", "json"],
+                "description": "Data type of the environment variable"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 200,
+                "description": "Description of the environment variable"
+              },
+              "required": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether this environment variable is required"
+              },
+              "sensitive": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether this variable contains sensitive information"
+              },
+              "validation": {
+                "type": "object",
+                "properties": {
+                  "pattern": {
+                    "type": "string",
+                    "description": "Regex pattern for validation"
+                  },
+                  "minLength": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Minimum length for string values"
+                  },
+                  "maxLength": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Maximum length for string values"
+                  },
+                  "min": {
+                    "type": "number",
+                    "description": "Minimum value for numeric values"
+                  },
+                  "max": {
+                    "type": "number",
+                    "description": "Maximum value for numeric values"
+                  },
+                  "options": {
+                    "type": "array",
+                    "description": "Valid options for the variable"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "rosEnvironment": {
+          "type": "object",
+          "properties": {
+            "rosVersion": {
+              "type": "string",
+              "enum": ["humble", "foxy", "galactic", "rolling"],
+              "default": "humble",
+              "description": "ROS2 distribution version"
+            },
+            "rosDomainId": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 232,
+              "default": 0,
+              "description": "ROS domain ID for network isolation"
+            },
+            "rosNamespace": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_/]+$",
+              "description": "ROS namespace for the project"
+            },
+            "rosMasterUri": {
+              "type": "string",
+              "format": "uri",
+              "description": "ROS master URI (for ROS1 compatibility)"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "resources": {
+      "type": "object",
+      "required": ["cpu", "memory", "storage"],
+      "properties": {
+        "cpu": {
+          "type": "object",
+          "required": ["limit"],
+          "properties": {
+            "limit": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 32,
+              "description": "CPU limit in cores"
+            },
+            "reservation": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 32,
+              "description": "CPU reservation in cores"
+            },
+            "shares": {
+              "type": "number",
+              "minimum": 2,
+              "maximum": 262144,
+              "description": "CPU shares for scheduling priority"
+            }
+          },
+          "additionalProperties": false
+        },
+        "memory": {
+          "type": "object",
+          "required": ["limit"],
+          "properties": {
+            "limit": {
+              "type": "string",
+              "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+              "description": "Memory limit (e.g., '512M', '2G')"
+            },
+            "reservation": {
+              "type": "string",
+              "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+              "description": "Memory reservation (e.g., '256M', '1G')"
+            },
+            "swap": {
+              "type": "string",
+              "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+              "description": "Swap limit (e.g., '1G', '2G')"
+            }
+          },
+          "additionalProperties": false
+        },
+        "storage": {
+          "type": "object",
+          "required": ["workspace"],
+          "properties": {
+            "workspace": {
+              "type": "string",
+              "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+              "description": "Workspace storage limit (e.g., '10G', '50G')"
+            },
+            "cache": {
+              "type": "string",
+              "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+              "description": "Cache storage limit (e.g., '5G', '20G')"
+            },
+            "logs": {
+              "type": "string",
+              "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+              "description": "Log storage limit (e.g., '1G', '5G')"
+            }
+          },
+          "additionalProperties": false
+        },
+        "gpu": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether GPU access is enabled"
+            },
+            "count": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 16,
+              "default": 0,
+              "description": "Number of GPUs to allocate"
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["compute", "utility", "graphics", "video", "display"]
+              },
+              "description": "GPU capabilities to enable"
+            },
+            "devices": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "description": "Specific GPU device IDs to use"
+            }
+          },
+          "additionalProperties": false
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "bandwidth": {
+              "type": "object",
+              "properties": {
+                "ingress": {
+                  "type": "string",
+                  "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+                  "description": "Ingress bandwidth limit"
+                },
+                "egress": {
+                  "type": "string",
+                  "pattern": "^\\d+[KMGTPEZYkmgtpezy]?[i]?$",
+                  "description": "Egress bandwidth limit"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "network": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["bridge", "host", "none", "overlay"],
+          "default": "bridge",
+          "description": "Network mode for the container"
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["container", "host"],
+            "properties": {
+              "container": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 65535,
+                "description": "Container port number"
+              },
+              "host": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 65535,
+                "description": "Host port number"
+              },
+              "protocol": {
+                "type": "string",
+                "enum": ["tcp", "udp"],
+                "default": "tcp",
+                "description": "Port protocol"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 100,
+                "description": "Description of the port"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Port mappings for the container"
+        },
+        "dns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "description": "Custom DNS servers"
+        },
+        "hostname": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$",
+          "description": "Custom hostname for the container"
+        },
+        "extraHosts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["hostname", "ip"],
+            "properties": {
+              "hostname": {
+                "type": "string",
+                "description": "Hostname to add"
+              },
+              "ip": {
+                "type": "string",
+                "format": "ipv4",
+                "description": "IP address for the hostname"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Additional host entries"
+        }
+      },
+      "additionalProperties": false
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "target"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Source path on the host"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Target path in the container"
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["ro", "rw"],
+            "default": "rw",
+            "description": "Volume mount mode (read-only or read-write)"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Description of the volume mount"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Volume mounts for the container"
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "User to run the container as"
+        },
+        "group": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Group to run the container as"
+        },
+        "readOnly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to run the container in read-only mode"
+        },
+        "noNewPrivileges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to prevent privilege escalation"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "CHOWN", "DAC_OVERRIDE", "DAC_READ_SEARCH", "FOWNER", "FSETID",
+              "KILL", "SETGID", "SETUID", "SETPCAP", "LINUX_IMMUTABLE",
+              "NET_BIND_SERVICE", "NET_BROADCAST", "NET_ADMIN", "NET_RAW",
+              "IPC_LOCK", "IPC_OWNER", "SYS_MODULE", "SYS_RAWIO", "SYS_CHROOT",
+              "SYS_PTRACE", "SYS_PACCT", "SYS_ADMIN", "SYS_BOOT", "SYS_NICE",
+              "SYS_RESOURCE", "SYS_TIME", "SYS_TTY_CONFIG", "MKNOD", "LEASE",
+              "AUDIT_WRITE", "AUDIT_CONTROL", "SETFCAP", "MAC_OVERRIDE",
+              "MAC_ADMIN", "SYSLOG", "WAKE_ALARM", "BLOCK_SUSPEND", "AUDIT_READ"
+            ]
+          },
+          "description": "Linux capabilities to add to the container"
+        },
+        "dropCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "CHOWN", "DAC_OVERRIDE", "DAC_READ_SEARCH", "FOWNER", "FSETID",
+              "KILL", "SETGID", "SETUID", "SETPCAP", "LINUX_IMMUTABLE",
+              "NET_BIND_SERVICE", "NET_BROADCAST", "NET_ADMIN", "NET_RAW",
+              "IPC_LOCK", "IPC_OWNER", "SYS_MODULE", "SYS_RAWIO", "SYS_CHROOT",
+              "SYS_PTRACE", "SYS_PACCT", "SYS_ADMIN", "SYS_BOOT", "SYS_NICE",
+              "SYS_RESOURCE", "SYS_TIME", "SYS_TTY_CONFIG", "MKNOD", "LEASE",
+              "AUDIT_WRITE", "AUDIT_CONTROL", "SETFCAP", "MAC_OVERRIDE",
+              "MAC_ADMIN", "SYSLOG", "WAKE_ALARM", "BLOCK_SUSPEND", "AUDIT_READ"
+            ]
+          },
+          "description": "Linux capabilities to drop from the container"
+        },
+        "seccompProfile": {
+          "type": "string",
+          "description": "Path to custom seccomp profile"
+        },
+        "apparmorProfile": {
+          "type": "string",
+          "description": "AppArmor profile to apply"
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "workingDirectory": {
+          "type": "string",
+          "default": "/workspace",
+          "description": "Working directory in the container"
+        },
+        "entrypoint": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Container entrypoint command"
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Container command to run"
+        },
+        "restartPolicy": {
+          "type": "string",
+          "enum": ["no", "always", "on-failure", "unless-stopped"],
+          "default": "no",
+          "description": "Container restart policy"
+        },
+        "healthCheck": {
+          "type": "object",
+          "required": ["test"],
+          "properties": {
+            "test": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Health check command"
+            },
+            "interval": {
+              "type": "string",
+              "pattern": "^\\d+[smhd]?$",
+              "default": "30s",
+              "description": "Health check interval"
+            },
+            "timeout": {
+              "type": "string",
+              "pattern": "^\\d+[smhd]?$",
+              "default": "10s",
+              "description": "Health check timeout"
+            },
+            "retries": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10,
+              "default": 3,
+              "description": "Number of health check retries"
+            },
+            "startPeriod": {
+              "type": "string",
+              "pattern": "^\\d+[smhd]?$",
+              "default": "0s",
+              "description": "Start period for health checks"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+} 

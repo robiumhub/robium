@@ -1,9 +1,0 @@
-{
-  "metadata": {
-    "name": "manipulation-project"
-  },
-  "modules": [
-    "manipulation_core",
-    "perception_basic"
-  ]
-} 

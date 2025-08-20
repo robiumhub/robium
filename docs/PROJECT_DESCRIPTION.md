@@ -18,7 +18,7 @@ Robium is a monorepo-based robot development platform that helps teams design, c
 - Project Management: Create and manage project configurations, tags, and supported robots.
 - Dockerfile Generation: Template-driven Dockerfiles produced on demand from project data.
 - ROS Integration: Optional local or containerized ROS2 (Humble+) workspace management.
-- Database-backed State: PostgreSQL schema for users, projects, activity logs, container state, etc.
+- Database-backed State: SQLite schema for users, projects, activity logs, container state, etc.
 - WebSocket Server: Real-time log streaming, status updates, and interactive operations.
 - Admin & Dashboard: Administrative endpoints and dashboard data for observability.
 
@@ -37,12 +37,12 @@ The repository uses npm workspaces to organize services and shared code:
 - `packages/frontend`: React application, routing, pages, charts, and services.
 - `packages/shared`: Shared types, JSON Schemas, templates, module metadata, and validation utilities.
 - `ros/`: ROS2 workspace (as a submodule-style directory) with Docker build tooling and helper scripts.
-- Root-level `docker-compose.yml`: Spins up frontend, backend, PostgreSQL, and a ROS container target.
+- Root-level `docker-compose.yml`: Spins up frontend, backend (with embedded SQLite), and a ROS container target.
 
 ### High-Level Data Flow
 
 1. User authenticates in the frontend and creates/edits a project.
-2. Backend validates and stores project configuration in PostgreSQL.
+2. Backend validates and stores project configuration in SQLite.
 3. Dockerfile Generation Service renders a Dockerfile from templates and project data.
 4. Optional: Container lifecycle and log streaming run via services + WebSockets.
 5. ROS workspace can be built and interacted with locally or within containers.
@@ -54,7 +54,7 @@ The repository uses npm workspaces to organize services and shared code:
 ### Stack
 
 - Node.js, TypeScript, Express
-- PostgreSQL (via custom `Database` utility)
+- SQLite (via custom `Database` utility)
 - WebSockets for realtime features
 - Helmet, CORS, Morgan, centralized error handling
 
@@ -174,7 +174,7 @@ source install/setup.bash
 - Root `docker-compose.yml` to run:
   - Frontend (React) on port 3000
   - Backend (Express) on port 8000 (exposed as 8001 in compose mapping)
-  - PostgreSQL database on port 5432
+  - SQLite database (embedded in backend)
   - ROS container build target
 - NPM scripts and shell helpers under `scripts/` for starting, cleaning, and ROS bootstrapping
 - Backend auto-runs DB migrations on start
