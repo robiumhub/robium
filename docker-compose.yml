@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: ./packages/backend/Dockerfile
+    environment:
+      - NODE_ENV=development
+      - PORT=8000
+      - CORS_ORIGIN=http://localhost:3000
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_FORK_ORG=${GITHUB_FORK_ORG:-}
+      - APP_ENCRYPTION_KEY=${APP_ENCRYPTION_KEY:-}
+    ports:
+      - '8000:8000'
+    volumes:
+      # Mount only source to preserve node_modules inside the image
+      - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/backend/generated:/app/packages/backend/generated
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./packages/frontend/Dockerfile
+    environment:
+      - NODE_ENV=development
+      - BACKEND_URL=http://backend:8000
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./packages/frontend/src:/app/packages/frontend/src
+      - ./packages/frontend/public:/app/packages/frontend/public
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  # named volume could be used if we externalize SQLite DB path
+  # robium-sqlite:

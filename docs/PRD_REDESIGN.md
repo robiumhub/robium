@@ -34,10 +34,7 @@ Out of scope (now): ROS packages/modules, datasets, execution workspace, WebSock
 
 ## 4. Frontend Stack & Design System
 
-- Default: Tailwind CSS + shadcn/ui (Radix primitives) + Framer Motion
-  - Style: dark-first, high contrast, electric accent (cyan/azure or lime), radius 12–16px
-  - Motion: subtle hover (≤1.02), reveal transitions (150–250ms)
-- Alternative (documented only): MUI Core + Joy + Framer Motion (if DataGrid ecosystem is needed later)
+MUI design.
 
 ## 5. User Flows
 

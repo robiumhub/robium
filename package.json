@@ -1,0 +1,62 @@
+{
+  "name": "robium",
+  "version": "0.1.0",
+  "description": "Robium - Robotics project configuration and Dockerfile generation platform",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev:frontend": "npm run start --workspace=packages/frontend",
+    "dev:backend": "npm run build --workspace=packages/backend && node packages/backend/dist/index.js",
+    "build": "npm-run-all build:frontend build:backend",
+    "build:frontend": "npm run build --workspace=packages/frontend",
+    "build:backend": "npm run build --workspace=packages/backend",
+    "start:backend": "npm run start --workspace=packages/backend",
+    "clean": "rimraf packages/*/dist packages/*/build packages/backend/generated && rimraf node_modules packages/*/node_modules",
+    "db:migrate": "npm run migrate --workspace=packages/backend",
+    "seed:users": "npm run seed:users --workspace=packages/backend",
+    "seed:projects": "npm run seed:projects --workspace=packages/backend",
+    "seed:templates": "npm run seed:templates --workspace=packages/backend",
+    "seed:all": "npm run seed:all --workspace=packages/backend",
+    "db:reset": "npm run db:reset --workspace=packages/backend",
+    "lint": "npm-run-all lint:*",
+    "lint:frontend": "npm run lint --workspace=packages/frontend",
+    "lint:backend": "npm run lint --workspace=packages/backend",
+    "test": "npm-run-all test:*",
+    "test:frontend": "npm run test --workspace=packages/frontend",
+    "test:backend": "npm run test --workspace=packages/backend",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.3",
+    "@types/node": "^20.4.5",
+    "eslint": "^8.45.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.3",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.0.0",
+    "rimraf": "^5.0.1",
+    "typescript": "^5.1.6"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/robium.git"
+  },
+  "keywords": [
+    "robotics",
+    "docker",
+    "templates",
+    "configuration",
+    "typescript",
+    "react"
+  ],
+  "author": "Robium Team",
+  "license": "MIT"
+}
