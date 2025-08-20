@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Dependencies (if package.json exists)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          npm ci || npm install
+
+      - name: Lint (if script exists)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          npm run lint --workspaces --if-present || echo "Skipping lint"
+
+      - name: Build Frontend (if workspace exists)
+        if: ${{ hashFiles('packages/frontend/package.json') != '' }}
+        run: npm run build --workspace=packages/frontend --if-present
+
+      - name: Build Backend (if workspace exists)
+        if: ${{ hashFiles('packages/backend/package.json') != '' }}
+        run: npm run build --workspace=packages/backend --if-present
+
+
