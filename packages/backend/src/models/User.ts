@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 import { Database } from '../utils/database';
 import { User, CreateUserInput, UserRole } from '../types';
 import {
@@ -23,24 +24,27 @@ export class UserModel {
       // Hash the password
       const passwordHash = await bcrypt.hash(password, 12);
 
+      // Generate id explicitly to support SQLite (which lacks gen_random_uuid())
+      const id = uuidv4();
+
       // Insert user into database
-      const query = `
-        INSERT INTO users (email, username, password_hash, role) 
-        VALUES ($1, $2, $3, $4) 
-        RETURNING id, email, username, role, created_at, updated_at
+      const insertQuery = `
+        INSERT INTO users (id, email, username, password_hash, role) 
+        VALUES ($1, $2, $3, $4, $5)
       `;
 
-      const result = (await Database.query(query, [
-        email,
-        username,
-        passwordHash,
-        role,
-      ])) as { rows: User[] };
+      await Database.query(insertQuery, [id, email, username, passwordHash, role]);
 
+      // Fetch created user
+      const selectQuery = `
+        SELECT id, email, username, role, created_at, updated_at 
+        FROM users 
+        WHERE id = $1
+      `;
+      const result = (await Database.query(selectQuery, [id])) as { rows: User[] };
       if (!result.rows || result.rows.length === 0) {
         throw new Error('Failed to create user');
       }
-
       return result.rows[0];
     } catch (error: unknown) {
       // Handle database constraint errors

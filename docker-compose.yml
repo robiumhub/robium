@@ -34,16 +34,13 @@ services:
       - '8000:8000'
     volumes:
       - ./packages/backend/src:/app/packages/backend/src
+      - backend-sqlite-data:/app/packages/backend/generated
     env_file:
       - ./packages/backend/.env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://user:password@database:5432/robiumdb
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_NAME=robiumdb
-      - DB_USER=user
-      - DB_PASSWORD=password
+      - DB_CLIENT=sqlite
+      - SQLITE_DIR=/app/packages/backend/generated
     depends_on:
       - database
 
@@ -68,3 +65,4 @@ services:
 
 volumes:
   robium-db-data:
+  backend-sqlite-data:

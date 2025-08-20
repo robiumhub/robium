@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { PoolClient } from 'pg';
 
+const DB_CLIENT = (process.env.DB_CLIENT || 'postgres').toLowerCase();
+
 export interface Migration {
   id: string;
   name: string;
@@ -20,14 +22,24 @@ export class MigrationManager {
 
   // Create migrations table if it doesn't exist
   async createMigrationsTable(): Promise<void> {
-    const query = `
-      CREATE TABLE IF NOT EXISTS migrations (
-        id VARCHAR(255) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    if (DB_CLIENT === 'sqlite') {
+      await Database.query(
+        `CREATE TABLE IF NOT EXISTS migrations (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          executed_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )`
       );
-    `;
-    await Database.query(query);
+    } else {
+      const query = `
+        CREATE TABLE IF NOT EXISTS migrations (
+          id VARCHAR(255) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `;
+      await Database.query(query);
+    }
     console.log('✅ Migrations table created');
   }
 
@@ -103,20 +115,72 @@ export class MigrationManager {
   // Run all pending migrations
   async runPendingMigrations(): Promise<void> {
     await this.createMigrationsTable();
-    const pendingMigrations = await this.getPendingMigrations();
+    if (DB_CLIENT === 'sqlite') {
+      await this.initializeSqliteSchema();
+      console.log('✅ SQLite baseline schema ensured');
+      return;
+    }
 
+    const pendingMigrations = await this.getPendingMigrations();
     if (pendingMigrations.length === 0) {
       console.log('✅ No pending migrations');
       return;
     }
 
     console.log(`📋 Running ${pendingMigrations.length} pending migrations...`);
-
     for (const migration of pendingMigrations) {
       await this.runMigration(migration);
     }
-
     console.log('✅ All migrations completed');
+  }
+
+  private async initializeSqliteSchema(): Promise<void> {
+    // Minimal schema to satisfy current code paths
+    const statements: string[] = [
+      // users
+      `CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        role TEXT NOT NULL DEFAULT 'user',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
+      `CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
+      // projects (minimal fields used by dashboard stats)
+      `CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        owner_id TEXT,
+        is_active INTEGER DEFAULT 1,
+        is_template INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_projects_is_active ON projects(is_active)`,
+      `CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at)`,
+      // ros_packages (minimal for stats)
+      `CREATE TABLE IF NOT EXISTS ros_packages (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        version TEXT DEFAULT '0.0.0',
+        description TEXT,
+        category TEXT,
+        type TEXT DEFAULT 'mock',
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_ros_packages_is_active ON ros_packages(is_active)`
+    ];
+
+    for (const sql of statements) {
+      await Database.query(sql);
+    }
   }
 
   // Rollback the last migration
