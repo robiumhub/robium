@@ -78,6 +78,10 @@ const TemplatesPage: React.FC = () => {
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Preview Dialog State
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<Project | null>(null);
+
   // Load templates and filter data
   useEffect(() => {
     const loadData = async () => {
@@ -234,10 +238,21 @@ const TemplatesPage: React.FC = () => {
         setNewProjectName('');
         setNewProjectDescription('');
         navigate(`/projects/${response.data.project.id}`);
+      } else {
+        // Handle API response error
+        const errorMessage = response.error || 'Failed to create project from template';
+        alert(errorMessage);
       }
     } catch (err) {
       console.error('Failed to create project from template:', err);
-      alert('Failed to create project from template');
+      // Provide more specific error messages
+      let errorMessage = 'Failed to create project from template';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      alert(errorMessage);
     } finally {
       setIsCreating(false);
     }
@@ -249,6 +264,26 @@ const TemplatesPage: React.FC = () => {
     setNewProjectName('');
     setNewProjectDescription('');
     setIsCreating(false);
+  };
+
+  const handlePreviewTemplate = (template: Project) => {
+    setPreviewTemplate(template);
+    setPreviewDialogOpen(true);
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewDialogOpen(false);
+    setPreviewTemplate(null);
+  };
+
+  const handlePreviewUseTemplate = () => {
+    if (previewTemplate) {
+      setPreviewDialogOpen(false);
+      setSelectedTemplate(previewTemplate);
+      setNewProjectName(`${previewTemplate.name}-copy`);
+      setNewProjectDescription(previewTemplate.description);
+      setDialogOpen(true);
+    }
   };
 
   // Loading state
@@ -449,7 +484,7 @@ const TemplatesPage: React.FC = () => {
                   <Button size="small" onClick={() => handleUseTemplate(template)}>
                     Use Template
                   </Button>
-                  <Button size="small" variant="outlined">
+                  <Button size="small" variant="outlined" onClick={() => handlePreviewTemplate(template)}>
                     Preview
                   </Button>
                 </CardActions>
@@ -683,7 +718,7 @@ const TemplatesPage: React.FC = () => {
                       <Button size="small" onClick={() => handleUseTemplate(template)}>
                         Use Template
                       </Button>
-                      <Button size="small" variant="outlined">
+                      <Button size="small" variant="outlined" onClick={() => handlePreviewTemplate(template)}>
                         Preview
                       </Button>
                     </CardActions>
@@ -790,6 +825,176 @@ const TemplatesPage: React.FC = () => {
             disabled={!newProjectName.trim() || isCreating}
           >
             {isCreating ? 'Creating...' : 'Create Project'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Template Preview Dialog */}
+      <Dialog 
+        open={previewDialogOpen} 
+        onClose={handlePreviewClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Template Preview: {previewTemplate?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {previewTemplate && (
+              <>
+                {/* Template Header */}
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Typography variant="h6" gutterBottom>
+                    {previewTemplate.name}
+                  </Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
+                    {previewTemplate.description}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {previewTemplate.tags.map((tag) => (
+                      <Chip key={tag} label={tag} size="small" variant="outlined" />
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* Template Details */}
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="h6" gutterBottom>
+                      Template Information
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Version
+                        </Typography>
+                        <Typography variant="body2">
+                          {previewTemplate.templateVersion || '1.0.0'}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Visibility
+                        </Typography>
+                        <Typography variant="body2">
+                          {previewTemplate.templateVisibility || 'public'}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Created
+                        </Typography>
+                        <Typography variant="body2">
+                          {new Date(previewTemplate.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Last Updated
+                        </Typography>
+                        <Typography variant="body2">
+                          {new Date(previewTemplate.updatedAt).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="h6" gutterBottom>
+                      Template Metadata
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {previewTemplate.metadata.useCases && previewTemplate.metadata.useCases.length > 0 && (
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Use Cases
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {previewTemplate.metadata.useCases.map((useCase) => (
+                              <Chip key={useCase} label={useCase} size="small" />
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                      
+                      {previewTemplate.metadata.capabilities && previewTemplate.metadata.capabilities.length > 0 && (
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Capabilities
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {previewTemplate.metadata.capabilities.map((capability) => (
+                              <Chip key={capability} label={capability} size="small" />
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                      
+                      {previewTemplate.metadata.robots && previewTemplate.metadata.robots.length > 0 && (
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Robot Targets
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {previewTemplate.metadata.robots.map((robot) => (
+                              <Chip key={robot} label={robot} size="small" />
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                      
+                      {previewTemplate.metadata.difficulty && (
+                        <Box>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Difficulty Level
+                          </Typography>
+                          <Chip 
+                            label={previewTemplate.metadata.difficulty} 
+                            size="small"
+                            color={
+                              previewTemplate.metadata.difficulty === 'beginner' ? 'success' :
+                              previewTemplate.metadata.difficulty === 'intermediate' ? 'warning' : 'error'
+                            }
+                          />
+                        </Box>
+                      )}
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Template Configuration Preview */}
+                {previewTemplate.config && Object.keys(previewTemplate.config).length > 0 && (
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Configuration Preview
+                    </Typography>
+                    <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                      <Typography variant="body2" component="pre" sx={{ 
+                        fontFamily: 'monospace', 
+                        fontSize: '0.875rem',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                      }}>
+                        {JSON.stringify(previewTemplate.config, null, 2)}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handlePreviewClose}>
+            Close
+          </Button>
+          <Button 
+            onClick={handlePreviewUseTemplate} 
+            variant="contained"
+            startIcon={<AddIcon />}
+          >
+            Use This Template
           </Button>
         </DialogActions>
       </Dialog>

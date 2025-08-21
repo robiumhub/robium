@@ -5,6 +5,9 @@ import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
+import ProjectEditPage from './pages/ProjectEditPage';
+import ProjectSettingsPage from './pages/ProjectSettingsPage';
 import TemplatesPage from './pages/TemplatesPage';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -37,6 +40,9 @@ function App() {
     <AppShell>
       <Routes>
         <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+        <Route path="/projects/:projectId/edit" element={<ProjectEditPage />} />
+        <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         <Route path="/templates" element={<TemplatesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
