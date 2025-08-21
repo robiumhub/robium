@@ -19,6 +19,13 @@ import {
   ToggleButton,
   Paper,
   Drawer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  FormLabel,
+  FormHelperText,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -63,6 +70,13 @@ const TemplatesPage: React.FC = () => {
   const [categories, setCategories] = useState<FilterCategory[]>([]);
   const [filterValues, setFilterValues] = useState<FilterValue[]>([]);
   const [stats, setStats] = useState<Record<string, Record<string, number>>>({});
+  
+  // Template dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Project | null>(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   // Load templates and filter data
   useEffect(() => {
@@ -201,19 +215,40 @@ const TemplatesPage: React.FC = () => {
     return Array.from(allTags).sort();
   };
 
-  const handleLaunchTemplate = async (template: Project) => {
-    const name = window.prompt('New project name from template:', `${template.name}-copy`);
-    if (!name) return;
+  const handleUseTemplate = (template: Project) => {
+    setSelectedTemplate(template);
+    setNewProjectName(`${template.name}-copy`);
+    setNewProjectDescription(template.description);
+    setDialogOpen(true);
+  };
 
+  const handleCreateProject = async () => {
+    if (!selectedTemplate || !newProjectName.trim()) return;
+
+    setIsCreating(true);
     try {
-      const response = await ApiService.cloneProject(template.id, name);
+      const response = await ApiService.cloneProject(selectedTemplate.id, newProjectName.trim());
       if (response.success && response.data) {
+        setDialogOpen(false);
+        setSelectedTemplate(null);
+        setNewProjectName('');
+        setNewProjectDescription('');
         navigate(`/projects/${response.data.project.id}`);
       }
     } catch (err) {
       console.error('Failed to create project from template:', err);
       alert('Failed to create project from template');
+    } finally {
+      setIsCreating(false);
     }
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedTemplate(null);
+    setNewProjectName('');
+    setNewProjectDescription('');
+    setIsCreating(false);
   };
 
   // Loading state
@@ -411,8 +446,8 @@ const TemplatesPage: React.FC = () => {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button size="small" onClick={() => handleLaunchTemplate(template)}>
-                    Launch
+                  <Button size="small" onClick={() => handleUseTemplate(template)}>
+                    Use Template
                   </Button>
                   <Button size="small" variant="outlined">
                     Preview
@@ -645,8 +680,8 @@ const TemplatesPage: React.FC = () => {
                       </Typography>
                     </CardContent>
                     <CardActions>
-                      <Button size="small" onClick={() => handleLaunchTemplate(template)}>
-                        Launch
+                      <Button size="small" onClick={() => handleUseTemplate(template)}>
+                        Use Template
                       </Button>
                       <Button size="small" variant="outlined">
                         Preview
@@ -693,6 +728,71 @@ const TemplatesPage: React.FC = () => {
           availableTags={getAvailableTags()}
         />
       </Drawer>
+
+      {/* Create Project from Template Dialog */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Create New Project from Template
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {selectedTemplate && (
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Template: {selectedTemplate.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {selectedTemplate.description}
+                </Typography>
+              </Box>
+            )}
+            
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Project Name *</FormLabel>
+              <TextField
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Enter project name"
+                size="small"
+                error={!newProjectName.trim()}
+                helperText={!newProjectName.trim() ? 'Project name is required' : ''}
+              />
+            </FormControl>
+
+            <FormControl fullWidth>
+              <FormLabel>Description</FormLabel>
+              <TextField
+                value={newProjectDescription}
+                onChange={(e) => setNewProjectDescription(e.target.value)}
+                placeholder="Enter project description"
+                multiline
+                rows={3}
+                size="small"
+              />
+              <FormHelperText>
+                Optional: Customize the project description
+              </FormHelperText>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose} disabled={isCreating}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreateProject} 
+            variant="contained"
+            disabled={!newProjectName.trim() || isCreating}
+          >
+            {isCreating ? 'Creating...' : 'Create Project'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

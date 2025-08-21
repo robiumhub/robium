@@ -1,0 +1,51 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Implement project card view and settings buttons",
+        "description": "Add a card view option for projects with settings buttons for each project card",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [],
+        "details": "Create a card view layout for projects similar to templates, with settings/action buttons on each card. Include options like edit, delete, duplicate, etc.",
+        "testStrategy": "Verify card view displays correctly and all action buttons work as expected",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Update templates card to use 'Use Template' button instead of 'Launch'",
+        "description": "Change the button text in template cards from 'Launch' to 'Use Template' for better clarity",
+        "status": "done",
+        "priority": "medium",
+        "dependencies": [],
+        "details": "Update the button text in TemplatesPage.tsx to use 'Use Template' instead of 'Launch' for better user understanding of the action",
+        "testStrategy": "Verify button text is updated and functionality remains the same",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Create better MUI dialog for template launch",
+        "description": "Replace the simple prompt with a well-designed MUI dialog box for creating new projects from templates",
+        "status": "done",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "details": "Design and implement a proper MUI Dialog component that opens when 'Use Template' is clicked. Include form fields for project name, description, and other relevant settings. Use Material-UI Dialog, DialogTitle, DialogContent, DialogActions, TextField, and Button components for a professional look.",
+        "testStrategy": "Test dialog opens correctly, form validation works, and new project creation from template functions properly",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastUpdated": "2025-08-21T08:51:00.000Z",
+      "totalTasks": 3,
+      "completedTasks": 0,
+      "pendingTasks": 3,
+      "created": "2025-08-21T15:56:56.232Z",
+      "description": "Tasks for master context",
+      "updated": "2025-08-21T16:01:28.379Z"
+    }
+  }
+}

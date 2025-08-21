@@ -19,6 +19,11 @@ import {
   ToggleButton,
   Paper,
   Drawer,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,6 +32,11 @@ import {
   ViewList as ListIcon,
   FilterList as FilterListIcon,
   Add as AddIcon,
+  MoreVert as MoreVertIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  ContentCopy as DuplicateIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { ApiService } from '../services/api';
@@ -63,6 +73,10 @@ const ProjectsPage: React.FC = () => {
   const [categories, setCategories] = useState<FilterCategory[]>([]);
   const [filterValues, setFilterValues] = useState<FilterValue[]>([]);
   const [stats, setStats] = useState<Record<string, Record<string, number>>>({});
+  
+  // Project action menu state
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Load projects and filter data
   useEffect(() => {
@@ -195,6 +209,49 @@ const ProjectsPage: React.FC = () => {
       project.tags.forEach((tag) => allTags.add(tag));
     });
     return Array.from(allTags).sort();
+  };
+
+  // Project action handlers
+  const handleProjectMenuOpen = (event: React.MouseEvent<HTMLElement>, project: Project) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedProject(project);
+  };
+
+  const handleProjectMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedProject(null);
+  };
+
+  const handleEditProject = () => {
+    if (selectedProject) {
+      navigate(`/projects/${selectedProject.id}/edit`);
+      handleProjectMenuClose();
+    }
+  };
+
+  const handleDuplicateProject = () => {
+    if (selectedProject) {
+      // TODO: Implement project duplication
+      console.log('Duplicate project:', selectedProject.id);
+      handleProjectMenuClose();
+    }
+  };
+
+  const handleDeleteProject = () => {
+    if (selectedProject) {
+      if (window.confirm(`Are you sure you want to delete "${selectedProject.name}"?`)) {
+        // TODO: Implement project deletion
+        console.log('Delete project:', selectedProject.id);
+      }
+      handleProjectMenuClose();
+    }
+  };
+
+  const handleProjectSettings = () => {
+    if (selectedProject) {
+      navigate(`/projects/${selectedProject.id}/settings`);
+      handleProjectMenuClose();
+    }
   };
 
   // Loading state
@@ -386,13 +443,40 @@ const ProjectsPage: React.FC = () => {
                     Created: {new Date(project.createdAt).toLocaleDateString()}
                   </Typography>
                 </CardContent>
-                <CardActions>
-                  <Button size="small" onClick={() => navigate(`/projects/${project.id}`)}>
+                <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+                  <Button 
+                    size="small" 
+                    variant="contained"
+                    onClick={() => navigate(`/projects/${project.id}`)}
+                  >
                     View
                   </Button>
-                  <Button size="small" variant="outlined">
-                    Settings
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Tooltip title="Edit">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => navigate(`/projects/${project.id}/edit`)}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Duplicate">
+                      <IconButton 
+                        size="small"
+                        onClick={() => handleDuplicateProject()}
+                      >
+                        <DuplicateIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="More actions">
+                      <IconButton 
+                        size="small"
+                        onClick={(e) => handleProjectMenuOpen(e, project)}
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                 </CardActions>
               </Card>
             </Grid>
@@ -619,13 +703,40 @@ const ProjectsPage: React.FC = () => {
                         Created: {new Date(project.createdAt).toLocaleDateString()}
                       </Typography>
                     </CardContent>
-                    <CardActions>
-                      <Button size="small" onClick={() => navigate(`/projects/${project.id}`)}>
+                    <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+                      <Button 
+                        size="small" 
+                        variant="contained"
+                        onClick={() => navigate(`/projects/${project.id}`)}
+                      >
                         View
                       </Button>
-                      <Button size="small" variant="outlined">
-                        Settings
-                      </Button>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Edit">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => navigate(`/projects/${project.id}/edit`)}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Duplicate">
+                          <IconButton 
+                            size="small"
+                            onClick={() => handleDuplicateProject()}
+                          >
+                            <DuplicateIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="More actions">
+                          <IconButton 
+                            size="small"
+                            onClick={(e) => handleProjectMenuOpen(e, project)}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </CardActions>
                   </Card>
                 </Grid>
@@ -668,6 +779,46 @@ const ProjectsPage: React.FC = () => {
           availableTags={getAvailableTags()}
         />
       </Drawer>
+
+      {/* Project Action Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleProjectMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem onClick={handleProjectSettings}>
+          <ListItemIcon>
+            <SettingsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Settings</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleEditProject}>
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleDuplicateProject}>
+          <ListItemIcon>
+            <DuplicateIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Duplicate</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleDeleteProject} sx={{ color: 'error.main' }}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
