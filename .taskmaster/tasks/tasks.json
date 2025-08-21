@@ -35,6 +35,61 @@
         "details": "Design and implement a proper MUI Dialog component that opens when 'Use Template' is clicked. Include form fields for project name, description, and other relevant settings. Use Material-UI Dialog, DialogTitle, DialogContent, DialogActions, TextField, and Button components for a professional look.",
         "testStrategy": "Test dialog opens correctly, form validation works, and new project creation from template functions properly",
         "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Remove simulators filter from templates",
+        "description": "Remove the simulators filter option from the template filtering system to simplify the template selection process.",
+        "details": "1. Locate the template filtering system in the codebase, likely in the TemplatesPage.tsx component or a related filter component.\n2. Identify the simulators filter option in the filtering UI and its associated logic.\n3. Remove the simulators filter option from the UI:\n   - If it's a checkbox, remove the checkbox element\n   - If it's a dropdown option, remove it from the dropdown list\n   - If it's a toggle, remove the toggle component\n4. Remove any associated filter logic in the filtering function that processes the simulators filter.\n5. Update any state variables that might be tracking the simulators filter selection.\n6. If there are any API calls that include the simulators filter parameter, update those to remove the parameter.\n7. Ensure that the layout of the remaining filter options is still visually balanced after removing this option.\n8. Update any documentation or tooltips that might reference the simulators filter.\n9. If there are any tests specifically for the simulators filter functionality, update or remove them as appropriate.",
+        "testStrategy": "1. Verify that the simulators filter option is completely removed from the UI.\n2. Test the template filtering system with various combinations of the remaining filters to ensure they still work correctly.\n3. Confirm that removing this filter doesn't break any existing functionality.\n4. Verify that templates that were previously filtered by the simulators option are now visible based on the remaining filter criteria.\n5. Check that the UI layout of the filtering system looks correct and balanced without the removed filter.\n6. Test on different screen sizes to ensure responsive design still works properly.\n7. Verify that any saved user preferences related to filtering don't cause errors after removing this filter option.\n8. Run existing automated tests to ensure no regressions were introduced.",
+        "status": "done",
+        "dependencies": [
+          3
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Remove difficulty level filter from templates",
+        "description": "Remove the difficulty level filter option from the template filtering system to simplify the template selection process.",
+        "details": "1. Locate the template filtering system in the codebase, likely in the TemplatesPage.tsx component or a related filter component.\n2. Identify the difficulty level filter option in the filtering UI and its associated logic:\n   - This may be implemented as a dropdown, checkbox group, or radio buttons\n   - Look for filter state variables related to difficulty levels\n3. Remove the difficulty level filter option from the UI:\n   - Remove the corresponding UI elements (dropdown, checkboxes, etc.)\n   - Remove any labels or headings specifically for the difficulty filter\n4. Remove the associated filter logic:\n   - Find the filtering function that applies the difficulty level filter\n   - Remove the code that filters templates based on difficulty level\n   - Ensure the filtering system still works correctly with the remaining filters\n5. Update any related components that might reference the difficulty level filter:\n   - Check for any components that display or use the difficulty level filter state\n   - Remove or update these references as needed\n6. Clean up any unused imports, variables, or functions that were only used for the difficulty level filter\n7. Update any documentation or tooltips that mention the difficulty level filter",
+        "testStrategy": "1. Verify that the difficulty level filter option is completely removed from the UI:\n   - Check that no difficulty level filter elements are visible on the templates page\n   - Ensure there are no visual gaps or layout issues where the filter used to be\n2. Test the template filtering system with various combinations of the remaining filters:\n   - Verify that all other filters still work correctly\n   - Ensure templates are filtered properly based on the remaining criteria\n3. Confirm that removing this filter doesn't break any existing functionality:\n   - Test template selection and launching\n   - Verify that template cards display correctly\n   - Check that template details are still accessible\n4. Verify that the UI looks clean and properly aligned after the removal\n5. Test on different screen sizes to ensure responsive design is maintained\n6. Check for any console errors related to the removed filter\n7. Verify that any components that previously used the difficulty level filter state still function correctly",
+        "status": "done",
+        "dependencies": [
+          4
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Create Admin Panel for Filter Management",
+        "description": "Build an admin panel interface that allows administrators to manage all filters including use cases, capabilities, robot targets, etc. with functionality to add, remove, and list filters.",
+        "details": "1. Create a new AdminPanel component with a dedicated route in the application:\n   - Add a new route `/admin/filters` in the routing configuration\n   - Implement access control to ensure only admin users can access this panel\n   - Create a responsive layout using MUI components (Grid, Paper, Typography)\n\n2. Implement the filter listing functionality:\n   - Create a FilterList component using MUI's DataGrid or Table component\n   - Display columns for filter name, type (use case/capability/robot target), status (active/inactive), and actions\n   - Implement sorting and pagination for better usability with large numbers of filters\n   - Add search functionality to quickly find specific filters\n\n3. Create filter management forms:\n   - Implement an \"Add Filter\" form using MUI Dialog component with appropriate form fields:\n     - Filter name (TextField)\n     - Filter type (Select dropdown)\n     - Description (TextField multiline)\n     - Status (Switch or RadioGroup)\n   - Create an \"Edit Filter\" form that pre-populates with existing filter data\n   - Add form validation using Formik or React Hook Form\n\n4. Implement backend API integration:\n   - Create API service functions for CRUD operations on filters\n   - Implement proper error handling and loading states\n   - Add success/error notifications using Snackbar component\n\n5. Add batch operations functionality:\n   - Implement multi-select capability in the filter list\n   - Add batch actions like \"Delete Selected\", \"Activate Selected\", \"Deactivate Selected\"\n\n6. Implement filter relationships management:\n   - Add UI for managing dependencies between filters if applicable\n   - Create visualization for filter relationships if needed",
+        "testStrategy": "1. Unit Testing:\n   - Write unit tests for all components using Jest and React Testing Library\n   - Test form validation logic for adding and editing filters\n   - Verify API service functions with mocked responses\n\n2. Integration Testing:\n   - Test the complete filter management workflow (add, edit, delete)\n   - Verify that filter changes in the admin panel are reflected in the filter system\n   - Test batch operations functionality\n   - Verify proper error handling for API failures\n\n3. Access Control Testing:\n   - Verify that only users with admin privileges can access the admin panel\n   - Test that non-admin users are redirected appropriately\n\n4. UI/UX Testing:\n   - Verify responsive design works on different screen sizes\n   - Test accessibility compliance using tools like axe\n   - Verify that all interactive elements have appropriate focus states and keyboard navigation\n\n5. End-to-End Testing:\n   - Create Cypress tests for the complete filter management workflow\n   - Test integration with the existing filtering system in the application",
+        "status": "done",
+        "dependencies": [
+          4,
+          5
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Create Admin Panel for Project and Template Management",
+        "description": "Build an admin panel interface that allows administrators to view, manage, and remove projects and templates from all users, including admin users.",
+        "details": "1. Create a new section in the AdminPanel component with dedicated routes:\n   - Add new routes `/admin/projects` and `/admin/templates` in the routing configuration\n   - Extend existing access control to ensure only admin users can access these panels\n   - Implement a tabbed interface to switch between projects and templates management\n\n2. Implement Projects Management functionality:\n   - Create a ProjectsList component using MUI's DataGrid for efficient data display\n   - Display columns for project name, owner, creation date, last modified date, and status\n   - Implement sorting and filtering capabilities (by user, date range, status)\n   - Add action buttons for viewing, editing, and deleting projects\n   - Implement a confirmation dialog for delete operations\n\n3. Implement Templates Management functionality:\n   - Create a TemplatesList component using the same design pattern as ProjectsList\n   - Display columns for template name, creator, creation date, usage count, and categories\n   - Implement sorting and filtering capabilities (by creator, category, popularity)\n   - Add action buttons for viewing, editing, and deleting templates\n   - Implement a confirmation dialog for delete operations\n\n4. Create detailed view modals for both projects and templates:\n   - Implement a ProjectDetailsModal component to display all project information\n   - Implement a TemplateDetailsModal component to display all template information\n   - Include read-only views of all relevant data\n   - Add edit functionality for admin users to modify properties\n\n5. Implement the backend API integration:\n   - Create service functions to fetch all projects and templates data\n   - Implement API calls for admin operations (view, edit, delete)\n   - Add proper error handling and loading states\n   - Ensure efficient data fetching with pagination for large datasets\n\n6. Add user filtering capability:\n   - Implement a user selector dropdown to filter projects/templates by owner\n   - Add an \"All Users\" option to view everything at once\n   - Ensure the current admin user is highlighted in the dropdown",
+        "testStrategy": "1. Unit Testing:\n   - Write unit tests for all new components using Jest and React Testing Library\n   - Test the ProjectsList and TemplatesList components with mock data\n   - Verify sorting and filtering functionality works correctly\n   - Test confirmation dialogs and action buttons\n   - Verify form validation for any editable fields\n\n2. Integration Testing:\n   - Test the complete project and template management workflows\n   - Verify that projects and templates from all users are correctly displayed\n   - Test the user filtering functionality to ensure it correctly filters the data\n   - Verify that admin users can view, edit, and delete projects/templates\n   - Test error handling for API failures\n\n3. Authorization Testing:\n   - Verify that only users with admin privileges can access these routes\n   - Test that unauthorized users are redirected appropriately\n   - Ensure that the admin panel links only appear for admin users\n\n4. UI/UX Testing:\n   - Verify responsive design works on different screen sizes\n   - Test keyboard navigation and accessibility\n   - Ensure consistent styling with the existing admin panel\n   - Verify that loading states and empty states are handled gracefully\n\n5. End-to-End Testing:\n   - Create Cypress tests for the complete admin workflow\n   - Test real API interactions in a staging environment\n   - Verify that changes made in the admin panel are correctly reflected in the database",
+        "status": "done",
+        "dependencies": [
+          6,
+          1,
+          2
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -45,7 +100,7 @@
       "pendingTasks": 3,
       "created": "2025-08-21T15:56:56.232Z",
       "description": "Tasks for master context",
-      "updated": "2025-08-21T16:01:28.379Z"
+      "updated": "2025-08-21T16:20:27.969Z"
     }
   }
 }

@@ -144,6 +144,58 @@ const migrations: Migration[] = [
       DROP TABLE IF EXISTS filter_categories;
     `,
   },
+  {
+    id: 3,
+    name: 'remove_simulators_from_templates',
+    up: `
+      -- Deactivate simulators filter category for templates
+      UPDATE filter_categories 
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = 'simulators';
+      
+      -- Deactivate all simulator filter values
+      UPDATE filter_values 
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE category_id = 'simulators';
+    `,
+    down: `
+      -- Reactivate simulators filter category
+      UPDATE filter_categories 
+      SET is_active = 1, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = 'simulators';
+      
+      -- Reactivate all simulator filter values
+      UPDATE filter_values 
+      SET is_active = 1, updated_at = CURRENT_TIMESTAMP 
+      WHERE category_id = 'simulators';
+    `,
+  },
+  {
+    id: 4,
+    name: 'remove_difficulty_from_templates',
+    up: `
+      -- Deactivate difficulty filter category for templates
+      UPDATE filter_categories 
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = 'difficulty';
+      
+      -- Deactivate all difficulty filter values
+      UPDATE filter_values 
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE category_id = 'difficulty';
+    `,
+    down: `
+      -- Reactivate difficulty filter category
+      UPDATE filter_categories 
+      SET is_active = 1, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = 'difficulty';
+      
+      -- Reactivate all difficulty filter values
+      UPDATE filter_values 
+      SET is_active = 1, updated_at = CURRENT_TIMESTAMP 
+      WHERE category_id = 'difficulty';
+    `,
+  },
 ];
 
 export class MigrationManager {
