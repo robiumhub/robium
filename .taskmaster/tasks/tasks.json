@@ -187,6 +187,20 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Fix 404 Error in Template Project Creation",
+        "description": "Resolve the 404 error that occurs when users click 'Use Template' -> 'Create Project' by fixing the broken API endpoint for creating projects from templates.",
+        "details": "1. Identify the root cause of the 404 error:\n   - Examine the API call in TemplatesPage.tsx around line 247 that's triggering the 404 error\n   - Verify the API endpoint URL construction and parameters being passed\n   - Check the backend route configuration to ensure the endpoint exists and is correctly defined\n   - Review server logs to identify any backend issues with the endpoint\n\n2. Fix the frontend API call:\n   - Ensure the API endpoint URL is correctly formatted\n   - Verify that all required parameters are being passed correctly\n   - Check for any typos in the endpoint path\n   - Ensure authentication headers are properly included if required\n\n3. Fix the backend endpoint (if needed):\n   - Locate the controller/handler for template project creation\n   - Verify the route is correctly registered in the backend routing system\n   - Check for any middleware issues that might be blocking the request\n   - Ensure the endpoint is properly handling the incoming request data\n\n4. Update error handling:\n   - Improve error handling in the frontend to provide more meaningful error messages\n   - Add appropriate logging to help diagnose similar issues in the future\n   - Implement better user feedback when errors occur during template project creation\n\n5. Test the fix thoroughly to ensure the template project creation works end-to-end",
+        "testStrategy": "1. Unit Testing:\n   - Test the API call function in isolation with mock responses\n   - Verify error handling works correctly for different error scenarios\n   - Test with various template data to ensure robust handling\n\n2. Integration Testing:\n   - Test the complete flow from clicking 'Use Template' to successful project creation\n   - Verify the API endpoint responds with appropriate status codes and data\n   - Test with different user roles to ensure permissions are handled correctly\n   - Test with various template types to ensure all work correctly\n\n3. End-to-End Testing:\n   - Perform a complete test of the template selection and project creation workflow\n   - Verify the newly created project appears in the projects list after creation\n   - Confirm the created project contains all the expected template content\n   - Test the workflow across different browsers to ensure cross-browser compatibility\n\n4. Regression Testing:\n   - Verify that fixing this issue doesn't break any related functionality\n   - Test other template-related features to ensure they still work correctly",
+        "status": "done",
+        "dependencies": [
+          3,
+          13
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -197,7 +211,7 @@
       "pendingTasks": 3,
       "created": "2025-08-21T15:56:56.232Z",
       "description": "Tasks for master context",
-      "updated": "2025-08-21T16:53:28.632Z"
+      "updated": "2025-08-21T17:32:56.289Z"
     }
   }
 }

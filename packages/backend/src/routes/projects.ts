@@ -168,6 +168,146 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// POST /api/projects/:id/clone - Clone an existing project/template
+router.post('/:id/clone', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+    }
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project name is required',
+      });
+    }
+
+    const db = Database.getDatabase();
+
+    // Get the source project/template
+    const sourceProject = await new Promise<any>((resolve, reject) => {
+      db.get(
+        `
+        SELECT id, name, description, owner_id, is_active, is_template,
+               tags, config, metadata, template_visibility, template_version,
+               template_published_at, created_at, updated_at
+        FROM projects
+        WHERE id = ? AND (is_template = 1 OR owner_id = ?)
+      `,
+        [id, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!sourceProject) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found or access denied',
+      });
+    }
+
+    // Generate new project ID
+    const cloneId = crypto.randomUUID();
+    const cloneName = name.trim();
+
+    // Insert cloned project
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        `
+        INSERT INTO projects (
+          id, name, description, owner_id, is_active, is_template,
+          tags, config, metadata, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+        [
+          cloneId,
+          cloneName,
+          sourceProject.description || cloneName,
+          userId,
+          1, // is_active
+          0, // is_template (cloned projects are not templates by default)
+          sourceProject.tags || '[]',
+          sourceProject.config || '{}',
+          sourceProject.metadata || '{}',
+        ],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    // Get the cloned project
+    const clonedProject = await new Promise<any>((resolve, reject) => {
+      db.get(
+        `
+        SELECT id, name, description, owner_id, is_active, is_template,
+               tags, config, metadata, template_visibility, template_version,
+               template_published_at, created_at, updated_at
+        FROM projects
+        WHERE id = ?
+      `,
+        [cloneId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!clonedProject) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create cloned project',
+      });
+    }
+
+    // Transform the data to match our Project interface
+    const transformedProject: Project = {
+      id: clonedProject.id,
+      name: clonedProject.name,
+      description: clonedProject.description || '',
+      ownerId: clonedProject.owner_id,
+      isActive: Boolean(clonedProject.is_active),
+      isTemplate: Boolean(clonedProject.is_template),
+      tags: JSON.parse(clonedProject.tags || '[]'),
+      config: JSON.parse(clonedProject.config || '{}'),
+      metadata: JSON.parse(clonedProject.metadata || '{}'),
+      templateVisibility: clonedProject.template_visibility,
+      templateVersion: clonedProject.template_version,
+      templatePublishedAt: clonedProject.template_published_at
+        ? new Date(clonedProject.template_published_at)
+        : undefined,
+      createdAt: new Date(clonedProject.created_at),
+      updatedAt: new Date(clonedProject.updated_at),
+    };
+
+    res.json({
+      success: true,
+      data: {
+        project: transformedProject,
+      },
+      message: 'Project cloned successfully',
+    });
+  } catch (error) {
+    console.error('Error cloning project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clone project',
+    });
+  }
+});
+
 // GET /api/projects/:id - Get specific project
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
@@ -418,146 +558,6 @@ router.get('/filters/stats', authMiddleware, async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch filter stats',
-    });
-  }
-});
-
-// POST /api/projects/:id/clone - Clone an existing project/template
-router.post('/:id/clone', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { name } = req.body;
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required',
-      });
-    }
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Project name is required',
-      });
-    }
-
-    const db = Database.getDatabase();
-
-    // Get the source project/template
-    const sourceProject = await new Promise<any>((resolve, reject) => {
-      db.get(
-        `
-        SELECT id, name, description, owner_id, is_active, is_template,
-               tags, config, metadata, template_visibility, template_version,
-               template_published_at, created_at, updated_at
-        FROM projects
-        WHERE id = ? AND (is_template = 1 OR owner_id = ?)
-      `,
-        [id, userId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
-    if (!sourceProject) {
-      return res.status(404).json({
-        success: false,
-        error: 'Project not found or access denied',
-      });
-    }
-
-    // Generate new project ID
-    const cloneId = crypto.randomUUID();
-    const cloneName = name.trim();
-
-    // Insert cloned project
-    await new Promise<void>((resolve, reject) => {
-      db.run(
-        `
-        INSERT INTO projects (
-          id, name, description, owner_id, is_active, is_template,
-          tags, config, metadata, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      `,
-        [
-          cloneId,
-          cloneName,
-          sourceProject.description || cloneName,
-          userId,
-          1, // is_active
-          0, // is_template (cloned projects are not templates by default)
-          sourceProject.tags || '[]',
-          sourceProject.config || '{}',
-          sourceProject.metadata || '{}',
-        ],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-
-    // Get the cloned project
-    const clonedProject = await new Promise<any>((resolve, reject) => {
-      db.get(
-        `
-        SELECT id, name, description, owner_id, is_active, is_template,
-               tags, config, metadata, template_visibility, template_version,
-               template_published_at, created_at, updated_at
-        FROM projects
-        WHERE id = ?
-      `,
-        [cloneId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
-
-    if (!clonedProject) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to create cloned project',
-      });
-    }
-
-    // Transform the data to match our Project interface
-    const transformedProject: Project = {
-      id: clonedProject.id,
-      name: clonedProject.name,
-      description: clonedProject.description || '',
-      ownerId: clonedProject.owner_id,
-      isActive: Boolean(clonedProject.is_active),
-      isTemplate: Boolean(clonedProject.is_template),
-      tags: JSON.parse(clonedProject.tags || '[]'),
-      config: JSON.parse(clonedProject.config || '{}'),
-      metadata: JSON.parse(clonedProject.metadata || '{}'),
-      templateVisibility: clonedProject.template_visibility,
-      templateVersion: clonedProject.template_version,
-      templatePublishedAt: clonedProject.template_published_at
-        ? new Date(clonedProject.template_published_at)
-        : undefined,
-      createdAt: new Date(clonedProject.created_at),
-      updatedAt: new Date(clonedProject.updated_at),
-    };
-
-    res.json({
-      success: true,
-      data: {
-        project: transformedProject,
-      },
-      message: 'Project cloned successfully',
-    });
-  } catch (error) {
-    console.error('Error cloning project:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clone project',
     });
   }
 });
