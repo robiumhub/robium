@@ -9,9 +9,6 @@ import {
   Stack,
   Alert,
   CircularProgress,
-  Divider,
-  Card,
-  CardContent,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ApiService } from '../services/api';
@@ -29,14 +26,11 @@ const ProjectCreatePage: React.FC = () => {
   });
   const [tagInput, setTagInput] = useState('');
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
-
-
 
     try {
       const response = await ApiService.createProject({
@@ -157,8 +151,6 @@ const ProjectCreatePage: React.FC = () => {
               placeholder="Describe your project"
             />
 
-
-
             <Box>
               <Typography variant="subtitle1" gutterBottom>
                 Tags
@@ -189,19 +181,7 @@ const ProjectCreatePage: React.FC = () => {
               </Box>
             </Box>
 
-            <Divider sx={{ my: 2 }} />
 
-            {/* GitHub Repository Info */}
-            <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.200' }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ color: 'primary.main' }}>
-                  GitHub Repository
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  A private GitHub repository will be automatically created for this project with the project name.
-                </Typography>
-              </CardContent>
-            </Card>
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
               <Button variant="outlined" onClick={() => navigate('/projects')} disabled={loading}>
