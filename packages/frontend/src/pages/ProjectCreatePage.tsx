@@ -155,19 +155,14 @@ const ProjectCreatePage: React.FC = () => {
               <Typography variant="subtitle1" gutterBottom>
                 Tags
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                <TextField
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Add a tag"
-                  size="small"
-                  sx={{ flexGrow: 1 }}
-                />
-                <Button variant="outlined" onClick={handleAddTag} disabled={!tagInput.trim()}>
-                  Add
-                </Button>
-              </Box>
+              <TextField
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type a tag and press Enter to add"
+                size="small"
+                fullWidth
+              />
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {formData.tags.map((tag) => (
                   <Chip
