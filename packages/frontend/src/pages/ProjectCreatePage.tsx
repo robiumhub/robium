@@ -233,73 +233,82 @@ const ProjectCreatePage: React.FC = () => {
 
             <Divider sx={{ my: 2 }} />
 
-            {/* GitHub Repository Options */}
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  GitHub Repository
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  {formData.isTemplate
-                    ? 'GitHub repository creation is required for templates'
-                    : 'Optionally create a GitHub repository for this project'}
-                </Typography>
+            {/* GitHub Repository Options - Only show for non-templates */}
+            {!formData.isTemplate && (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    GitHub Repository
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Optionally create a GitHub repository for this project
+                  </Typography>
 
-                <Stack spacing={2}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={formData.isTemplate || githubOptions.createRepo}
-                        onChange={(e) =>
-                          setGithubOptions((prev) => ({ ...prev, createRepo: e.target.checked }))
-                        }
-                        disabled={formData.isTemplate}
-                      />
-                    }
-                    label={
-                      formData.isTemplate
-                        ? 'Create GitHub Repository (Required)'
-                        : 'Create GitHub Repository'
-                    }
-                  />
-
-                  {(formData.isTemplate || githubOptions.createRepo) && (
-                    <>
-                      <FormControl fullWidth>
-                        <InputLabel>Repository Visibility</InputLabel>
-                        <Select
-                          value={githubOptions.visibility}
+                  <Stack spacing={2}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={githubOptions.createRepo}
                           onChange={(e) =>
-                            setGithubOptions((prev) => ({
-                              ...prev,
-                              visibility: e.target.value as 'private' | 'public',
-                            }))
+                            setGithubOptions((prev) => ({ ...prev, createRepo: e.target.checked }))
                           }
-                          label="Repository Visibility"
-                        >
-                          <MenuItem value="private">Private</MenuItem>
-                          <MenuItem value="public">Public</MenuItem>
-                        </Select>
-                        <FormHelperText>
-                          Private repositories are only visible to you and collaborators
-                        </FormHelperText>
-                      </FormControl>
+                        />
+                      }
+                      label="Create GitHub Repository"
+                    />
 
-                      <TextField
-                        label="Repository Name (Optional)"
-                        value={githubOptions.repoName}
-                        onChange={(e) =>
-                          setGithubOptions((prev) => ({ ...prev, repoName: e.target.value }))
-                        }
-                        placeholder={formData.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-')}
-                        fullWidth
-                        helperText="Leave empty to use project name as repository name"
-                      />
-                    </>
-                  )}
-                </Stack>
-              </CardContent>
-            </Card>
+                    {githubOptions.createRepo && (
+                      <>
+                        <FormControl fullWidth>
+                          <InputLabel>Repository Visibility</InputLabel>
+                          <Select
+                            value={githubOptions.visibility}
+                            onChange={(e) =>
+                              setGithubOptions((prev) => ({
+                                ...prev,
+                                visibility: e.target.value as 'private' | 'public',
+                              }))
+                            }
+                            label="Repository Visibility"
+                          >
+                            <MenuItem value="private">Private</MenuItem>
+                            <MenuItem value="public">Public</MenuItem>
+                          </Select>
+                          <FormHelperText>
+                            Private repositories are only visible to you and collaborators
+                          </FormHelperText>
+                        </FormControl>
+
+                        <TextField
+                          label="Repository Name (Optional)"
+                          value={githubOptions.repoName}
+                          onChange={(e) =>
+                            setGithubOptions((prev) => ({ ...prev, repoName: e.target.value }))
+                          }
+                          placeholder={formData.name.toLowerCase().replace(/[^a-z0-9-_]/g, '-')}
+                          fullWidth
+                          helperText="Leave empty to use project name as repository name"
+                        />
+                      </>
+                    )}
+                  </Stack>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Template GitHub Info */}
+            {formData.isTemplate && (
+              <Card variant="outlined" sx={{ bgcolor: 'primary.50', borderColor: 'primary.200' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ color: 'primary.main' }}>
+                    GitHub Repository
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    A private GitHub repository will be automatically created for this template with the project name.
+                  </Typography>
+                </CardContent>
+              </Card>
+            )}
 
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
               <Button variant="outlined" onClick={() => navigate('/projects')} disabled={loading}>
