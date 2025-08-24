@@ -196,6 +196,28 @@ const migrations: Migration[] = [
       WHERE category_id = 'difficulty';
     `,
   },
+  {
+    id: 5,
+    name: 'add_github_repo_fields',
+    up: `
+      -- Add GitHub repository fields to projects table
+      ALTER TABLE projects ADD COLUMN github_repo_owner TEXT;
+      ALTER TABLE projects ADD COLUMN github_repo_name TEXT;
+      ALTER TABLE projects ADD COLUMN github_repo_url TEXT;
+      ALTER TABLE projects ADD COLUMN github_repo_id INTEGER;
+      
+      -- Add indexes for GitHub repo fields
+      CREATE INDEX IF NOT EXISTS idx_projects_github_repo_owner ON projects(github_repo_owner);
+      CREATE INDEX IF NOT EXISTS idx_projects_github_repo_name ON projects(github_repo_name);
+    `,
+    down: `
+      -- Remove GitHub repository fields from projects table
+      -- Note: SQLite doesn't support DROP COLUMN, so we'd need to recreate the table
+      -- For now, we'll just remove the indexes
+      DROP INDEX IF EXISTS idx_projects_github_repo_owner;
+      DROP INDEX IF EXISTS idx_projects_github_repo_name;
+    `,
+  },
 ];
 
 export class MigrationManager {
@@ -344,9 +366,7 @@ export class MigrationManager {
             ('use_cases', 'use_cases', 'Use Cases', 'Primary use cases for the project', 'string', 1),
             ('capabilities', 'capabilities', 'Capabilities', 'Technical capabilities provided', 'string', 2),
             ('robots', 'robots', 'Robot Targets', 'Supported robot platforms', 'string', 3),
-            ('simulators', 'simulators', 'Simulators', 'Supported simulation environments', 'string', 4),
-            ('difficulty', 'difficulty', 'Difficulty Level', 'Project complexity level', 'string', 5),
-            ('tags', 'tags', 'Tags', 'Custom tags for categorization', 'string', 6);
+            ('tags', 'tags', 'Tags', 'Custom tags for categorization', 'string', 4);
 
           -- Insert default filter values
           INSERT OR REPLACE INTO filter_values (id, category_id, value, display_name, sort_order) VALUES
@@ -382,17 +402,8 @@ export class MigrationManager {
             ('robot_custom_camera', 'robots', 'custom_camera', 'Custom Camera', 3),
             ('robot_crazyflie', 'robots', 'crazyflie', 'Crazyflie', 4),
             ('robot_arduino_robot', 'robots', 'arduino_robot', 'Arduino Robot', 5),
-            ('robot_custom_weather_robot', 'robots', 'custom_weather_robot', 'Custom Weather Robot', 6),
+            ('robot_custom_weather_robot', 'robots', 'custom_weather_robot', 'Custom Weather Robot', 6);
 
-            -- Simulators
-            ('sim_gazebo', 'simulators', 'gazebo', 'Gazebo', 1),
-            ('sim_rviz', 'simulators', 'rviz', 'RViz', 2),
-            ('sim_arduino_sim', 'simulators', 'arduino_sim', 'Arduino Sim', 3),
-
-            -- Difficulty
-            ('diff_beginner', 'difficulty', 'beginner', 'Beginner', 1),
-            ('diff_intermediate', 'difficulty', 'intermediate', 'Intermediate', 2),
-            ('diff_advanced', 'difficulty', 'advanced', 'Advanced', 3);
         `,
       },
     ];

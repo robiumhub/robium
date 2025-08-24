@@ -2,6 +2,8 @@ import express from 'express';
 import { Database } from '../utils/database';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import crypto from 'crypto';
+import { getGitHubService } from '../services/GitHubService';
+import { projectScaffoldService } from '../services/ProjectScaffoldService';
 // Import types directly to avoid TypeScript path issues
 interface Project {
   id: string;
@@ -24,8 +26,6 @@ interface ProjectFilters {
   useCases: string[];
   capabilities: string[];
   robots: string[];
-  simulators: string[];
-  difficulty: string[];
   tags: string[];
   searchQuery?: string;
 }
@@ -111,6 +111,174 @@ router.get('/templates', authMiddleware, async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch templates',
+    });
+  }
+});
+
+// POST /api/projects - Create a new project
+router.post('/', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { name, description, tags, isTemplate, config, metadata, github } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+    }
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project name is required',
+      });
+    }
+
+    const db = Database.getDatabase();
+
+    // Generate new project ID
+    const projectId = crypto.randomUUID();
+    const projectName = name.trim();
+
+    // Insert new project
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        `
+        INSERT INTO projects (
+          id, name, description, owner_id, is_active, is_template,
+          tags, config, metadata, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+        [
+          projectId,
+          projectName,
+          description || '',
+          userId,
+          1, // is_active
+          isTemplate ? 1 : 0, // is_template
+          JSON.stringify(tags || []),
+          JSON.stringify(config || {}),
+          JSON.stringify(metadata || {}),
+        ],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    // Get the created project
+    const createdProject = await new Promise<any>((resolve, reject) => {
+      db.get(
+        `
+        SELECT id, name, description, owner_id, is_active, is_template,
+               tags, config, metadata, created_at, updated_at
+        FROM projects
+        WHERE id = ?
+      `,
+        [projectId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!createdProject) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create project',
+      });
+    }
+
+    // Transform the data to match our Project interface
+    const transformedProject: Project = {
+      id: createdProject.id,
+      name: createdProject.name,
+      description: createdProject.description || '',
+      ownerId: createdProject.owner_id,
+      isActive: Boolean(createdProject.is_active),
+      isTemplate: Boolean(createdProject.is_template),
+      tags: JSON.parse(createdProject.tags || '[]'),
+      config: JSON.parse(createdProject.config || '{}'),
+      metadata: JSON.parse(createdProject.metadata || '{}'),
+      createdAt: new Date(createdProject.created_at),
+      updatedAt: new Date(createdProject.updated_at),
+    };
+
+    // GitHub repository creation (if requested and user is admin)
+    let githubRepo = null;
+    if (github?.createRepo && req.user?.role === 'admin') {
+      try {
+        const gh = getGitHubService();
+        const repo = await gh.createRepoForAuthenticatedUser({
+          name: (github.repoName || projectName)
+            .toLowerCase()
+            .replace(/[^a-z0-9-_]+/g, '-')
+            .slice(0, 100),
+          description: description || `Robium project ${projectName}`,
+          private: github.visibility === 'private',
+          autoInit: true,
+        });
+
+        // Update project with GitHub repo info
+        await new Promise<void>((resolve, reject) => {
+          db.run(
+            `
+            UPDATE projects SET 
+              github_repo_owner = ?, 
+              github_repo_name = ?, 
+              github_repo_url = ?, 
+              github_repo_id = ?, 
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `,
+            [repo.owner.login, repo.name, repo.html_url, repo.id, projectId],
+            (err) => {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+
+        // Generate scaffold files and push as initial commit
+        const files = projectScaffoldService.generateScaffold(projectName);
+        await gh.createOrUpdateFiles(
+          repo.owner.login,
+          repo.name,
+          files,
+          'chore: initial project scaffold'
+        );
+
+        githubRepo = {
+          id: repo.id,
+          name: repo.name,
+          full_name: repo.full_name,
+          html_url: repo.html_url,
+          owner: repo.owner,
+        };
+
+        console.log(`Successfully created GitHub repo: ${repo.html_url}`);
+      } catch (ghErr) {
+        console.error('GitHub repo creation failed:', ghErr);
+        // Non-blocking - project creation still succeeds
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        project: transformedProject,
+        githubRepo,
+      },
+      message: 'Project created successfully',
+    });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create project',
     });
   }
 });
@@ -419,6 +587,236 @@ router.get('/filters/categories', async (req, res) => {
   }
 });
 
+// POST /api/projects/filters/categories - Create new filter category
+router.post('/filters/categories', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { name, displayName, description, isActive = true, sortOrder = 0 } = req.body;
+    const db = Database.getDatabase();
+
+    // Validate required fields
+    if (!name || !displayName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and displayName are required',
+      });
+    }
+
+    // Check if category with same name already exists
+    const existingCategory = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT id FROM filter_categories WHERE name = ?', [name], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (existingCategory) {
+      return res.status(409).json({
+        success: false,
+        error: 'Category with this name already exists',
+      });
+    }
+
+    // Generate a unique ID for the category
+    const categoryId = crypto.randomUUID();
+
+    // Insert new category
+    const result = await new Promise<any>((resolve, reject) => {
+      db.run(
+        `
+        INSERT INTO filter_categories (id, name, display_name, description, type, is_active, sort_order, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      `,
+        [categoryId, name, displayName, description || '', 'string', isActive ? 1 : 0, sortOrder],
+        function (err) {
+          if (err) reject(err);
+          else resolve({ id: categoryId });
+        }
+      );
+    });
+
+    // Fetch the created category
+    const newCategory = await new Promise<any>((resolve, reject) => {
+      db.get(
+        `
+        SELECT id, name, display_name, description, type, is_active, sort_order, created_at, updated_at
+        FROM filter_categories
+        WHERE id = ?
+      `,
+        [result.id],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const transformedCategory: FilterCategory = {
+      id: newCategory.id,
+      name: newCategory.name,
+      displayName: newCategory.display_name,
+      description: newCategory.description,
+      type: newCategory.type as 'string' | 'boolean' | 'number',
+      isActive: Boolean(newCategory.is_active),
+      sortOrder: newCategory.sort_order,
+      createdAt: new Date(newCategory.created_at),
+      updatedAt: new Date(newCategory.updated_at),
+    };
+
+    res.status(201).json({
+      success: true,
+      data: transformedCategory,
+      message: 'Category created successfully',
+    });
+  } catch (error) {
+    console.error('Error creating filter category:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create filter category',
+    });
+  }
+});
+
+// PUT /api/projects/filters/categories/:id - Update filter category
+router.put('/filters/categories/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { displayName, description, isActive, sortOrder } = req.body;
+    const db = Database.getDatabase();
+
+    // Check if category exists
+    const existingCategory = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT id FROM filter_categories WHERE id = ?', [id], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!existingCategory) {
+      return res.status(404).json({
+        success: false,
+        error: 'Category not found',
+      });
+    }
+
+    // Update category
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        `
+        UPDATE filter_categories
+        SET display_name = ?, description = ?, is_active = ?, sort_order = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `,
+        [displayName, description || '', isActive ? 1 : 0, sortOrder, id],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    // Fetch the updated category
+    const updatedCategory = await new Promise<any>((resolve, reject) => {
+      db.get(
+        `
+        SELECT id, name, display_name, description, type, is_active, sort_order, created_at, updated_at
+        FROM filter_categories
+        WHERE id = ?
+      `,
+        [id],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const transformedCategory: FilterCategory = {
+      id: updatedCategory.id,
+      name: updatedCategory.name,
+      displayName: updatedCategory.display_name,
+      description: updatedCategory.description,
+      type: updatedCategory.type as 'string' | 'boolean' | 'number',
+      isActive: Boolean(updatedCategory.is_active),
+      sortOrder: updatedCategory.sort_order,
+      createdAt: new Date(updatedCategory.created_at),
+      updatedAt: new Date(updatedCategory.updated_at),
+    };
+
+    res.json({
+      success: true,
+      data: transformedCategory,
+      message: 'Category updated successfully',
+    });
+  } catch (error) {
+    console.error('Error updating filter category:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update filter category',
+    });
+  }
+});
+
+// DELETE /api/projects/filters/categories/:id - Delete filter category
+router.delete('/filters/categories/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const db = Database.getDatabase();
+
+    // Check if category exists
+    const existingCategory = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT id FROM filter_categories WHERE id = ?', [id], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!existingCategory) {
+      return res.status(404).json({
+        success: false,
+        error: 'Category not found',
+      });
+    }
+
+    // Check if category has associated values
+    const associatedValues = await new Promise<any[]>((resolve, reject) => {
+      db.all(
+        'SELECT id FROM filter_values WHERE category_id = ? AND is_active = 1',
+        [id],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      );
+    });
+
+    if (associatedValues.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot delete category with associated filter values',
+      });
+    }
+
+    // Delete category
+    await new Promise<void>((resolve, reject) => {
+      db.run('DELETE FROM filter_categories WHERE id = ?', [id], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Category deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting filter category:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete filter category',
+    });
+  }
+});
+
 // GET /api/projects/filters/values - Get filter values
 router.get('/filters/values', async (req, res) => {
   try {
@@ -466,6 +864,276 @@ router.get('/filters/values', async (req, res) => {
   }
 });
 
+// POST /api/projects/filters/values - Create new filter value
+router.post('/filters/values', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const db = Database.getDatabase();
+    const {
+      categoryId,
+      value,
+      displayName,
+      description,
+      isActive = true,
+      sortOrder = 0,
+    } = req.body;
+
+    // Validate required fields
+    if (!categoryId || !value || !displayName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Category ID, value, and display name are required',
+      });
+    }
+
+    // Check if category exists
+    const category = await new Promise<any>((resolve, reject) => {
+      db.get(
+        'SELECT id FROM filter_categories WHERE id = ? AND is_active = 1',
+        [categoryId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!category) {
+      return res.status(400).json({
+        success: false,
+        error: 'Category not found',
+      });
+    }
+
+    // Check if value already exists in this category
+    const existingValue = await new Promise<any>((resolve, reject) => {
+      db.get(
+        'SELECT id FROM filter_values WHERE category_id = ? AND value = ?',
+        [categoryId, value],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (existingValue) {
+      return res.status(400).json({
+        success: false,
+        error: 'Filter value already exists in this category',
+      });
+    }
+
+    // Generate ID and insert
+    const id = crypto.randomUUID();
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        `
+        INSERT INTO filter_values (id, category_id, value, display_name, description, is_active, sort_order, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `,
+        [id, categoryId, value, displayName, description || null, isActive ? 1 : 0, sortOrder],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    // Get the created value
+    const createdValue = await new Promise<any>((resolve, reject) => {
+      db.get(
+        `
+        SELECT id, category_id, value, display_name, description, is_active, sort_order, created_at, updated_at
+        FROM filter_values
+        WHERE id = ?
+      `,
+        [id],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const transformedValue: FilterValue = {
+      id: createdValue.id,
+      categoryId: createdValue.category_id,
+      value: createdValue.value,
+      displayName: createdValue.display_name,
+      description: createdValue.description,
+      isActive: Boolean(createdValue.is_active),
+      sortOrder: createdValue.sort_order,
+      createdAt: new Date(createdValue.created_at),
+      updatedAt: new Date(createdValue.updated_at),
+    };
+
+    res.status(201).json({
+      success: true,
+      data: transformedValue,
+      message: 'Filter value created successfully',
+    });
+  } catch (error) {
+    console.error('Error creating filter value:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create filter value',
+    });
+  }
+});
+
+// PUT /api/projects/filters/values/:id - Update filter value
+router.put('/filters/values/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const db = Database.getDatabase();
+    const { id } = req.params;
+    const { categoryId, value, displayName, description, isActive, sortOrder } = req.body;
+
+    // Check if value exists
+    const existingValue = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT id FROM filter_values WHERE id = ?', [id], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!existingValue) {
+      return res.status(404).json({
+        success: false,
+        error: 'Filter value not found',
+      });
+    }
+
+    // Build update query
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (categoryId !== undefined) {
+      updates.push('category_id = ?');
+      params.push(categoryId);
+    }
+    if (value !== undefined) {
+      updates.push('value = ?');
+      params.push(value);
+    }
+    if (displayName !== undefined) {
+      updates.push('display_name = ?');
+      params.push(displayName);
+    }
+    if (description !== undefined) {
+      updates.push('description = ?');
+      params.push(description);
+    }
+    if (isActive !== undefined) {
+      updates.push('is_active = ?');
+      params.push(isActive ? 1 : 0);
+    }
+    if (sortOrder !== undefined) {
+      updates.push('sort_order = ?');
+      params.push(sortOrder);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No updates provided',
+      });
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(id);
+
+    // Update the value
+    await new Promise<void>((resolve, reject) => {
+      db.run(`UPDATE filter_values SET ${updates.join(', ')} WHERE id = ?`, params, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    // Get the updated value
+    const updatedValue = await new Promise<any>((resolve, reject) => {
+      db.get(
+        `
+        SELECT id, category_id, value, display_name, description, is_active, sort_order, created_at, updated_at
+        FROM filter_values
+        WHERE id = ?
+      `,
+        [id],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const transformedValue: FilterValue = {
+      id: updatedValue.id,
+      categoryId: updatedValue.category_id,
+      value: updatedValue.value,
+      displayName: updatedValue.display_name,
+      description: updatedValue.description,
+      isActive: Boolean(updatedValue.is_active),
+      sortOrder: updatedValue.sort_order,
+      createdAt: new Date(updatedValue.created_at),
+      updatedAt: new Date(updatedValue.updated_at),
+    };
+
+    res.json({
+      success: true,
+      data: transformedValue,
+      message: 'Filter value updated successfully',
+    });
+  } catch (error) {
+    console.error('Error updating filter value:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update filter value',
+    });
+  }
+});
+
+// DELETE /api/projects/filters/values/:id - Delete filter value
+router.delete('/filters/values/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const db = Database.getDatabase();
+    const { id } = req.params;
+
+    // Check if value exists
+    const existingValue = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT id FROM filter_values WHERE id = ?', [id], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!existingValue) {
+      return res.status(404).json({
+        success: false,
+        error: 'Filter value not found',
+      });
+    }
+
+    // Delete the value
+    await new Promise<void>((resolve, reject) => {
+      db.run('DELETE FROM filter_values WHERE id = ?', [id], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Filter value deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting filter value:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete filter value',
+    });
+  }
+});
+
 // GET /api/projects/filters/stats - Get filter statistics
 router.get('/filters/stats', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -499,8 +1167,6 @@ router.get('/filters/stats', authMiddleware, async (req: AuthRequest, res) => {
       useCases: {},
       capabilities: {},
       robots: {},
-      simulators: {},
-      difficulty: {},
       tags: {},
     };
 
@@ -527,18 +1193,6 @@ router.get('/filters/stats', authMiddleware, async (req: AuthRequest, res) => {
         metadata.robots.forEach((robot: string) => {
           stats.robots[robot] = (stats.robots[robot] || 0) + 1;
         });
-      }
-
-      // Count simulators
-      if (metadata.simulators) {
-        metadata.simulators.forEach((simulator: string) => {
-          stats.simulators[simulator] = (stats.simulators[simulator] || 0) + 1;
-        });
-      }
-
-      // Count difficulty
-      if (metadata.difficulty) {
-        stats.difficulty[metadata.difficulty] = (stats.difficulty[metadata.difficulty] || 0) + 1;
       }
 
       // Count tags

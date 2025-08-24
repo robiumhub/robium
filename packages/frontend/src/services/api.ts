@@ -79,6 +79,17 @@ export class ApiService {
     return response.data;
   }
 
+  static async updateProfile(updates: {
+    username?: string;
+    email?: string;
+  }): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> = await apiClient.put(
+      '/api/auth/profile',
+      updates
+    );
+    return response.data;
+  }
+
   static async refreshToken(): Promise<ApiResponse<{ token: string; expiresIn: string }>> {
     const response: AxiosResponse<ApiResponse<{ token: string; expiresIn: string }>> =
       await apiClient.post('/api/auth/refresh');
@@ -107,12 +118,18 @@ export class ApiService {
   static async createProject(projectData: {
     name: string;
     description?: string;
-    config: Record<string, any>;
-  }): Promise<ApiResponse<{ project: Project }>> {
-    const response: AxiosResponse<ApiResponse<{ project: Project }>> = await apiClient.post(
-      '/api/projects',
-      projectData
-    );
+    tags?: string[];
+    isTemplate?: boolean;
+    config?: Record<string, any>;
+    metadata?: Record<string, any>;
+    github?: {
+      createRepo?: boolean;
+      visibility?: 'private' | 'public';
+      repoName?: string;
+    };
+  }): Promise<ApiResponse<{ project: Project; githubRepo?: any }>> {
+    const response: AxiosResponse<ApiResponse<{ project: Project; githubRepo?: any }>> =
+      await apiClient.post('/api/projects', projectData);
     return response.data;
   }
 
@@ -168,9 +185,74 @@ export class ApiService {
     return response.data;
   }
 
+  static async createFilterCategory(categoryData: {
+    name: string;
+    displayName: string;
+    description?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }): Promise<ApiResponse<FilterCategory>> {
+    const response: AxiosResponse<ApiResponse<FilterCategory>> = await apiClient.post(
+      '/api/projects/filters/categories',
+      categoryData
+    );
+    return response.data;
+  }
+
+  static async updateFilterCategory(
+    id: string,
+    updates: Partial<FilterCategory>
+  ): Promise<ApiResponse<FilterCategory>> {
+    const response: AxiosResponse<ApiResponse<FilterCategory>> = await apiClient.put(
+      `/api/projects/filters/categories/${id}`,
+      updates
+    );
+    return response.data;
+  }
+
+  static async deleteFilterCategory(id: string): Promise<ApiResponse<void>> {
+    const response: AxiosResponse<ApiResponse<void>> = await apiClient.delete(
+      `/api/projects/filters/categories/${id}`
+    );
+    return response.data;
+  }
+
   static async getFilterValues(): Promise<ApiResponse<{ values: FilterValue[] }>> {
     const response: AxiosResponse<ApiResponse<{ values: FilterValue[] }>> = await apiClient.get(
       '/api/projects/filters/values'
+    );
+    return response.data;
+  }
+
+  static async createFilterValue(valueData: {
+    categoryId: string;
+    value: string;
+    displayName: string;
+    description?: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }): Promise<ApiResponse<FilterValue>> {
+    const response: AxiosResponse<ApiResponse<FilterValue>> = await apiClient.post(
+      '/api/projects/filters/values',
+      valueData
+    );
+    return response.data;
+  }
+
+  static async updateFilterValue(
+    id: string,
+    updates: Partial<FilterValue>
+  ): Promise<ApiResponse<FilterValue>> {
+    const response: AxiosResponse<ApiResponse<FilterValue>> = await apiClient.put(
+      `/api/projects/filters/values/${id}`,
+      updates
+    );
+    return response.data;
+  }
+
+  static async deleteFilterValue(id: string): Promise<ApiResponse<void>> {
+    const response: AxiosResponse<ApiResponse<void>> = await apiClient.delete(
+      `/api/projects/filters/values/${id}`
     );
     return response.data;
   }
@@ -229,6 +311,50 @@ export class ApiService {
     const response: AxiosResponse<ApiResponse<void>> = await apiClient.post(
       '/api/integrations/github/sync'
     );
+    return response.data;
+  }
+
+  // User management endpoints
+  static async getUsers(): Promise<ApiResponse<{ users: User[] }>> {
+    const response: AxiosResponse<ApiResponse<{ users: User[] }>> =
+      await apiClient.get('/api/users');
+    return response.data;
+  }
+
+  static async getUser(id: string): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> = await apiClient.get(`/api/users/${id}`);
+    return response.data;
+  }
+
+  static async createUser(userData: {
+    email: string;
+    username: string;
+    password: string;
+    role?: 'user' | 'admin';
+  }): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> = await apiClient.post('/api/users', userData);
+    return response.data;
+  }
+
+  static async updateUser(
+    id: string,
+    updates: {
+      email?: string;
+      username?: string;
+      password?: string;
+      role?: 'user' | 'admin';
+      isActive?: boolean;
+    }
+  ): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> = await apiClient.put(
+      `/api/users/${id}`,
+      updates
+    );
+    return response.data;
+  }
+
+  static async deleteUser(id: string): Promise<ApiResponse<void>> {
+    const response: AxiosResponse<ApiResponse<void>> = await apiClient.delete(`/api/users/${id}`);
     return response.data;
   }
 

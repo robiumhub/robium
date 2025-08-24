@@ -19,6 +19,7 @@ import projectsRoutes from './routes/projects';
 import dockerfilesRoutes from './routes/dockerfiles';
 import integrationsRoutes from './routes/integrations.github';
 import adminRoutes from './routes/admin';
+import usersRoutes from './routes/users';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -53,6 +54,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', async (req, res) => {
   try {
     const dbHealth = await Database.healthCheck();
+    const githubIntegration = Boolean(process.env.GITHUB_TOKEN);
 
     res.status(200).json({
       status: 'OK',
@@ -60,6 +62,7 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       version: '0.1.0',
       database: dbHealth ? 'connected' : 'disconnected',
+      githubIntegration,
       services: {
         api: 'running',
         database: dbHealth ? 'healthy' : 'unhealthy',
@@ -86,6 +89,7 @@ app.use('/api/projects', projectsRoutes);
 app.use('/api/dockerfiles', dockerfilesRoutes);
 app.use('/api/integrations/github', integrationsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/users', usersRoutes);
 
 // Serve static files from the frontend build directory (for production)
 if (process.env.NODE_ENV === 'production') {

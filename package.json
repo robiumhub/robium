@@ -28,6 +28,7 @@
     "test": "npm-run-all test:*",
     "test:frontend": "npm run test --workspace=packages/frontend",
     "test:backend": "npm run test --workspace=packages/backend",
+    "test:github": "node test-github-integration.js",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
