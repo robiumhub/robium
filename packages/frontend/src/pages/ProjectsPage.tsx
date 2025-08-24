@@ -41,12 +41,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { ApiService } from '../services/api';
 import ProjectFilters from '../components/ProjectFilters';
-import {
-  Project,
-  ProjectFilters as ProjectFiltersType,
-  FilterCategory,
-  FilterValue,
-} from '@robium/shared';
+import { Project, ProjectFilters as ProjectFiltersType } from '@robium/shared';
+import { useFilterData } from '../hooks/useFilterData';
 
 type ViewMode = 'grid' | 'list';
 
@@ -57,68 +53,38 @@ const ProjectsPage: React.FC = () => {
 
   // State
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<ProjectFiltersType>({
     useCases: [],
     capabilities: [],
     robots: [],
-    simulators: [],
-    difficulty: [],
     tags: [],
   });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [categories, setCategories] = useState<FilterCategory[]>([]);
-  const [filterValues, setFilterValues] = useState<FilterValue[]>([]);
-  const [stats, setStats] = useState<Record<string, Record<string, number>>>({});
-  
+
+  // Filter data management
+  const { categories, filterValues, stats, loading, error, retryCount, refresh, clearError } =
+    useFilterData({ isTemplate: false, autoRefresh: true });
+
   // Project action menu state
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
-  // Load projects and filter data
+  // Load projects
   useEffect(() => {
-    const loadData = async () => {
+    const loadProjects = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        // Load projects
         const projectsResponse = await ApiService.getProjects();
         if (projectsResponse.success && projectsResponse.data && projectsResponse.data.projects) {
           setProjects(projectsResponse.data.projects);
-        } else {
-          setError('Failed to fetch projects');
-        }
-
-        // Load filter categories
-        const categoriesResponse = await ApiService.getFilterCategories();
-        if (categoriesResponse.success && categoriesResponse.data) {
-          setCategories(categoriesResponse.data.categories);
-        }
-
-        // Load filter values
-        const valuesResponse = await ApiService.getFilterValues();
-        if (valuesResponse.success && valuesResponse.data) {
-          setFilterValues(valuesResponse.data.values);
-        }
-
-        // Load filter stats
-        const statsResponse = await ApiService.getFilterStats(false);
-        if (statsResponse.success && statsResponse.data) {
-          setStats(statsResponse.data.stats);
         }
       } catch (err) {
-        console.error('Error loading data:', err);
-        setError('Failed to load data');
-      } finally {
-        setLoading(false);
+        console.error('Error loading projects:', err);
       }
     };
 
-    loadData();
+    loadProjects();
   }, []);
 
   // Filter and search projects
@@ -136,62 +102,66 @@ const ProjectsPage: React.FC = () => {
       );
     }
 
-    // Apply filters
-    if (filters.useCases.length > 0) {
-      filtered = filtered.filter((project) =>
-        project.metadata?.useCases?.some((useCase) => filters.useCases.includes(useCase))
-      );
-    }
+    // Apply filters dynamically based on available categories
+    categories.forEach((category) => {
+      const filterKey = category.name as keyof ProjectFiltersType;
+      const filterValues = (filters as any)[filterKey] as string[];
 
-    if (filters.capabilities.length > 0) {
-      filtered = filtered.filter((project) =>
-        project.metadata?.capabilities?.some((capability) =>
-          filters.capabilities.includes(capability)
-        )
-      );
-    }
+      if (filterValues && filterValues.length > 0) {
+        filtered = filtered.filter((project) => {
+          // Handle different category types
+          if (category.name === 'useCases' && project.metadata?.useCases) {
+            return project.metadata.useCases.some((useCase) => filterValues.includes(useCase));
+          }
+          if (category.name === 'capabilities' && project.metadata?.capabilities) {
+            return project.metadata.capabilities.some((capability) =>
+              filterValues.includes(capability)
+            );
+          }
+          if (category.name === 'robots' && project.metadata?.robots) {
+            return project.metadata.robots.some((robot) => filterValues.includes(robot));
+          }
+          if (category.name === 'tags') {
+            return project.tags.some((tag) => filterValues.includes(tag));
+          }
 
-    if (filters.robots.length > 0) {
-      filtered = filtered.filter((project) =>
-        project.metadata?.robots?.some((robot) => filters.robots.includes(robot))
-      );
-    }
+          // For any other categories, check if they exist in project metadata
+          if (project.metadata && (project.metadata as any)[category.name]) {
+            const projectValues = (project.metadata as any)[category.name];
+            if (Array.isArray(projectValues)) {
+              return projectValues.some((value: string) => filterValues.includes(value));
+            }
+          }
 
-    if (filters.simulators.length > 0) {
-      filtered = filtered.filter((project) =>
-        project.metadata?.simulators?.some((simulator) => filters.simulators.includes(simulator))
-      );
-    }
-
-    if (filters.difficulty.length > 0) {
-      filtered = filtered.filter(
-        (project) =>
-          project.metadata?.difficulty && filters.difficulty.includes(project.metadata.difficulty)
-      );
-    }
-
-    if (filters.tags.length > 0) {
-      filtered = filtered.filter((project) =>
-        project.tags.some((tag) => filters.tags.includes(tag))
-      );
-    }
+          return false;
+        });
+      }
+    });
 
     return filtered;
-  }, [projects, searchQuery, filters]);
+  }, [projects, searchQuery, filters, categories]);
 
   const handleClearSearch = () => {
     setSearchQuery('');
   };
 
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters: ProjectFiltersType = {
       useCases: [],
       capabilities: [],
       robots: [],
-      simulators: [],
-      difficulty: [],
       tags: [],
+    };
+
+    // Dynamically clear all category filters
+    categories.forEach((category) => {
+      const filterKey = category.name as keyof ProjectFiltersType;
+      if (filterKey in clearedFilters) {
+        (clearedFilters as any)[filterKey] = [];
+      }
     });
+
+    setFilters(clearedFilters);
   };
 
   const getActiveFiltersCount = () => {
@@ -237,11 +207,22 @@ const ProjectsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteProject = () => {
+  const handleDeleteProject = async () => {
     if (selectedProject) {
       if (window.confirm(`Are you sure you want to delete "${selectedProject.name}"?`)) {
-        // TODO: Implement project deletion
-        console.log('Delete project:', selectedProject.id);
+        try {
+          await ApiService.deleteProject(selectedProject.id);
+          // Re-fetch projects from the server to ensure we have the latest data
+          const projectsResponse = await ApiService.getProjects();
+          if (projectsResponse.success && projectsResponse.data && projectsResponse.data.projects) {
+            setProjects(projectsResponse.data.projects);
+          }
+          // Show success message
+          console.log('Project deleted successfully');
+        } catch (error) {
+          console.error('Failed to delete project:', error);
+          // You might want to show an error message to the user here
+        }
       }
       handleProjectMenuClose();
     }
@@ -297,6 +278,14 @@ const ProjectsPage: React.FC = () => {
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/projects/new')}
+              size="small"
+            >
+              New Project
+            </Button>
             <ToggleButtonGroup
               value={viewMode}
               exclusive
@@ -444,8 +433,8 @@ const ProjectsPage: React.FC = () => {
                   </Typography>
                 </CardContent>
                 <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-                  <Button 
-                    size="small" 
+                  <Button
+                    size="small"
                     variant="contained"
                     onClick={() => navigate(`/projects/${project.id}`)}
                   >
@@ -453,26 +442,20 @@ const ProjectsPage: React.FC = () => {
                   </Button>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Tooltip title="Edit">
-                      <IconButton 
-                        size="small" 
+                      <IconButton
+                        size="small"
                         onClick={() => navigate(`/projects/${project.id}/edit`)}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Duplicate">
-                      <IconButton 
-                        size="small"
-                        onClick={() => handleDuplicateProject()}
-                      >
+                      <IconButton size="small" onClick={() => handleDuplicateProject()}>
                         <DuplicateIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="More actions">
-                      <IconButton 
-                        size="small"
-                        onClick={(e) => handleProjectMenuOpen(e, project)}
-                      >
+                      <IconButton size="small" onClick={(e) => handleProjectMenuOpen(e, project)}>
                         <MoreVertIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -523,6 +506,9 @@ const ProjectsPage: React.FC = () => {
             values={filterValues}
             stats={stats}
             availableTags={getAvailableTags()}
+            loading={loading}
+            error={error}
+            onRetry={refresh}
           />
         </Drawer>
       </Box>
@@ -603,6 +589,9 @@ const ProjectsPage: React.FC = () => {
               stats={stats}
               availableTags={getAvailableTags()}
               permanent={true}
+              loading={loading}
+              error={error}
+              onRetry={refresh}
             />
           </Box>
         </Box>
@@ -652,11 +641,20 @@ const ProjectsPage: React.FC = () => {
               />
             </Box>
 
-            {/* Right side: Project count, View mode */}
+            {/* Right side: Project count, View mode, Add button */}
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 {processedProjects.length} of {projects.length} projects
               </Typography>
+
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/projects/new')}
+                size="small"
+              >
+                New Project
+              </Button>
 
               <ToggleButtonGroup
                 value={viewMode}
@@ -704,8 +702,8 @@ const ProjectsPage: React.FC = () => {
                       </Typography>
                     </CardContent>
                     <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-                      <Button 
-                        size="small" 
+                      <Button
+                        size="small"
                         variant="contained"
                         onClick={() => navigate(`/projects/${project.id}`)}
                       >
@@ -713,23 +711,20 @@ const ProjectsPage: React.FC = () => {
                       </Button>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Tooltip title="Edit">
-                          <IconButton 
-                            size="small" 
+                          <IconButton
+                            size="small"
                             onClick={() => navigate(`/projects/${project.id}/edit`)}
                           >
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Duplicate">
-                          <IconButton 
-                            size="small"
-                            onClick={() => handleDuplicateProject()}
-                          >
+                          <IconButton size="small" onClick={() => handleDuplicateProject()}>
                             <DuplicateIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="More actions">
-                          <IconButton 
+                          <IconButton
                             size="small"
                             onClick={(e) => handleProjectMenuOpen(e, project)}
                           >

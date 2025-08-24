@@ -121,6 +121,12 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     const { name, description, tags, isTemplate, config, metadata, github } = req.body;
     const userId = req.user?.id;
 
+    // Debug logging for GitHub repo creation
+    console.log('Project creation request:');
+    console.log('- github object:', github);
+    console.log('- github?.createRepo:', github?.createRepo);
+    console.log('- Will create GitHub repo:', Boolean(github?.createRepo));
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -207,9 +213,13 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       updatedAt: new Date(createdProject.updated_at),
     };
 
-    // GitHub repository creation (if requested and user is admin, or if creating a template)
+    // GitHub repository creation (if requested)
     let githubRepo = null;
-    if (github?.createRepo && (req.user?.role === 'admin' || isTemplate)) {
+    console.log('Checking GitHub repo creation conditions:');
+    console.log('- github:', github);
+    console.log('- github?.createRepo:', github?.createRepo);
+    if (github?.createRepo) {
+      console.log('✅ Starting GitHub repository creation...');
       try {
         const gh = getGitHubService();
         const repo = await gh.createRepoForAuthenticatedUser({
@@ -264,6 +274,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         console.error('GitHub repo creation failed:', ghErr);
         // Non-blocking - project creation still succeeds
       }
+    } else {
+      console.log('❌ Skipping GitHub repository creation - conditions not met');
     }
 
     res.status(201).json({
@@ -460,11 +472,10 @@ router.post('/:id/clone', authMiddleware, async (req: AuthRequest, res) => {
       updatedAt: new Date(clonedProject.updated_at),
     };
 
-    // GitHub repository creation (if requested and user is admin, or if cloning from template)
+    // GitHub repository creation (if requested)
     let githubRepo = null;
-    const isCloningFromTemplate = sourceProject.is_template === 1;
 
-    if (github?.createRepo && (req.user?.role === 'admin' || isCloningFromTemplate)) {
+    if (github?.createRepo) {
       try {
         const gh = getGitHubService();
         const repo = await gh.createRepoForAuthenticatedUser({
@@ -745,6 +756,14 @@ router.put('/filters/categories/:id', authMiddleware, async (req: AuthRequest, r
     const { displayName, description, isActive, sortOrder } = req.body;
     const db = Database.getDatabase();
 
+    // Validate required fields
+    if (!displayName || typeof displayName !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'displayName is required and must be a string',
+      });
+    }
+
     // Check if category exists
     const existingCategory = await new Promise<any>((resolve, reject) => {
       db.get('SELECT id FROM filter_categories WHERE id = ?', [id], (err, row) => {
@@ -760,18 +779,22 @@ router.put('/filters/categories/:id', authMiddleware, async (req: AuthRequest, r
       });
     }
 
-    // Update category
+    // Update category - only update display_name and description
     await new Promise<void>((resolve, reject) => {
       db.run(
         `
         UPDATE filter_categories
-        SET display_name = ?, description = ?, is_active = ?, sort_order = ?, updated_at = datetime('now')
+        SET display_name = ?, description = ?, updated_at = datetime('now')
         WHERE id = ?
       `,
-        [displayName, description || '', isActive ? 1 : 0, sortOrder, id],
+        [displayName, description || '', id],
         (err) => {
-          if (err) reject(err);
-          else resolve();
+          if (err) {
+            console.error('Database error:', err);
+            reject(err);
+          } else {
+            resolve();
+          }
         }
       );
     });
@@ -811,9 +834,12 @@ router.put('/filters/categories/:id', authMiddleware, async (req: AuthRequest, r
     });
   } catch (error) {
     console.error('Error updating filter category:', error);
+    console.error('Request body:', req.body);
+    console.error('Category ID:', req.params.id);
     res.status(500).json({
       success: false,
       error: 'Failed to update filter category',
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -839,22 +865,22 @@ router.delete('/filters/categories/:id', authMiddleware, async (req: AuthRequest
       });
     }
 
-    // Check if category has associated values
+    // Check if category has associated values (including inactive ones)
     const associatedValues = await new Promise<any[]>((resolve, reject) => {
-      db.all(
-        'SELECT id FROM filter_values WHERE category_id = ? AND is_active = 1',
-        [id],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows || []);
-        }
-      );
+      db.all('SELECT id FROM filter_values WHERE category_id = ?', [id], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
     });
 
     if (associatedValues.length > 0) {
+      console.log(
+        `Category ${id} has ${associatedValues.length} associated values:`,
+        associatedValues
+      );
       return res.status(400).json({
         success: false,
-        error: 'Cannot delete category with associated filter values',
+        error: `Cannot delete category with ${associatedValues.length} associated filter value${associatedValues.length > 1 ? 's' : ''}. Please delete all values in this category first, then try deleting the category again.`,
       });
     }
 
@@ -922,6 +948,55 @@ router.get('/filters/values', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch filter values',
+    });
+  }
+});
+
+// GET /api/projects/filters/categories/:id/values - Get all values for a specific category (including inactive)
+router.get('/filters/categories/:id/values', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = Database.getDatabase();
+
+    const values = await new Promise<any[]>((resolve, reject) => {
+      db.all(
+        `
+        SELECT id, category_id, value, display_name, description, is_active, sort_order, created_at, updated_at
+        FROM filter_values
+        WHERE category_id = ?
+        ORDER BY sort_order ASC
+      `,
+        [id],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      );
+    });
+
+    const transformedValues: FilterValue[] = values.map((row) => ({
+      id: row.id,
+      categoryId: row.category_id,
+      value: row.value,
+      displayName: row.display_name,
+      description: row.description,
+      isActive: Boolean(row.is_active),
+      sortOrder: row.sort_order,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        values: transformedValues,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching category values:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch category values',
     });
   }
 });
@@ -1202,9 +1277,20 @@ router.get('/filters/stats', authMiddleware, async (req: AuthRequest, res) => {
     const db = Database.getDatabase();
     const { isTemplate } = req.query;
 
+    // First, get all active filter categories
+    const categories = await new Promise<FilterCategory[]>((resolve, reject) => {
+      db.all(
+        'SELECT * FROM filter_categories WHERE is_active = 1 ORDER BY sort_order',
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve((rows || []) as FilterCategory[]);
+        }
+      );
+    });
+
     // Build the base query
     let baseQuery = `
-      SELECT metadata
+      SELECT metadata, tags
       FROM projects
       WHERE owner_id = ?
     `;
@@ -1224,42 +1310,35 @@ router.get('/filters/stats', authMiddleware, async (req: AuthRequest, res) => {
       });
     });
 
-    // Calculate statistics
-    const stats: Record<string, Record<string, number>> = {
-      useCases: {},
-      capabilities: {},
-      robots: {},
-      tags: {},
-    };
+    // Initialize stats object dynamically based on categories
+    const stats: Record<string, Record<string, number>> = {};
 
+    // Initialize stats for each category
+    categories.forEach((category) => {
+      stats[category.name] = {};
+    });
+
+    // Calculate statistics for each project
     projects.forEach((project) => {
       const metadata = JSON.parse(project.metadata || '{}');
       const tags = JSON.parse(project.tags || '[]');
 
-      // Count use cases
-      if (metadata.useCases) {
-        metadata.useCases.forEach((useCase: string) => {
-          stats.useCases[useCase] = (stats.useCases[useCase] || 0) + 1;
-        });
-      }
-
-      // Count capabilities
-      if (metadata.capabilities) {
-        metadata.capabilities.forEach((capability: string) => {
-          stats.capabilities[capability] = (stats.capabilities[capability] || 0) + 1;
-        });
-      }
-
-      // Count robots
-      if (metadata.robots) {
-        metadata.robots.forEach((robot: string) => {
-          stats.robots[robot] = (stats.robots[robot] || 0) + 1;
-        });
-      }
-
-      // Count tags
-      tags.forEach((tag: string) => {
-        stats.tags[tag] = (stats.tags[tag] || 0) + 1;
+      // Count for each category dynamically
+      categories.forEach((category) => {
+        if (category.name === 'tags') {
+          // Special handling for tags
+          tags.forEach((tag: string) => {
+            stats.tags[tag] = (stats.tags[tag] || 0) + 1;
+          });
+        } else {
+          // Handle other categories from metadata
+          const categoryValues = metadata[category.name];
+          if (Array.isArray(categoryValues)) {
+            categoryValues.forEach((value: string) => {
+              stats[category.name][value] = (stats[category.name][value] || 0) + 1;
+            });
+          }
+        }
       });
     });
 
@@ -1274,6 +1353,64 @@ router.get('/filters/stats', authMiddleware, async (req: AuthRequest, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch filter stats',
+    });
+  }
+});
+
+// DELETE /api/projects/:id - Delete a project
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const db = Database.getDatabase();
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+      });
+    }
+
+    // Check if project exists and user has permission
+    const project = await new Promise<any>((resolve, reject) => {
+      db.get('SELECT * FROM projects WHERE id = ?', [id], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not found',
+      });
+    }
+
+    // Check if user owns the project or is admin
+    if (project.owner_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to delete this project',
+      });
+    }
+
+    // Actually delete the project from the database
+    await new Promise<void>((resolve, reject) => {
+      db.run('DELETE FROM projects WHERE id = ?', [id], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Project deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete project',
     });
   }
 });

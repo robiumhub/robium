@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -10,6 +10,8 @@ import {
   useTheme,
   useMediaQuery,
   Drawer,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { Clear as ClearIcon, Close as CloseIcon } from '@mui/icons-material';
 import { ProjectFilters, FilterCategory, FilterValue } from '@robium/shared';
@@ -24,6 +26,9 @@ interface ProjectFiltersProps {
   stats?: Record<string, Record<string, number>>;
   availableTags?: string[];
   permanent?: boolean;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
@@ -36,14 +41,24 @@ const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
   stats,
   availableTags = [],
   permanent = false,
+  loading = false,
+  error = null,
+  onRetry,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [localFilters, setLocalFilters] = useState<ProjectFilters>(filters);
   const [newTag, setNewTag] = useState('');
 
-  const handleArrayToggle = (key: keyof ProjectFilters, value: string) => {
-    const current = (localFilters[key] as string[]) || [];
+  // Memoize filtered and sorted categories for performance
+  const filteredCategories = useMemo(() => {
+    return categories
+      .filter((cat) => cat.isActive && cat.id !== 'tags')
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [categories]);
+
+  const handleArrayToggle = (key: any, value: string) => {
+    const current = ((localFilters as any)[key] as string[]) || [];
     const exists = current.includes(value);
     const updated = exists ? current.filter((v) => v !== value) : [...current, value];
     const next = { ...localFilters, [key]: updated } as ProjectFilters;
@@ -71,19 +86,28 @@ const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
     </Box>
   );
 
-  const renderChips = (
-    categoryId: string,
-    key: keyof ProjectFilters,
-    counts?: Record<string, number>
-  ) => {
+  const renderChips = (categoryId: string, key: any, counts?: Record<string, number>) => {
+    // Filter and sort values for this category
     const categoryValues = values.filter((v) => v.categoryId === categoryId && v.isActive);
     const sortedValues = categoryValues.sort((a, b) => a.sortOrder - b.sortOrder);
+
+    if (sortedValues.length === 0) {
+      return (
+        <Box sx={{ textAlign: 'center', py: 1, color: 'text.secondary' }}>
+          <Typography variant="caption">No options available</Typography>
+        </Box>
+      );
+    }
 
     return (
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         {sortedValues.map((item) => {
-          const selected = (localFilters[key] as string[])?.includes(item.value) || false;
+          const selected = ((localFilters as any)[key] as string[])?.includes(item.value) || false;
           const count = counts?.[item.value] ?? undefined;
+
+          // Debug logging for individual items
+          console.log(`Item: ${item.displayName}, Count:`, count, `Counts object:`, counts);
+
           return (
             <Chip
               key={item.id}
@@ -102,6 +126,30 @@ const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
 
   const filterContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* Error State */}
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={
+            onRetry && (
+              <Button color="inherit" size="small" onClick={onRetry}>
+                Retry
+              </Button>
+            )
+          }
+        >
+          {error}
+        </Alert>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
+
       {/* Tags Section */}
       <Section title="Tags">
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
@@ -132,19 +180,26 @@ const ProjectFiltersComponent: React.FC<ProjectFiltersProps> = ({
       <Divider />
 
       {/* Dynamic filter sections based on categories */}
-      {categories
-        .filter((cat) => cat.isActive && cat.id !== 'tags')
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((category) => {
-          const key = category.name as keyof ProjectFilters;
-          const counts = stats?.[category.name];
+      {!loading && !error && categories.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 2, color: 'text.secondary' }}>
+          <Typography variant="body2">No filter categories available</Typography>
+        </Box>
+      )}
 
-          return (
-            <Section key={category.id} title={category.displayName}>
-              {renderChips(category.id, key, counts)}
-            </Section>
-          );
-        })}
+      {filteredCategories.map((category, index) => {
+        const key = category.name as any; // Use any to allow dynamic category names
+        const counts = stats?.[category.name];
+
+        // Debug logging
+        console.log(`Category: ${category.name}, Counts:`, counts);
+        console.log(`Stats object:`, stats);
+
+        return (
+          <Section key={category.id || `category-${index}`} title={category.displayName}>
+            {renderChips(category.id, key, counts)}
+          </Section>
+        );
+      })}
     </Box>
   );
 

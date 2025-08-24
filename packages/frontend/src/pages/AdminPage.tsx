@@ -13,6 +13,7 @@ import {
   Alert,
   Tabs,
   Tab,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -23,19 +24,20 @@ import {
   FormHelperText,
   Select,
   MenuItem,
-  Switch,
-  FormControlLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Settings as SettingsIcon,
+  Delete as DeleteIcon,
   FilterList as FilterListIcon,
   People as PeopleIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ApiService } from '../services/api';
+import { FilterValue } from '@robium/shared';
+import { filterEventManager } from '../utils/filterEvents';
+import EditableChip from '../components/EditableChip';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -67,19 +69,48 @@ const AdminPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Add Filter Dialog State
+  const [addFilterDialogOpen, setAddFilterDialogOpen] = useState(false);
+  const [filterForm, setFilterForm] = useState({
+    name: '',
+    displayName: '',
+    description: '',
+    categoryId: '',
+    value: '',
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Manage Categories Dialog State
-  const [manageCategoriesDialogOpen, setManageCategoriesDialogOpen] = useState(false);
+  // Filter Management State
+  const [addValueDialogOpen, setAddValueDialogOpen] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [editingCategory, setEditingCategory] = useState<any>(null);
   const [categoryForm, setCategoryForm] = useState({
     name: '',
     displayName: '',
     description: '',
-    isActive: true,
-    sortOrder: 0,
   });
+  const [categoryValues, setCategoryValues] = useState<FilterValue[]>([]);
+  const [editingValue, setEditingValue] = useState<any>(null);
+  const [valueForm, setValueForm] = useState({
+    value: '',
+    displayName: '',
+    description: '',
+    categoryId: '',
+  });
+
+  // Edit Category Dialog State (separate from Manage Categories)
+  const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
+
+  // Edit Value Dialog State
+  const [editValueDialogOpen, setEditValueDialogOpen] = useState(false);
+  const [editingValueData, setEditingValueData] = useState<any>(null);
+  const [editValueForm, setEditValueForm] = useState({
+    displayName: '',
+    description: '',
+  });
+
+  // All values state for one-page view
+  const [allValues, setAllValues] = useState<{ [categoryId: string]: FilterValue[] }>({});
 
   // User Management State
   const [users, setUsers] = useState([
@@ -109,16 +140,7 @@ const AdminPage: React.FC = () => {
   });
   const [manageUsersDialogOpen, setManageUsersDialogOpen] = useState(false);
 
-  // Value Management State
-  const [editingValue, setEditingValue] = useState<any>(null);
-  const [valueForm, setValueForm] = useState({
-    name: '',
-    displayName: '',
-    description: '',
-    categoryId: '',
-    isActive: true,
-    sortOrder: 0,
-  });
+  // Note: values state removed as we now use categoryValues for managing filter values
 
   // Check if user is admin
   useEffect(() => {
@@ -133,13 +155,52 @@ const AdminPage: React.FC = () => {
       setLoading(true);
       const response = await ApiService.getFilterCategories();
       if (response.success && response.data) {
-        setCategories(response.data.categories);
+        console.log('Loaded categories:', response.data.categories);
+        // Check for categories with missing IDs
+        const categoriesWithMissingIds = response.data.categories.filter((cat: any) => !cat.id);
+        if (categoriesWithMissingIds.length > 0) {
+          console.error('Categories with missing IDs:', categoriesWithMissingIds);
+          console.warn('Filtering out categories with missing IDs to prevent UI issues');
+        }
+        // Filter out categories with null or missing IDs to prevent React key conflicts
+        const validCategories = response.data.categories.filter(
+          (cat: any) => cat.id && cat.id !== null
+        );
+        setCategories(validCategories);
+
+        // Load values for all categories
+        await loadAllCategoryValues(validCategories);
       }
     } catch (err) {
       console.error('Error loading categories:', err);
       setError('Failed to load categories');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load values for all categories
+  const loadAllCategoryValues = async (categoriesToLoad: any[]) => {
+    try {
+      const valuesMap: { [categoryId: string]: FilterValue[] } = {};
+
+      for (const category of categoriesToLoad) {
+        try {
+          const response = await ApiService.getCategoryValues(category.id);
+          if (response.success && response.data) {
+            valuesMap[category.id] = response.data.values;
+          } else {
+            valuesMap[category.id] = [];
+          }
+        } catch (err) {
+          console.error(`Error loading values for category ${category.id}:`, err);
+          valuesMap[category.id] = [];
+        }
+      }
+
+      setAllValues(valuesMap);
+    } catch (err) {
+      console.error('Error loading category values:', err);
     }
   };
 
@@ -168,35 +229,157 @@ const AdminPage: React.FC = () => {
     setTabValue(newValue);
   };
 
-
-
-
-
-  const handleManageCategoriesClick = () => {
-    setManageCategoriesDialogOpen(true);
-  };
-
-  const handleManageCategoriesClose = () => {
-    setManageCategoriesDialogOpen(false);
+  const handleAddFilterClick = () => {
+    // Reset the form for adding a new category
     setEditingCategory(null);
     setCategoryForm({
       name: '',
       displayName: '',
       description: '',
-      isActive: true,
-      sortOrder: 0,
     });
+    setEditCategoryDialogOpen(true);
   };
 
-  const handleEditCategory = (category: any) => {
+  // Validation helper functions
+  const validateName = (name: string): string | null => {
+    if (!name.trim()) return 'Name is required';
+    if (name.length < 2) return 'Name must be at least 2 characters';
+    if (name.length > 50) return 'Name must be less than 50 characters';
+    if (!/^[a-z0-9_]+$/.test(name))
+      return 'Name must contain only lowercase letters, numbers, and underscores';
+    if (name.includes(' ')) return 'Name cannot contain spaces';
+    return null;
+  };
+
+  const validateDisplayName = (displayName: string): string | null => {
+    if (!displayName.trim()) return 'Display name is required';
+    if (displayName.length < 2) return 'Display name must be at least 2 characters';
+    if (displayName.length > 100) return 'Display name must be less than 100 characters';
+    return null;
+  };
+
+  const validateDescription = (description: string): string | null => {
+    if (description.length > 500) return 'Description must be less than 500 characters';
+    return null;
+  };
+
+  const handleAddFilterClose = () => {
+    setAddFilterDialogOpen(false);
+    setFilterForm({
+      name: '',
+      displayName: '',
+      description: '',
+      categoryId: '',
+      value: '',
+    });
+    setIsSubmitting(false);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleFilterFormChange = (field: string, value: any) => {
+    setFilterForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleAddFilterSubmit = async () => {
+    // Enhanced validation
+    const nameError = validateName(filterForm.name);
+    const displayNameError = validateDisplayName(filterForm.displayName);
+    const descriptionError = validateDescription(filterForm.description);
+
+    if (nameError) {
+      setError(nameError);
+      return;
+    }
+
+    if (displayNameError) {
+      setError(displayNameError);
+      return;
+    }
+
+    if (descriptionError) {
+      setError(descriptionError);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await ApiService.createFilterCategory({
+        name: filterForm.name.trim(),
+        displayName: filterForm.displayName.trim(),
+        description: filterForm.description.trim() || undefined,
+      });
+
+      if (response.success && response.data) {
+        // Add the new category to the local state
+        const newCategory = response.data;
+        setCategories((prev) => [...prev, newCategory]);
+        // Initialize empty values array for the new category
+        setAllValues((prev) => ({
+          ...prev,
+          [newCategory.id]: [],
+        }));
+        // Notify other components that categories have changed
+        filterEventManager.notifyCategoriesChanged();
+        setSuccess(`Filter category "${newCategory.displayName}" created successfully!`);
+        setTimeout(() => handleAddFilterClose(), 1500); // Close after showing success message
+      } else {
+        throw new Error(response.error || 'Failed to create filter category');
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to add category. Please try again.';
+      setError(errorMessage);
+      console.error('Error adding category:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const loadCategoryValues = async (categoryId: string) => {
+    try {
+      console.log('Loading category values for:', categoryId);
+      const response = await ApiService.getCategoryValues(categoryId);
+      if (response.success && response.data?.values) {
+        console.log('Loaded category values:', response.data.values);
+        setCategoryValues(response.data.values);
+        // Also update allValues state
+        setAllValues((prev) => ({
+          ...prev,
+          [categoryId]: response.data!.values,
+        }));
+      } else {
+        console.log('No values found for category:', categoryId);
+        setCategoryValues([]);
+        setAllValues((prev) => ({
+          ...prev,
+          [categoryId]: [],
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading category values:', err);
+      setCategoryValues([]);
+      setAllValues((prev) => ({
+        ...prev,
+        [categoryId]: [],
+      }));
+    }
+  };
+
+  const handleEditCategory = async (category: any) => {
     setEditingCategory(category);
     setCategoryForm({
       name: category.name,
       displayName: category.displayName,
       description: category.description || '',
-      isActive: category.isActive,
-      sortOrder: category.sortOrder,
     });
+    setEditCategoryDialogOpen(true); // Open the separate Edit Category Dialog
   };
 
   const handleCategoryFormChange = (field: string, value: any) => {
@@ -214,15 +397,16 @@ const AdminPage: React.FC = () => {
 
     setIsSubmitting(true);
     setError(null);
+    setSuccess(null);
 
     try {
+      console.log('Saving category:', { categoryForm, editingCategory });
+
       if (editingCategory) {
         // Update existing category
         const response = await ApiService.updateFilterCategory(editingCategory.id, {
           displayName: categoryForm.displayName,
-          description: categoryForm.description,
-          isActive: categoryForm.isActive,
-          sortOrder: categoryForm.sortOrder,
+          description: categoryForm.description || '',
         });
 
         if (response.success && response.data) {
@@ -230,29 +414,52 @@ const AdminPage: React.FC = () => {
             cat.id === editingCategory.id ? response.data : cat
           );
           setCategories(updatedCategories);
+          setSuccess(`Category "${response.data.displayName}" updated successfully!`);
+
+          // Close the Edit Category Dialog
+          setEditCategoryDialogOpen(false);
+          setEditingCategory(null);
+          setCategoryForm({
+            name: '',
+            displayName: '',
+            description: '',
+          });
         } else {
           throw new Error(response.error || 'Failed to update category');
         }
       } else {
-        // Add new category
+        // Create new category
         const response = await ApiService.createFilterCategory({
-          name: categoryForm.name,
-          displayName: categoryForm.displayName,
-          description: categoryForm.description,
-          isActive: categoryForm.isActive,
-          sortOrder: categoryForm.sortOrder,
+          name: categoryForm.name.trim(),
+          displayName: categoryForm.displayName.trim(),
+          description: categoryForm.description.trim() || undefined,
         });
 
         if (response.success && response.data) {
-          setCategories((prev) => [...prev, response.data]);
+          const newCategory = response.data;
+          setCategories((prev) => [...prev, newCategory]);
+          setAllValues((prev) => ({
+            ...prev,
+            [newCategory.id]: [],
+          }));
+          setSuccess(`Category "${newCategory.displayName}" created successfully!`);
+
+          // Close the dialog and reset form
+          setEditCategoryDialogOpen(false);
+          setEditingCategory(null);
+          setCategoryForm({
+            name: '',
+            displayName: '',
+            description: '',
+          });
         } else {
           throw new Error(response.error || 'Failed to create category');
         }
       }
-
-      handleManageCategoriesClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save category. Please try again.');
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to save category. Please try again.';
+      setError(errorMessage);
       console.error('Error saving category:', err);
     } finally {
       setIsSubmitting(false);
@@ -264,19 +471,121 @@ const AdminPage: React.FC = () => {
       window.confirm('Are you sure you want to delete this category? This action cannot be undone.')
     ) {
       try {
+        setIsSubmitting(true);
+        setError(null);
+        setSuccess(null);
+
+        console.log('Deleting category:', categoryId);
         const response = await ApiService.deleteFilterCategory(categoryId);
 
         if (response.success) {
           setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
+          // Remove from allValues state as well
+          setAllValues((prev) => {
+            const newAllValues = { ...prev };
+            delete newAllValues[categoryId];
+            return newAllValues;
+          });
+
+          setSuccess('Category deleted successfully!');
+          console.log('Category deleted successfully:', categoryId);
         } else {
           throw new Error(response.error || 'Failed to delete category');
         }
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to delete category. Please try again.'
-        );
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to delete category. Please try again.';
+
+        // Check if it's the "associated values" error
+        if (
+          errorMessage.includes('associated filter values') ||
+          errorMessage.includes('associated filter value')
+        ) {
+          const category = categories.find((cat) => cat.id === categoryId);
+          const categoryName = category?.displayName || 'this category';
+
+          const shouldDeleteAll = window.confirm(
+            `Cannot delete ${categoryName} because it has associated filter values.\n\n` +
+              `Would you like to delete all values in ${categoryName} first, then delete the category?\n\n` +
+              `This will permanently delete all filter values in ${categoryName}.`
+          );
+
+          if (shouldDeleteAll) {
+            await handleDeleteCategoryWithValues(categoryId);
+          }
+        } else {
+          setError(errorMessage);
+        }
         console.error('Error deleting category:', err);
+      } finally {
+        setIsSubmitting(false);
       }
+    }
+  };
+
+  // Function to delete all values in a category, then delete the category
+  const handleDeleteCategoryWithValues = async (categoryId: string) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setSuccess(null);
+
+      console.log('Deleting category with all its values:', categoryId);
+
+      // First, get all values in the category
+      const category = categories.find((cat) => cat.id === categoryId);
+      if (!category) {
+        throw new Error('Category not found');
+      }
+
+      const valuesResponse = await ApiService.getCategoryValues(categoryId);
+      if (valuesResponse.success && valuesResponse.data?.values) {
+        const values = valuesResponse.data.values;
+        console.log(`Found ${values.length} values to delete in category:`, category.displayName);
+
+        // Delete all values one by one
+        for (const value of values) {
+          console.log('Deleting value:', value.displayName);
+          const deleteValueResponse = await ApiService.deleteFilterValue(value.id);
+          if (!deleteValueResponse.success) {
+            throw new Error(
+              `Failed to delete value "${value.displayName}": ${deleteValueResponse.error}`
+            );
+          }
+        }
+
+        // Now delete the category
+        const deleteCategoryResponse = await ApiService.deleteFilterCategory(categoryId);
+        if (deleteCategoryResponse.success) {
+          setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
+          // Remove from allValues state as well
+          setAllValues((prev) => {
+            const newAllValues = { ...prev };
+            delete newAllValues[categoryId];
+            return newAllValues;
+          });
+
+          setSuccess(
+            `Category "${category.displayName}" and all its ${values.length} values deleted successfully!`
+          );
+          console.log('Category and all values deleted successfully:', categoryId);
+        } else {
+          throw new Error(
+            deleteCategoryResponse.error || 'Failed to delete category after deleting values'
+          );
+        }
+      } else {
+        throw new Error('Failed to fetch category values');
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete category with values. Please try again.';
+      setError(errorMessage);
+      console.error('Error deleting category with values:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -404,13 +713,130 @@ const AdminPage: React.FC = () => {
   const handleEditValue = (value: any) => {
     setEditingValue(value);
     setValueForm({
-      name: value.name,
+      value: value.value,
       displayName: value.displayName,
       description: value.description || '',
       categoryId: value.categoryId,
-      isActive: value.isActive,
-      sortOrder: value.sortOrder,
     });
+  };
+
+  const handleChipEdit = (value: any) => {
+    setEditingValueData(value);
+    setEditValueForm({
+      displayName: value.displayName,
+      description: value.description || '',
+    });
+    setEditValueDialogOpen(true);
+  };
+
+  const handleEditValueDialogClose = () => {
+    setEditValueDialogOpen(false);
+    setEditingValueData(null);
+    setEditValueForm({
+      displayName: '',
+      description: '',
+    });
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleEditValueFormChange = (field: string, value: any) => {
+    setEditValueForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSaveEditValue = async () => {
+    if (!editValueForm.displayName.trim()) {
+      setError('Display name is required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('Saving edit value:', { editingValueData, editValueForm });
+
+      const response = await ApiService.updateFilterValue(editingValueData.id, {
+        value: editingValueData.value,
+        displayName: editValueForm.displayName.trim(),
+        description: editValueForm.description.trim() || undefined,
+      });
+
+      if (response.success && response.data) {
+        const updatedValue = response.data;
+
+        // Update local state - categoryValues array
+        setCategoryValues((prev) =>
+          prev.map((val) => (val.id === editingValueData.id ? updatedValue : val))
+        );
+
+        // Update allValues state as well
+        setAllValues((prev) => ({
+          ...prev,
+          [editingValueData.categoryId]:
+            prev[editingValueData.categoryId]?.map((val) =>
+              val.id === editingValueData.id ? updatedValue : val
+            ) || [],
+        }));
+
+        setSuccess(`Value "${updatedValue.displayName}" updated successfully!`);
+        setTimeout(() => handleEditValueDialogClose(), 1500);
+      } else {
+        throw new Error(response.error || 'Failed to update value');
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to update value. Please try again.';
+      setError(errorMessage);
+      console.error('Error updating value:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteEditValue = async () => {
+    if (
+      window.confirm('Are you sure you want to delete this value? This action cannot be undone.')
+    ) {
+      try {
+        setIsSubmitting(true);
+        setError(null);
+        setSuccess(null);
+
+        console.log('Deleting edit value:', editingValueData);
+
+        const response = await ApiService.deleteFilterValue(editingValueData.id);
+
+        if (response.success) {
+          // Update local state - remove from categoryValues
+          setCategoryValues((prev) => prev.filter((val) => val.id !== editingValueData.id));
+
+          // Update allValues state as well
+          setAllValues((prev) => ({
+            ...prev,
+            [editingValueData.categoryId]:
+              prev[editingValueData.categoryId]?.filter((val) => val.id !== editingValueData.id) ||
+              [],
+          }));
+
+          setSuccess('Value deleted successfully!');
+          setTimeout(() => handleEditValueDialogClose(), 1500);
+        } else {
+          throw new Error(response.error || 'Failed to delete value');
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to delete value. Please try again.';
+        setError(errorMessage);
+        console.error('Error deleting value:', err);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   const handleValueFormChange = (field: string, value: any) => {
@@ -421,51 +847,224 @@ const AdminPage: React.FC = () => {
   };
 
   const handleSaveValue = async () => {
-    if (!valueForm.name.trim() || !valueForm.displayName.trim()) {
-      setError('Name and Display Name are required');
+    if (!valueForm.value.trim() || !valueForm.displayName.trim() || !valueForm.categoryId) {
+      setError('Value, Display Name, and Category are required');
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      // For now, just log the action - API integration will be added later
-      if (editingValue) {
-        console.log('Updating value:', { ...editingValue, ...valueForm });
-      } else {
-        console.log('Adding new value:', valueForm);
-      }
+      console.log('Saving value:', { valueForm, editingValue });
 
-      // Clear the form
-      setEditingValue(null);
-      setValueForm({
-        name: '',
-        displayName: '',
-        description: '',
-        categoryId: '',
-        isActive: true,
-        sortOrder: 0,
-      });
+      if (editingValue) {
+        // Update existing value
+        const response = await ApiService.updateFilterValue(editingValue.id, {
+          value: valueForm.value.trim(),
+          displayName: valueForm.displayName.trim(),
+          description: valueForm.description.trim() || undefined,
+        });
+
+        if (response.success && response.data) {
+          // Update local state - categoryValues array
+          const updatedValue = response.data;
+          setCategoryValues((prev) =>
+            prev.map((val) => (val.id === editingValue.id ? updatedValue : val))
+          );
+
+          // Update allValues state as well
+          setAllValues((prev) => ({
+            ...prev,
+            [valueForm.categoryId]:
+              prev[valueForm.categoryId]?.map((val) =>
+                val.id === editingValue.id ? updatedValue : val
+              ) || [],
+          }));
+
+          setSuccess(`Value "${updatedValue.displayName}" updated successfully!`);
+          // Clear the editing state
+          setEditingValue(null);
+          setValueForm({
+            value: '',
+            displayName: '',
+            description: '',
+            categoryId: '',
+          });
+          setEditValueDialogOpen(false);
+        } else {
+          throw new Error(response.error || 'Failed to update value');
+        }
+      } else {
+        // Add new value
+        const response = await ApiService.createFilterValue({
+          categoryId: valueForm.categoryId,
+          value: valueForm.value.trim(),
+          displayName: valueForm.displayName.trim(),
+          description: valueForm.description.trim() || undefined,
+        });
+
+        if (response.success && response.data) {
+          // Add to local state - categoryValues array
+          const newValue = response.data;
+          setCategoryValues((prev) => [...prev, newValue]);
+
+          // Update allValues state as well
+          setAllValues((prev) => ({
+            ...prev,
+            [valueForm.categoryId]: [...(prev[valueForm.categoryId] || []), newValue],
+          }));
+
+          setSuccess(`Value "${newValue.displayName}" created successfully!`);
+          // Clear the form
+          setValueForm({
+            value: '',
+            displayName: '',
+            description: '',
+            categoryId: editingCategory?.id || '',
+          });
+          // Close the add value dialog
+          setAddValueDialogOpen(false);
+        } else {
+          throw new Error(response.error || 'Failed to create value');
+        }
+      }
     } catch (err) {
-      setError('Failed to save value. Please try again.');
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to save value. Please try again.';
+      setError(errorMessage);
       console.error('Error saving value:', err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteValue = async (valueId: string) => {
+  const handleDeleteValue = async (valueId: string, categoryId?: string) => {
     if (
       window.confirm('Are you sure you want to delete this value? This action cannot be undone.')
     ) {
       try {
-        console.log('Deleting value:', valueId);
-        // API integration will be added later
+        setIsSubmitting(true);
+        setError(null);
+        setSuccess(null);
+
+        console.log('Deleting value:', { valueId, categoryId });
+
+        // Make API call to delete the value
+        const response = await ApiService.deleteFilterValue(valueId);
+
+        if (response.success) {
+          // Update local state - remove from categoryValues
+          setCategoryValues((prev) => prev.filter((val) => val.id !== valueId));
+
+          // Update allValues state as well
+          if (categoryId) {
+            setAllValues((prev) => ({
+              ...prev,
+              [categoryId]: prev[categoryId]?.filter((val) => val.id !== valueId) || [],
+            }));
+          }
+
+          setSuccess('Value deleted successfully!');
+          console.log('Value deleted successfully:', valueId);
+        } else {
+          throw new Error(response.error || 'Failed to delete value');
+        }
       } catch (err) {
-        setError('Failed to delete value. Please try again.');
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to delete value. Please try again.';
+        setError(errorMessage);
         console.error('Error deleting value:', err);
+      } finally {
+        setIsSubmitting(false);
       }
+    }
+  };
+
+  // Debug function to test all API endpoints
+  const debugFilterManagement = async () => {
+    console.log('=== DEBUGGING FILTER MANAGEMENT ===');
+
+    try {
+      // Test 1: Get all categories
+      console.log('1. Testing getFilterCategories...');
+      const categoriesResponse = await ApiService.getFilterCategories();
+      console.log('Categories response:', categoriesResponse);
+
+      if (
+        categoriesResponse.success &&
+        categoriesResponse.data?.categories &&
+        categoriesResponse.data.categories.length > 0
+      ) {
+        const firstCategory = categoriesResponse.data.categories[0];
+
+        // Test 2: Get category values
+        console.log('2. Testing getCategoryValues...');
+        const valuesResponse = await ApiService.getCategoryValues(firstCategory.id);
+        console.log('Values response:', valuesResponse);
+
+        if (
+          valuesResponse.success &&
+          valuesResponse.data?.values &&
+          valuesResponse.data.values.length > 0
+        ) {
+          const firstValue = valuesResponse.data.values[0];
+
+          // Test 3: Update a value
+          console.log('3. Testing updateFilterValue...');
+          const updateResponse = await ApiService.updateFilterValue(firstValue.id, {
+            displayName: firstValue.displayName + ' (test)',
+          });
+          console.log('Update value response:', updateResponse);
+
+          // Test 4: Update back to original
+          if (updateResponse.success) {
+            console.log('4. Testing updateFilterValue (revert)...');
+            const revertResponse = await ApiService.updateFilterValue(firstValue.id, {
+              displayName: firstValue.displayName,
+            });
+            console.log('Revert value response:', revertResponse);
+          }
+
+          // Test 5: Try to delete a value (but don't actually delete it)
+          console.log('5. Testing deleteFilterValue (dry run)...');
+          console.log('Note: Not actually deleting value to preserve data');
+          console.log('Would delete value:', firstValue.displayName, 'with ID:', firstValue.id);
+        }
+
+        // Test 6: Update category
+        console.log('6. Testing updateFilterCategory...');
+        const updateCategoryResponse = await ApiService.updateFilterCategory(firstCategory.id, {
+          displayName: firstCategory.displayName + ' (test)',
+        });
+        console.log('Update category response:', updateCategoryResponse);
+
+        // Test 7: Revert category
+        if (updateCategoryResponse.success) {
+          console.log('7. Testing updateFilterCategory (revert)...');
+          const revertCategoryResponse = await ApiService.updateFilterCategory(firstCategory.id, {
+            displayName: firstCategory.displayName,
+          });
+          console.log('Revert category response:', revertCategoryResponse);
+        }
+
+        // Test 8: Try to delete a category (but don't actually delete it)
+        console.log('8. Testing deleteFilterCategory (dry run)...');
+        console.log('Note: Not actually deleting category to preserve data');
+        console.log(
+          'Would delete category:',
+          firstCategory.displayName,
+          'with ID:',
+          firstCategory.id
+        );
+      } else {
+        console.log('No categories found for testing');
+      }
+
+      console.log('=== DEBUG COMPLETE ===');
+    } catch (error) {
+      console.error('Debug error:', error);
     }
   };
 
@@ -499,7 +1098,7 @@ const AdminPage: React.FC = () => {
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="admin tabs">
             <Tab icon={<FilterListIcon />} label="Filter Management" iconPosition="start" />
             <Tab icon={<PeopleIcon />} label="User Management" iconPosition="start" />
-            <Tab icon={<SettingsIcon />} label="System Settings" iconPosition="start" />
+            <Tab label="System Settings" iconPosition="start" />
           </Tabs>
         </Box>
 
@@ -508,74 +1107,134 @@ const AdminPage: React.FC = () => {
             <Box
               sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}
             >
-              <Typography variant="h6">Filter Management</Typography>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={handleManageCategoriesClick}>
-                Add New Category
-              </Button>
+              <Typography variant="h6">Filter Categories & Values</Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={debugFilterManagement}
+                  sx={{ fontSize: '0.75rem' }}
+                >
+                  Debug API
+                </Button>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddFilterClick}>
+                  Add Category
+                </Button>
+              </Box>
             </Box>
 
-            {/* Categories List */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {categories.map((category) => (
-                <Card key={category.id}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="h6" gutterBottom>
-                          {category.displayName}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {category.description || 'No description'}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                          <Chip
-                            label={category.isActive ? 'Active' : 'Inactive'}
-                            color={category.isActive ? 'success' : 'default'}
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
+
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={3}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {categories.map((category) => {
+                  const categoryValues = allValues[category.id] || [];
+
+                  return (
+                    <Paper key={category.id} sx={{ p: 3 }}>
+                      {/* Category Header */}
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          mb: 2,
+                        }}
+                      >
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" component="div" sx={{ mb: 1 }}>
+                            {category.displayName}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            {category.description || 'No description'}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
                             size="small"
-                          />
-                          <Chip
-                            label={`Sort: ${category.sortOrder}`}
+                            variant="contained"
+                            onClick={() => {
+                              setEditingCategory(category);
+                              setEditingValue(null);
+                              setValueForm({
+                                value: '',
+                                displayName: '',
+                                description: '',
+                                categoryId: category.id,
+                              });
+                              setAddValueDialogOpen(true);
+                            }}
+                          >
+                            Add Value
+                          </Button>
+                          <Button
+                            size="small"
                             variant="outlined"
-                            size="small"
-                          />
-                          <Chip
-                            label={`${category.values?.length || 0} values`}
-                            variant="outlined"
-                            size="small"
-                          />
+                            onClick={() => handleEditCategory(category)}
+                            startIcon={<EditIcon />}
+                          >
+                            Edit
+                          </Button>
                         </Box>
                       </Box>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button
-                          size="small"
-                          startIcon={<EditIcon />}
-                          onClick={() => handleEditCategory(category)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteCategory(category.id)}
-                        >
-                          Delete
-                        </Button>
+
+                      {/* Values Section - Always Visible */}
+                      <Box sx={{ pt: 2 }}>
+                        {categoryValues.length > 0 ? (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {categoryValues.map((value) => (
+                              <EditableChip
+                                key={value.id}
+                                value={value.value}
+                                displayName={value.displayName}
+                                description={value.description}
+                                onEdit={() => handleChipEdit(value)}
+                                color="primary"
+                                variant="outlined"
+                                size="small"
+                              />
+                            ))}
+                          </Box>
+                        ) : (
+                          <Paper
+                            sx={{
+                              p: 2,
+                              textAlign: 'center',
+                              backgroundColor: 'background.default',
+                            }}
+                          >
+                            <Typography variant="body2" color="text.secondary">
+                              No values found for this category. Add your first value to get
+                              started.
+                            </Typography>
+                          </Paper>
+                        )}
                       </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {categories.length === 0 && (
-                <Card>
-                  <CardContent>
-                    <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
-                      No filter categories found. Click "Add New Category" to create your first category.
+                    </Paper>
+                  );
+                })}
+                {categories.length === 0 && (
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="body1" color="text.secondary">
+                      No filter categories found. Create your first category to get started.
                     </Typography>
-                  </CardContent>
-                </Card>
-              )}
-            </Box>
+                  </Paper>
+                )}
+              </Box>
+            )}
           </Box>
         </TabPanel>
 
@@ -632,13 +1291,91 @@ const AdminPage: React.FC = () => {
         </TabPanel>
       </Paper>
 
+      {/* Add Filter Dialog */}
+      <Dialog open={addFilterDialogOpen} onClose={handleAddFilterClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Category</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
 
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Name *</FormLabel>
+              <TextField
+                value={filterForm.name}
+                onChange={(e) => handleFilterFormChange('name', e.target.value)}
+                placeholder="e.g., use_cases"
+                size="small"
+                error={!!validateName(filterForm.name)}
+                helperText={validateName(filterForm.name) || 'Internal name (no spaces, lowercase)'}
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Display Name *</FormLabel>
+              <TextField
+                value={filterForm.displayName}
+                onChange={(e) => handleFilterFormChange('displayName', e.target.value)}
+                placeholder="e.g., Use Cases"
+                size="small"
+                error={!!validateDisplayName(filterForm.displayName)}
+                helperText={
+                  validateDisplayName(filterForm.displayName) ||
+                  'User-friendly name shown in the UI'
+                }
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Description</FormLabel>
+              <TextField
+                value={filterForm.description}
+                onChange={(e) => handleFilterFormChange('description', e.target.value)}
+                placeholder="Optional description"
+                multiline
+                rows={2}
+                size="small"
+                error={!!validateDescription(filterForm.description)}
+                helperText={
+                  validateDescription(filterForm.description) ||
+                  'Optional description (max 500 characters)'
+                }
+              />
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleAddFilterClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddFilterSubmit}
+            variant="contained"
+            disabled={
+              isSubmitting ||
+              !!validateName(filterForm.name) ||
+              !!validateDisplayName(filterForm.displayName) ||
+              !!validateDescription(filterForm.description)
+            }
+          >
+            {isSubmitting ? 'Adding...' : 'Add Category'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Manage Categories Dialog */}
       <Dialog
-        open={manageCategoriesDialogOpen}
-        onClose={handleManageCategoriesClose}
-        maxWidth="lg"
+        open={editCategoryDialogOpen}
+        onClose={() => setEditCategoryDialogOpen(false)}
+        maxWidth="sm"
         fullWidth
       >
         <DialogTitle>
@@ -657,290 +1394,143 @@ const AdminPage: React.FC = () => {
               </Alert>
             )}
 
-            {/* Category Form */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Category Details
-              </Typography>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Name *</FormLabel>
+              <TextField
+                value={categoryForm.name}
+                onChange={(e) => handleCategoryFormChange('name', e.target.value)}
+                placeholder="e.g., use_cases"
+                size="small"
+                error={!categoryForm.name.trim()}
+                helperText={
+                  !categoryForm.name.trim()
+                    ? 'Name is required'
+                    : 'Internal name (no spaces, lowercase)'
+                }
+                disabled={!!editingCategory}
+              />
+            </FormControl>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <FormLabel>Name *</FormLabel>
-                    <TextField
-                      value={categoryForm.name}
-                      onChange={(e) => handleCategoryFormChange('name', e.target.value)}
-                      placeholder="e.g., use_cases"
-                      size="small"
-                      error={!categoryForm.name.trim()}
-                      helperText={
-                        !categoryForm.name.trim()
-                          ? 'Name is required'
-                          : 'Internal name (no spaces, lowercase)'
-                      }
-                      disabled={!!editingCategory}
-                    />
-                  </FormControl>
-                </Grid>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Display Name *</FormLabel>
+              <TextField
+                value={categoryForm.displayName}
+                onChange={(e) => handleCategoryFormChange('displayName', e.target.value)}
+                placeholder="e.g., Use Cases"
+                size="small"
+                error={!categoryForm.displayName.trim()}
+                helperText={
+                  !categoryForm.displayName.trim()
+                    ? 'Display name is required'
+                    : 'User-friendly name shown in the UI'
+                }
+              />
+            </FormControl>
 
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <FormLabel>Display Name *</FormLabel>
-                    <TextField
-                      value={categoryForm.displayName}
-                      onChange={(e) => handleCategoryFormChange('displayName', e.target.value)}
-                      placeholder="e.g., Use Cases"
-                      size="small"
-                      error={!categoryForm.displayName.trim()}
-                      helperText={
-                        !categoryForm.displayName.trim()
-                          ? 'Display name is required'
-                          : 'User-friendly name shown in the UI'
-                      }
-                    />
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <FormLabel>Description</FormLabel>
-                    <TextField
-                      value={categoryForm.description}
-                      onChange={(e) => handleCategoryFormChange('description', e.target.value)}
-                      placeholder="Optional description"
-                      multiline
-                      rows={2}
-                      size="small"
-                    />
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth sx={{ mb: 2 }}>
-                    <FormLabel>Sort Order</FormLabel>
-                    <TextField
-                      type="number"
-                      value={categoryForm.sortOrder}
-                      onChange={(e) =>
-                        handleCategoryFormChange('sortOrder', parseInt(e.target.value) || 0)
-                      }
-                      placeholder="0"
-                      size="small"
-                    />
-                    <FormHelperText>Lower numbers appear first in the list</FormHelperText>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={categoryForm.isActive}
-                        onChange={(e) => handleCategoryFormChange('isActive', e.target.checked)}
-                      />
-                    }
-                    label="Active"
-                  />
-                </Grid>
-              </Grid>
-            </Box>
-
-            {/* Values Section - Only show when editing a category */}
-            {editingCategory && (
-              <Box sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">Category Values</Typography>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={() => {
-                      setEditingValue(null);
-                      setValueForm({
-                        name: '',
-                        displayName: '',
-                        description: '',
-                        categoryId: editingCategory.id,
-                        isActive: true,
-                        sortOrder: (editingCategory.values?.length || 0) + 1,
-                      });
-                    }}
-                  >
-                    Add New Value
-                  </Button>
-                </Box>
-
-                {/* Values List */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-                  {editingCategory.values?.map((value: any) => (
-                    <Paper
-                      key={value.id}
-                      sx={{
-                        p: 2,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="subtitle1">{value.displayName}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {value.description || 'No description'}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                          <Chip
-                            label={value.isActive ? 'Active' : 'Inactive'}
-                            color={value.isActive ? 'success' : 'default'}
-                            size="small"
-                          />
-                          <Chip label={`Sort: ${value.sortOrder}`} variant="outlined" size="small" />
-                        </Box>
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button size="small" onClick={() => handleEditValue(value)}>
-                          Edit
-                        </Button>
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteValue(value.id)}
-                        >
-                          Delete
-                        </Button>
-                      </Box>
-                    </Paper>
-                  ))}
-                  
-                  {(!editingCategory.values || editingCategory.values.length === 0) && (
-                    <Paper sx={{ p: 3, textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        No values in this category yet. Click "Add New Value" to create the first one.
-                      </Typography>
-                    </Paper>
-                  )}
-                </Box>
-
-                {/* Value Form */}
-                {(editingValue || valueForm.name) && (
-                  <Box sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}>
-                    <Typography variant="h6" gutterBottom>
-                      {editingValue ? 'Edit Value' : 'Add New Value'}
-                    </Typography>
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <FormControl fullWidth sx={{ mb: 2 }}>
-                          <FormLabel>Name *</FormLabel>
-                          <TextField
-                            value={valueForm.name}
-                            onChange={(e) => handleValueFormChange('name', e.target.value)}
-                            placeholder="e.g., navigation"
-                            size="small"
-                            error={!valueForm.name.trim()}
-                            helperText={
-                              !valueForm.name.trim()
-                                ? 'Name is required'
-                                : 'Internal name (no spaces, lowercase)'
-                            }
-                            disabled={!!editingValue}
-                          />
-                        </FormControl>
-                      </Grid>
-
-                      <Grid item xs={12} md={6}>
-                        <FormControl fullWidth sx={{ mb: 2 }}>
-                          <FormLabel>Display Name *</FormLabel>
-                          <TextField
-                            value={valueForm.displayName}
-                            onChange={(e) => handleValueFormChange('displayName', e.target.value)}
-                            placeholder="e.g., Navigation"
-                            size="small"
-                            error={!valueForm.displayName.trim()}
-                            helperText={
-                              !valueForm.displayName.trim()
-                                ? 'Display name is required'
-                                : 'User-friendly name shown in the UI'
-                              }
-                          />
-                        </FormControl>
-                      </Grid>
-
-                      <Grid item xs={12}>
-                        <FormControl fullWidth sx={{ mb: 2 }}>
-                          <FormLabel>Description</FormLabel>
-                          <TextField
-                            value={valueForm.description}
-                            onChange={(e) => handleValueFormChange('description', e.target.value)}
-                            placeholder="Optional description"
-                            multiline
-                            rows={2}
-                            size="small"
-                          />
-                        </FormControl>
-                      </Grid>
-
-                      <Grid item xs={12} md={6}>
-                        <FormControl fullWidth sx={{ mb: 2 }}>
-                          <FormLabel>Sort Order</FormLabel>
-                          <TextField
-                            type="number"
-                            value={valueForm.sortOrder}
-                            onChange={(e) =>
-                              handleValueFormChange('sortOrder', parseInt(e.target.value) || 0)
-                            }
-                            placeholder="0"
-                            size="small"
-                          />
-                          <FormHelperText>Lower numbers appear first in the list</FormHelperText>
-                        </FormControl>
-                      </Grid>
-
-                      <Grid item xs={12} md={6}>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={valueForm.isActive}
-                              onChange={(e) => handleValueFormChange('isActive', e.target.checked)}
-                            />
-                          }
-                          label="Active"
-                        />
-                      </Grid>
-                    </Grid>
-                  </Box>
-                )}
-              </Box>
-            )}
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Description</FormLabel>
+              <TextField
+                value={categoryForm.description}
+                onChange={(e) => handleCategoryFormChange('description', e.target.value)}
+                placeholder="Optional description"
+                multiline
+                rows={2}
+                size="small"
+              />
+            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleManageCategoriesClose} disabled={isSubmitting}>
-            Close
+          <Button onClick={() => setEditCategoryDialogOpen(false)} disabled={isSubmitting}>
+            Cancel
           </Button>
-          {(editingValue || valueForm.name) && (
-            <Button
-              onClick={handleSaveValue}
-              variant="contained"
-              disabled={
-                isSubmitting ||
-                !valueForm.name.trim() ||
-                !valueForm.displayName.trim()
-              }
-            >
-              {isSubmitting ? 'Saving...' : editingValue ? 'Update Value' : 'Add Value'}
-            </Button>
-          )}
-          {(editingCategory || categoryForm.name) && (
-            <Button
-              onClick={handleSaveCategory}
-              variant="contained"
-              disabled={
-                isSubmitting || !categoryForm.name.trim() || !categoryForm.displayName.trim()
-              }
-            >
-              {isSubmitting ? 'Saving...' : editingCategory ? 'Update Category' : 'Add Category'}
-            </Button>
-          )}
+          <Button
+            onClick={handleSaveCategory}
+            variant="contained"
+            disabled={isSubmitting || !categoryForm.name.trim() || !categoryForm.displayName.trim()}
+          >
+            {isSubmitting ? 'Saving...' : editingCategory ? 'Update Category' : 'Add Category'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Value Dialog */}
+      <Dialog
+        open={addValueDialogOpen}
+        onClose={() => setAddValueDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add New Value</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Value *</FormLabel>
+              <TextField
+                value={valueForm.value}
+                onChange={(e) => handleValueFormChange('value', e.target.value)}
+                placeholder="e.g., navigation"
+                size="small"
+                error={!valueForm.value.trim()}
+                helperText={
+                  !valueForm.value.trim()
+                    ? 'Value is required'
+                    : 'Internal value (no spaces, lowercase)'
+                }
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Display Name *</FormLabel>
+              <TextField
+                value={valueForm.displayName}
+                onChange={(e) => handleValueFormChange('displayName', e.target.value)}
+                placeholder="e.g., Navigation"
+                size="small"
+                error={!valueForm.displayName.trim()}
+                helperText={
+                  !valueForm.displayName.trim()
+                    ? 'Display name is required'
+                    : 'User-friendly name shown in the UI'
+                }
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Description</FormLabel>
+              <TextField
+                value={valueForm.description}
+                onChange={(e) => handleValueFormChange('description', e.target.value)}
+                placeholder="Optional description"
+                multiline
+                rows={2}
+                size="small"
+              />
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddValueDialogOpen(false)} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveValue}
+            variant="contained"
+            disabled={isSubmitting || !valueForm.value.trim() || !valueForm.displayName.trim()}
+          >
+            {isSubmitting ? 'Saving...' : 'Add Value'}
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -1120,7 +1710,159 @@ const AdminPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Edit Category Dialog */}
+      <Dialog
+        open={editCategoryDialogOpen}
+        onClose={() => setEditCategoryDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Category: {editingCategory?.displayName}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
 
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Name *</FormLabel>
+              <TextField
+                value={categoryForm.name}
+                onChange={(e) => handleCategoryFormChange('name', e.target.value)}
+                placeholder="e.g., use_cases"
+                size="small"
+                error={!categoryForm.name.trim()}
+                helperText={
+                  !categoryForm.name.trim()
+                    ? 'Name is required'
+                    : 'Internal name (no spaces, lowercase)'
+                }
+                disabled={!!editingCategory}
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Display Name *</FormLabel>
+              <TextField
+                value={categoryForm.displayName}
+                onChange={(e) => handleCategoryFormChange('displayName', e.target.value)}
+                placeholder="e.g., Use Cases"
+                size="small"
+                error={!categoryForm.displayName.trim()}
+                helperText={
+                  !categoryForm.displayName.trim()
+                    ? 'Display name is required'
+                    : 'User-friendly name shown in the UI'
+                }
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Description</FormLabel>
+              <TextField
+                value={categoryForm.description}
+                onChange={(e) => handleCategoryFormChange('description', e.target.value)}
+                placeholder="Optional description"
+                multiline
+                rows={2}
+                size="small"
+              />
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditCategoryDialogOpen(false)} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveCategory}
+            variant="contained"
+            disabled={isSubmitting || !categoryForm.name.trim() || !categoryForm.displayName.trim()}
+          >
+            {isSubmitting ? 'Saving...' : 'Update Category'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Value Dialog */}
+      <Dialog
+        open={editValueDialogOpen}
+        onClose={handleEditValueDialogClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Filter Value: {editingValueData?.displayName}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Internal Value</FormLabel>
+              <TextField
+                value={editingValueData?.value || ''}
+                size="small"
+                disabled
+                helperText="Internal value cannot be changed"
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Display Name *</FormLabel>
+              <TextField
+                value={editValueForm.displayName}
+                onChange={(e) => handleEditValueFormChange('displayName', e.target.value)}
+                placeholder="e.g., Navigation"
+                size="small"
+                error={!editValueForm.displayName.trim()}
+                helperText={!editValueForm.displayName.trim() ? 'Display name is required' : ''}
+              />
+            </FormControl>
+
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <FormLabel>Description</FormLabel>
+              <TextField
+                value={editValueForm.description}
+                onChange={(e) => handleEditValueFormChange('description', e.target.value)}
+                placeholder="Optional description"
+                multiline
+                rows={2}
+                size="small"
+              />
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditValueDialogClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteEditValue} color="error" disabled={isSubmitting}>
+            Delete
+          </Button>
+          <Button
+            onClick={handleSaveEditValue}
+            variant="contained"
+            disabled={isSubmitting || !editValueForm.displayName.trim()}
+          >
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
