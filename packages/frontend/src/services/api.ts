@@ -223,6 +223,15 @@ export class ApiService {
     return response.data;
   }
 
+  static async getCategoryValues(
+    categoryId: string
+  ): Promise<ApiResponse<{ values: FilterValue[] }>> {
+    const response: AxiosResponse<ApiResponse<{ values: FilterValue[] }>> = await apiClient.get(
+      `/api/projects/filters/categories/${categoryId}/values`
+    );
+    return response.data;
+  }
+
   static async createFilterValue(valueData: {
     categoryId: string;
     value: string;
