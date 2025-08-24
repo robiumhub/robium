@@ -7,7 +7,9 @@ class DatabaseManager {
   private dbPath: string;
 
   constructor() {
-    this.dbPath = path.join(__dirname, '../generated/robium.db');
+    // Use absolute path to ensure single database location for both dev and production
+    // The backend is always running from the project root, so use the correct path
+    this.dbPath = path.join(process.cwd(), 'packages/backend/data/robium.db');
   }
 
   async connect(): Promise<void> {

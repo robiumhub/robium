@@ -41,35 +41,13 @@ const ProjectDetailPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        
-        // TODO: Implement getProject API call
-        // const response = await ApiService.getProject(projectId);
-        // if (response.success && response.data) {
-        //   setProject(response.data);
-        // } else {
-        //   setError('Failed to fetch project');
-        // }
-        
-        // For now, simulate a project
-        setProject({
-          id: projectId,
-          name: `Project ${projectId}`,
-          description: 'This is a sample project description. The actual project data will be loaded from the API.',
-          ownerId: user?.id || '',
-          isActive: true,
-          isTemplate: false,
-          tags: ['navigation', 'slam', 'turtlebot3'],
-          config: {},
-          metadata: {
-            useCases: ['navigation'],
-            capabilities: ['slam', 'localization'],
-            robots: ['turtlebot3'],
-            simulators: ['gazebo'],
-            difficulty: 'intermediate',
-          },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+
+        const response = await ApiService.getProject(projectId);
+        if (response.success && response.data) {
+          setProject(response.data.project);
+        } else {
+          setError('Failed to fetch project');
+        }
       } catch (err) {
         console.error('Error fetching project:', err);
         setError('Failed to fetch project');
@@ -113,29 +91,17 @@ const ProjectDetailPage: React.FC = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-          sx={{ mr: 2 }}
-        >
+        <Button startIcon={<ArrowBackIcon />} onClick={handleBack} sx={{ mr: 2 }}>
           Back to Projects
         </Button>
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
           {project.name}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={handleEdit}
-          >
+          <Button variant="outlined" startIcon={<EditIcon />} onClick={handleEdit}>
             Edit
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<SettingsIcon />}
-            onClick={handleSettings}
-          >
+          <Button variant="outlined" startIcon={<SettingsIcon />} onClick={handleSettings}>
             Settings
           </Button>
         </Box>
@@ -203,9 +169,9 @@ const ProjectDetailPage: React.FC = () => {
                 <Typography variant="subtitle2" color="text.secondary">
                   Difficulty
                 </Typography>
-                <Chip 
-                  label={project.metadata.difficulty || 'Not specified'} 
-                  size="small" 
+                <Chip
+                  label={project.metadata.difficulty || 'Not specified'}
+                  size="small"
                   sx={{ mt: 1 }}
                 />
               </Grid>
@@ -241,8 +207,8 @@ const ProjectDetailPage: React.FC = () => {
                   <Typography variant="subtitle2" color="text.secondary">
                     Status
                   </Typography>
-                  <Chip 
-                    label={project.isActive ? 'Active' : 'Inactive'} 
+                  <Chip
+                    label={project.isActive ? 'Active' : 'Inactive'}
                     color={project.isActive ? 'success' : 'default'}
                     size="small"
                   />
@@ -251,8 +217,8 @@ const ProjectDetailPage: React.FC = () => {
                   <Typography variant="subtitle2" color="text.secondary">
                     Type
                   </Typography>
-                  <Chip 
-                    label={project.isTemplate ? 'Template' : 'Project'} 
+                  <Chip
+                    label={project.isTemplate ? 'Template' : 'Project'}
                     variant="outlined"
                     size="small"
                   />

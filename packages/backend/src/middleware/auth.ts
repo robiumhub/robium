@@ -22,8 +22,8 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
       return;
     }
 
-    // Simple token-based authentication for testing
-    if (token === 'admin-token') {
+    // Handle new token format: role-token-timestamp
+    if (token.startsWith('admin-token-') || token === 'admin-token') {
       req.user = {
         id: '1',
         email: 'admin@robium.com',
@@ -31,7 +31,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
         role: 'admin',
       };
       next();
-    } else if (token === 'user-token') {
+    } else if (token.startsWith('user-token-') || token === 'user-token') {
       req.user = {
         id: '2',
         email: 'user@robium.com',

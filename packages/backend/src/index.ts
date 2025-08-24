@@ -11,7 +11,8 @@ import { logger } from './utils/logger';
 import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler';
 
 // Load environment variables
-dotenv.config();
+// Look for .env file in parent directory when running from dist folder
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Import routes
 import authRoutes from './routes/auth';

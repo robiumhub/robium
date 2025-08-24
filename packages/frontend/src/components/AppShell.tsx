@@ -30,6 +30,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileEditModal from './ProfileEditModal';
+import { User } from '@robium/shared';
 
 const drawerWidth = 240;
 
@@ -42,9 +44,15 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
+
+  const handleProfileUpdate = (updatedUser: User) => {
+    updateUser(updatedUser);
+    setProfileModalOpen(false);
+  };
 
   const menuItems = [
     { text: 'Projects', icon: <DashboardIcon />, path: '/projects' },
@@ -78,7 +86,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
   const handleProfile = () => {
     handleUserMenuClose();
-    navigate('/profile');
+    setProfileModalOpen(true);
   };
 
   const drawer = (
@@ -173,7 +181,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
             >
               Robium
             </Typography>
-            
+
             {/* Testing Indicator */}
             <Typography
               variant="caption"
@@ -232,9 +240,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                   sx={{ color: 'primary.main' }}
                   aria-label="user menu"
                 >
-                  <Avatar
-                    sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
-                  >
+                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
                     <AccountIcon />
                   </Avatar>
                 </IconButton>
@@ -294,10 +300,7 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
       </AppBar>
 
       {/* Mobile Drawer */}
-      <Box
-        component="nav"
-        sx={{ display: { sm: 'none' } }}
-      >
+      <Box component="nav" sx={{ display: { sm: 'none' } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -338,6 +341,14 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
           {children}
         </Box>
       </Box>
+
+      {/* Profile Edit Modal */}
+      <ProfileEditModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        user={user}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </Box>
   );
 };

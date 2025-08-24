@@ -8,6 +8,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import ProjectEditPage from './pages/ProjectEditPage';
 import ProjectSettingsPage from './pages/ProjectSettingsPage';
+import ProjectCreatePage from './pages/ProjectCreatePage';
 import TemplatesPage from './pages/TemplatesPage';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -40,6 +41,7 @@ function App() {
     <AppShell>
       <Routes>
         <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/new" element={<ProjectCreatePage />} />
         <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
         <Route path="/projects/:projectId/edit" element={<ProjectEditPage />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
