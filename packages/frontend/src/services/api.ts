@@ -3,11 +3,12 @@ import {
   ApiResponse,
   User,
   Project,
-  ProjectFilters,
   FilterCategory,
   FilterValue,
   DockerfileResponse,
   GitHubStatus,
+  GitHubRepo,
+  GitHubCreateRepoOptions,
   AdminDashboard,
 } from '@robium/shared';
 
@@ -122,13 +123,9 @@ export class ApiService {
     isTemplate?: boolean;
     config?: Record<string, any>;
     metadata?: Record<string, any>;
-    github?: {
-      createRepo?: boolean;
-      visibility?: 'private' | 'public';
-      repoName?: string;
-    };
-  }): Promise<ApiResponse<{ project: Project; githubRepo?: any }>> {
-    const response: AxiosResponse<ApiResponse<{ project: Project; githubRepo?: any }>> =
+    github?: GitHubCreateRepoOptions;
+  }): Promise<ApiResponse<{ project: Project; githubRepo?: GitHubRepo }>> {
+    const response: AxiosResponse<ApiResponse<{ project: Project; githubRepo?: GitHubRepo }>> =
       await apiClient.post('/api/projects', projectData);
     return response.data;
   }
@@ -158,11 +155,13 @@ export class ApiService {
     return response.data;
   }
 
-  static async cloneProject(id: string, name: string): Promise<ApiResponse<{ project: Project }>> {
-    const response: AxiosResponse<ApiResponse<{ project: Project }>> = await apiClient.post(
-      `/api/projects/${id}/clone`,
-      { name }
-    );
+  static async cloneProject(
+    id: string,
+    name: string,
+    github?: GitHubCreateRepoOptions
+  ): Promise<ApiResponse<{ project: Project; githubRepo?: GitHubRepo }>> {
+    const response: AxiosResponse<ApiResponse<{ project: Project; githubRepo?: GitHubRepo }>> =
+      await apiClient.post(`/api/projects/${id}/clone`, { name, github });
     return response.data;
   }
 

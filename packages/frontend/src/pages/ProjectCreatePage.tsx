@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -22,7 +22,6 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ApiService } from '../services/api';
-import { Project } from '@robium/shared';
 
 const ProjectCreatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -42,11 +41,21 @@ const ProjectCreatePage: React.FC = () => {
     repoName: '',
   });
 
+  // Automatically enable GitHub repo creation for templates
+  useEffect(() => {
+    if (formData.isTemplate && !githubOptions.createRepo) {
+      setGithubOptions((prev) => ({ ...prev, createRepo: true }));
+    }
+  }, [formData.isTemplate, githubOptions.createRepo]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
+
+    // For templates, always create GitHub repository
+    const shouldCreateRepo = formData.isTemplate || githubOptions.createRepo;
 
     try {
       const response = await ApiService.createProject({
@@ -56,7 +65,7 @@ const ProjectCreatePage: React.FC = () => {
         isTemplate: formData.isTemplate,
         config: {},
         metadata: {},
-        github: githubOptions.createRepo
+        github: shouldCreateRepo
           ? {
               createRepo: true,
               visibility: githubOptions.visibility,
@@ -68,16 +77,16 @@ const ProjectCreatePage: React.FC = () => {
 
       if (response.success && response.data && response.data.project) {
         // Show success message if GitHub repo was created
-        if (githubOptions.createRepo && response.data.githubRepo) {
+        if (shouldCreateRepo && response.data.githubRepo) {
           setSuccess(
             `Project created successfully! GitHub repository created at: ${response.data.githubRepo.html_url}. Click the link to view your repository.`
           );
           // Navigate after a short delay to show the success message
           setTimeout(() => {
-            navigate(`/projects/${response.data.project.id}`);
+            navigate(`/projects/${response.data!.project.id}`);
           }, 3000);
         } else {
-          navigate(`/projects/${response.data.project.id}`);
+          navigate(`/projects/${response.data!.project.id}`);
         }
       } else {
         setError(response.error || 'Failed to create project');
@@ -231,23 +240,30 @@ const ProjectCreatePage: React.FC = () => {
                   GitHub Repository
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Optionally create a GitHub repository for this project
+                  {formData.isTemplate
+                    ? 'GitHub repository creation is required for templates'
+                    : 'Optionally create a GitHub repository for this project'}
                 </Typography>
 
                 <Stack spacing={2}>
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={githubOptions.createRepo}
+                        checked={formData.isTemplate || githubOptions.createRepo}
                         onChange={(e) =>
                           setGithubOptions((prev) => ({ ...prev, createRepo: e.target.checked }))
                         }
+                        disabled={formData.isTemplate}
                       />
                     }
-                    label="Create GitHub Repository"
+                    label={
+                      formData.isTemplate
+                        ? 'Create GitHub Repository (Required)'
+                        : 'Create GitHub Repository'
+                    }
                   />
 
-                  {githubOptions.createRepo && (
+                  {(formData.isTemplate || githubOptions.createRepo) && (
                     <>
                       <FormControl fullWidth>
                         <InputLabel>Repository Visibility</InputLabel>

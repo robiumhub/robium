@@ -57,7 +57,6 @@ export interface ProjectMetadata {
   useCases?: string[];
   capabilities?: string[];
   robots?: string[];
-  simulators?: string[];
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   estimatedRuntime?: string;
   hardwareRequirements?: string[];
@@ -68,8 +67,6 @@ export interface ProjectFilters {
   useCases: string[];
   capabilities: string[];
   robots: string[];
-  simulators: string[];
-  difficulty: string[];
   tags: string[];
   searchQuery?: string;
 }
@@ -103,8 +100,6 @@ export interface FilterStats {
   useCaseCounts: Record<string, number>;
   capabilityCounts: Record<string, number>;
   robotCounts: Record<string, number>;
-  simulatorCounts: Record<string, number>;
-  difficultyCounts: Record<string, number>;
   tagCounts: Record<string, number>;
 }
 
@@ -112,8 +107,6 @@ export interface FacetCounts {
   useCases: Record<string, number>;
   capabilities: Record<string, number>;
   robots: Record<string, number>;
-  simulators: Record<string, number>;
-  difficulty: Record<string, number>;
   tags: Record<string, number>;
 }
 
@@ -131,6 +124,24 @@ export interface GitHubStatus {
   username?: string;
   repositories?: string[];
   lastSync?: Date;
+}
+
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+  owner: {
+    login: string;
+    id: number;
+    avatar_url: string;
+  };
+}
+
+export interface GitHubCreateRepoOptions {
+  createRepo: boolean;
+  visibility: 'private' | 'public';
+  repoName?: string;
 }
 
 // Admin Dashboard Types

@@ -207,9 +207,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       updatedAt: new Date(createdProject.updated_at),
     };
 
-    // GitHub repository creation (if requested and user is admin)
+    // GitHub repository creation (if requested and user is admin, or if creating a template)
     let githubRepo = null;
-    if (github?.createRepo && req.user?.role === 'admin') {
+    if (github?.createRepo && (req.user?.role === 'admin' || isTemplate)) {
       try {
         const gh = getGitHubService();
         const repo = await gh.createRepoForAuthenticatedUser({
@@ -340,7 +340,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/:id/clone', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { name } = req.body;
+    const { name, github } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -460,10 +460,72 @@ router.post('/:id/clone', authMiddleware, async (req: AuthRequest, res) => {
       updatedAt: new Date(clonedProject.updated_at),
     };
 
+    // GitHub repository creation (if requested and user is admin, or if cloning from template)
+    let githubRepo = null;
+    const isCloningFromTemplate = sourceProject.is_template === 1;
+
+    if (github?.createRepo && (req.user?.role === 'admin' || isCloningFromTemplate)) {
+      try {
+        const gh = getGitHubService();
+        const repo = await gh.createRepoForAuthenticatedUser({
+          name: (github.repoName || cloneName)
+            .toLowerCase()
+            .replace(/[^a-z0-9-_]+/g, '-')
+            .slice(0, 100),
+          description: clonedProject.description || `Robium project ${cloneName}`,
+          private: github.visibility === 'private',
+          autoInit: true,
+        });
+
+        // Update project with GitHub repo info
+        await new Promise<void>((resolve, reject) => {
+          db.run(
+            `
+            UPDATE projects SET 
+              github_repo_owner = ?, 
+              github_repo_name = ?, 
+              github_repo_url = ?, 
+              github_repo_id = ?, 
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `,
+            [repo.owner.login, repo.name, repo.html_url, repo.id, cloneId],
+            (err) => {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+
+        // Generate scaffold files and push as initial commit
+        const files = projectScaffoldService.generateScaffold(cloneName);
+        await gh.createOrUpdateFiles(
+          repo.owner.login,
+          repo.name,
+          files,
+          'chore: initial project scaffold'
+        );
+
+        githubRepo = {
+          id: repo.id,
+          name: repo.name,
+          full_name: repo.full_name,
+          html_url: repo.html_url,
+          owner: repo.owner,
+        };
+
+        console.log(`Successfully created GitHub repo for cloned project: ${repo.html_url}`);
+      } catch (ghErr) {
+        console.error('GitHub repo creation failed for cloned project:', ghErr);
+        // Non-blocking - project cloning still succeeds
+      }
+    }
+
     res.json({
       success: true,
       data: {
         project: transformedProject,
+        githubRepo,
       },
       message: 'Project cloned successfully',
     });

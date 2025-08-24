@@ -38,12 +38,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { ApiService } from '../services/api';
 import ProjectFilters from '../components/ProjectFilters';
-import {
-  Project,
-  ProjectFilters as ProjectFiltersType,
-  FilterCategory,
-  FilterValue,
-} from '@robium/shared';
+import { Project, ProjectFilters as ProjectFiltersType } from '@robium/shared';
+import { useFilterData } from '../hooks/useFilterData';
 
 type ViewMode = 'grid' | 'list';
 
@@ -54,42 +50,40 @@ const TemplatesPage: React.FC = () => {
 
   // State
   const [templates, setTemplates] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<ProjectFiltersType>({
     useCases: [],
     capabilities: [],
     robots: [],
-    simulators: [],
-    difficulty: [],
     tags: [],
   });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [categories, setCategories] = useState<FilterCategory[]>([]);
-  const [filterValues, setFilterValues] = useState<FilterValue[]>([]);
-  const [stats, setStats] = useState<Record<string, Record<string, number>>>({});
-  
+
+  // Filter data management
+  const { categories, filterValues, stats, loading, error, retryCount, refresh, clearError } =
+    useFilterData({ isTemplate: true, autoRefresh: true });
+
   // Template dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Project | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [githubOptions, setGithubOptions] = useState({
+    createRepo: false,
+    visibility: 'private' as 'private' | 'public',
+    repoName: '',
+  });
 
   // Preview Dialog State
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Project | null>(null);
 
-  // Load templates and filter data
+  // Load templates
   useEffect(() => {
-    const loadData = async () => {
+    const loadTemplates = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        // Load templates
         const templatesResponse = await ApiService.getTemplates();
         if (
           templatesResponse.success &&
@@ -97,36 +91,13 @@ const TemplatesPage: React.FC = () => {
           templatesResponse.data.projects
         ) {
           setTemplates(templatesResponse.data.projects);
-        } else {
-          setError('Failed to fetch templates');
-        }
-
-        // Load filter categories
-        const categoriesResponse = await ApiService.getFilterCategories();
-        if (categoriesResponse.success && categoriesResponse.data) {
-          setCategories(categoriesResponse.data.categories);
-        }
-
-        // Load filter values
-        const valuesResponse = await ApiService.getFilterValues();
-        if (valuesResponse.success && valuesResponse.data) {
-          setFilterValues(valuesResponse.data.values);
-        }
-
-        // Load filter stats for templates
-        const statsResponse = await ApiService.getFilterStats(true);
-        if (statsResponse.success && statsResponse.data) {
-          setStats(statsResponse.data.stats);
         }
       } catch (err) {
-        console.error('Error loading data:', err);
-        setError('Failed to load data');
-      } finally {
-        setLoading(false);
+        console.error('Error loading templates:', err);
       }
     };
 
-    loadData();
+    loadTemplates();
   }, []);
 
   // Filter and search templates
@@ -165,19 +136,6 @@ const TemplatesPage: React.FC = () => {
       );
     }
 
-    if (filters.simulators.length > 0) {
-      filtered = filtered.filter((template) =>
-        template.metadata?.simulators?.some((simulator) => filters.simulators.includes(simulator))
-      );
-    }
-
-    if (filters.difficulty.length > 0) {
-      filtered = filtered.filter(
-        (template) =>
-          template.metadata?.difficulty && filters.difficulty.includes(template.metadata.difficulty)
-      );
-    }
-
     if (filters.tags.length > 0) {
       filtered = filtered.filter((template) =>
         template.tags.some((tag) => filters.tags.includes(tag))
@@ -196,8 +154,6 @@ const TemplatesPage: React.FC = () => {
       useCases: [],
       capabilities: [],
       robots: [],
-      simulators: [],
-      difficulty: [],
       tags: [],
     });
   };
@@ -231,12 +187,34 @@ const TemplatesPage: React.FC = () => {
 
     setIsCreating(true);
     try {
-      const response = await ApiService.cloneProject(selectedTemplate.id, newProjectName.trim());
+      // Always create GitHub repository when cloning from template
+      const githubOptions = {
+        createRepo: true,
+        visibility: 'private' as 'private' | 'public',
+        repoName: newProjectName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9-_]/g, '-'),
+      };
+
+      const response = await ApiService.cloneProject(
+        selectedTemplate.id,
+        newProjectName.trim(),
+        githubOptions
+      );
       if (response.success && response.data) {
         setDialogOpen(false);
         setSelectedTemplate(null);
         setNewProjectName('');
         setNewProjectDescription('');
+
+        // Show success message if GitHub repo was created
+        if (response.data.githubRepo) {
+          alert(
+            `Project created successfully! GitHub repository created at: ${response.data.githubRepo.html_url}`
+          );
+        }
+
         navigate(`/projects/${response.data.project.id}`);
       } else {
         // Handle API response error
@@ -484,7 +462,11 @@ const TemplatesPage: React.FC = () => {
                   <Button size="small" onClick={() => handleUseTemplate(template)}>
                     Use Template
                   </Button>
-                  <Button size="small" variant="outlined" onClick={() => handlePreviewTemplate(template)}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handlePreviewTemplate(template)}
+                  >
                     Preview
                   </Button>
                 </CardActions>
@@ -533,6 +515,9 @@ const TemplatesPage: React.FC = () => {
             values={filterValues}
             stats={stats}
             availableTags={getAvailableTags()}
+            loading={loading}
+            error={error}
+            onRetry={refresh}
           />
         </Drawer>
       </Box>
@@ -613,6 +598,9 @@ const TemplatesPage: React.FC = () => {
               stats={stats}
               availableTags={getAvailableTags()}
               permanent={true}
+              loading={loading}
+              error={error}
+              onRetry={refresh}
             />
           </Box>
         </Box>
@@ -718,7 +706,11 @@ const TemplatesPage: React.FC = () => {
                       <Button size="small" onClick={() => handleUseTemplate(template)}>
                         Use Template
                       </Button>
-                      <Button size="small" variant="outlined" onClick={() => handlePreviewTemplate(template)}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => handlePreviewTemplate(template)}
+                      >
                         Preview
                       </Button>
                     </CardActions>
@@ -765,15 +757,8 @@ const TemplatesPage: React.FC = () => {
       </Drawer>
 
       {/* Create Project from Template Dialog */}
-      <Dialog 
-        open={dialogOpen} 
-        onClose={handleDialogClose}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          Create New Project from Template
-        </DialogTitle>
+      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Project from Template</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1 }}>
             {selectedTemplate && (
@@ -786,7 +771,7 @@ const TemplatesPage: React.FC = () => {
                 </Typography>
               </Box>
             )}
-            
+
             <FormControl fullWidth sx={{ mb: 2 }}>
               <FormLabel>Project Name *</FormLabel>
               <TextField
@@ -809,9 +794,7 @@ const TemplatesPage: React.FC = () => {
                 rows={3}
                 size="small"
               />
-              <FormHelperText>
-                Optional: Customize the project description
-              </FormHelperText>
+              <FormHelperText>Optional: Customize the project description</FormHelperText>
             </FormControl>
           </Box>
         </DialogContent>
@@ -819,8 +802,8 @@ const TemplatesPage: React.FC = () => {
           <Button onClick={handleDialogClose} disabled={isCreating}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleCreateProject} 
+          <Button
+            onClick={handleCreateProject}
             variant="contained"
             disabled={!newProjectName.trim() || isCreating}
           >
@@ -830,15 +813,8 @@ const TemplatesPage: React.FC = () => {
       </Dialog>
 
       {/* Template Preview Dialog */}
-      <Dialog 
-        open={previewDialogOpen} 
-        onClose={handlePreviewClose}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Template Preview: {previewTemplate?.name}
-        </DialogTitle>
+      <Dialog open={previewDialogOpen} onClose={handlePreviewClose} maxWidth="md" fullWidth>
+        <DialogTitle>Template Preview: {previewTemplate?.name}</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1 }}>
             {previewTemplate && (
@@ -905,56 +881,62 @@ const TemplatesPage: React.FC = () => {
                       Template Metadata
                     </Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {previewTemplate.metadata.useCases && previewTemplate.metadata.useCases.length > 0 && (
-                        <Box>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Use Cases
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            {previewTemplate.metadata.useCases.map((useCase) => (
-                              <Chip key={useCase} label={useCase} size="small" />
-                            ))}
+                      {previewTemplate.metadata.useCases &&
+                        previewTemplate.metadata.useCases.length > 0 && (
+                          <Box>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Use Cases
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              {previewTemplate.metadata.useCases.map((useCase) => (
+                                <Chip key={useCase} label={useCase} size="small" />
+                              ))}
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
-                      
-                      {previewTemplate.metadata.capabilities && previewTemplate.metadata.capabilities.length > 0 && (
-                        <Box>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Capabilities
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            {previewTemplate.metadata.capabilities.map((capability) => (
-                              <Chip key={capability} label={capability} size="small" />
-                            ))}
+                        )}
+
+                      {previewTemplate.metadata.capabilities &&
+                        previewTemplate.metadata.capabilities.length > 0 && (
+                          <Box>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Capabilities
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              {previewTemplate.metadata.capabilities.map((capability) => (
+                                <Chip key={capability} label={capability} size="small" />
+                              ))}
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
-                      
-                      {previewTemplate.metadata.robots && previewTemplate.metadata.robots.length > 0 && (
-                        <Box>
-                          <Typography variant="subtitle2" color="text.secondary">
-                            Robot Targets
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            {previewTemplate.metadata.robots.map((robot) => (
-                              <Chip key={robot} label={robot} size="small" />
-                            ))}
+                        )}
+
+                      {previewTemplate.metadata.robots &&
+                        previewTemplate.metadata.robots.length > 0 && (
+                          <Box>
+                            <Typography variant="subtitle2" color="text.secondary">
+                              Robot Targets
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              {previewTemplate.metadata.robots.map((robot) => (
+                                <Chip key={robot} label={robot} size="small" />
+                              ))}
+                            </Box>
                           </Box>
-                        </Box>
-                      )}
-                      
+                        )}
+
                       {previewTemplate.metadata.difficulty && (
                         <Box>
                           <Typography variant="subtitle2" color="text.secondary">
                             Difficulty Level
                           </Typography>
-                          <Chip 
-                            label={previewTemplate.metadata.difficulty} 
+                          <Chip
+                            label={previewTemplate.metadata.difficulty}
                             size="small"
                             color={
-                              previewTemplate.metadata.difficulty === 'beginner' ? 'success' :
-                              previewTemplate.metadata.difficulty === 'intermediate' ? 'warning' : 'error'
+                              previewTemplate.metadata.difficulty === 'beginner'
+                                ? 'success'
+                                : previewTemplate.metadata.difficulty === 'intermediate'
+                                  ? 'warning'
+                                  : 'error'
                             }
                           />
                         </Box>
@@ -970,12 +952,16 @@ const TemplatesPage: React.FC = () => {
                       Configuration Preview
                     </Typography>
                     <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-                      <Typography variant="body2" component="pre" sx={{ 
-                        fontFamily: 'monospace', 
-                        fontSize: '0.875rem',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
-                      }}>
+                      <Typography
+                        variant="body2"
+                        component="pre"
+                        sx={{
+                          fontFamily: 'monospace',
+                          fontSize: '0.875rem',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                        }}
+                      >
                         {JSON.stringify(previewTemplate.config, null, 2)}
                       </Typography>
                     </Paper>
@@ -986,14 +972,8 @@ const TemplatesPage: React.FC = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handlePreviewClose}>
-            Close
-          </Button>
-          <Button 
-            onClick={handlePreviewUseTemplate} 
-            variant="contained"
-            startIcon={<AddIcon />}
-          >
+          <Button onClick={handlePreviewClose}>Close</Button>
+          <Button onClick={handlePreviewUseTemplate} variant="contained" startIcon={<AddIcon />}>
             Use This Template
           </Button>
         </DialogActions>
