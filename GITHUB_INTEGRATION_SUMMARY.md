@@ -172,7 +172,7 @@ curl -X POST http://localhost:8000/api/projects \
 
 ```bash
 # Set GitHub token
-export GITHUB_TOKEN=ghp_your_token_here
+export GITHUB_TOKEN=your_github_token_here
 
 # Run test
 npm run test:github

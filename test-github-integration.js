@@ -15,7 +15,7 @@ async function testGitHubIntegration() {
 
     if (!hasGitHubToken) {
       console.log('   ⚠️  Set GITHUB_TOKEN environment variable to test repository creation');
-      console.log('   Example: export GITHUB_TOKEN=ghp_your_token_here');
+      console.log('   Example: export GITHUB_TOKEN=your_github_token_here');
     }
 
     // Test 2: Check server health
